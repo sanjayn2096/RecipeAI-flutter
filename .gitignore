@@ -1,0 +1,46 @@
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+*.iml
+
+# Android
+*.apk
+*.aab
+*.dex
+*.class
+local.properties
+*.jks
+.gradle/
+android/.gradle/
+android/app/debug
+android/app/profile
+android/app/release
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/key.properties
+
+# iOS
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+*.ipa
+
+# Web
+lib/generated_plugin_registrant.dart
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Misc
+.DS_Store
+*.log
+.env
+.env.*
