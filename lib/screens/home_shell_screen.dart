@@ -270,7 +270,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                   });
                 },
                 icon: const Icon(Icons.auto_awesome),
-                label: const Text('Generate from text'),
+                label: const Text('Find Recipes'),
               ),
               const SizedBox(height: 24),
               Text(

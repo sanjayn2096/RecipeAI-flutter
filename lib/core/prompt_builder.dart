@@ -42,16 +42,16 @@ Respond with only raw JSON. Do not include markdown, code blocks, no "Here is th
     if (customPreference.isNotEmpty) {
       if (ing.isNotEmpty) {
       return "${ing}, You are my recipe book. I feel Like cooking this, $customPreference. Suggest some recipes for me accordingly. "
-          "Output the recipes in this format. $_recipeFormat$_rawJsonOnly";
+          "Output the recipes in this format. $_recipeFormat and $_rawJsonOnly";
       } else {
         return "You are my recipe book. I feel Like cooking this, $customPreference. Suggest some recipes for me accordingly. "
-          "Output the recipes in this format. $_recipeFormat$_rawJsonOnly";
+          "Output the recipes in this format. $_recipeFormat and $_rawJsonOnly";
       }
     }
     final mood = _session.getMood() ?? 'lucky';
     if (mood == 'I am feeling lucky! (Suggest any recipe)') {
       return "${ing}, You are my recipe book. I'm feeling Lucky today, please suggest me any recipe. "
-          "Output the recipes in this format. $_recipeFormat$_rawJsonOnly";
+          "Output the recipes in this format. $_recipeFormat and $_rawJsonOnly";
     }
     final diet = _session.getDietRestrictions() ?? 'No Diet Restrictions';
     final cuisine = _session.getCuisine() ?? 'No Cuisine Selected';
@@ -60,6 +60,6 @@ Respond with only raw JSON. Do not include markdown, code blocks, no "Here is th
         "I am feeling: $mood, I have the following diet restrictions: $diet, "
         "I prefer spending $cooking time on cooking and I feel like eating this cuisine: $cuisine. "
         "Output the recipes in this format. $_recipeFormat "
-        "What image you gave me was not correct give me a different one.$_rawJsonOnly";
+        "What image you gave me was not correct give me a different one. Also $_rawJsonOnly";
   }
 }

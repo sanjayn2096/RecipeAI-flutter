@@ -15,9 +15,9 @@ class AppStrings {
   static const String recipeDescription = 'Recipe Description';
   static const String description = 'Description';
   static const String sendingTastyRecipes = 'Sending some tasty recipes your way…';
-  static const String letsCookSomethingNice = "Let's cook something nice today";
+  static const String letsCookSomethingNice = "Let's help you cook Something Nice Today!";
   static const String whatDoYouFeelLikeEating = 'What do you feel like eating?';
-  static const String pantryStaples = 'Pantry staples — tap to add';
+  static const String pantryStaples = 'Pantry staples - Click to suggest recipes based on what you have.';
   static const String nothingSelected = 'Nothing Selected';
 
   // Mood
