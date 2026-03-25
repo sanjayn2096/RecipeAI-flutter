@@ -30,15 +30,23 @@ class PromptScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 16),
-            ...options.map((opt) => RadioListTile<String>(
-                  title: Text(opt),
-                  value: opt,
-                  groupValue: selectedOption,
-                  onChanged: (v) {
-                    if (v != null) onOptionSelected(v);
-                  },
-                )),
-            const Spacer(),
+            Expanded(
+              child: ListView(
+                children: options
+                    .map(
+                      (opt) => RadioListTile<String>(
+                        title: Text(opt),
+                        value: opt,
+                        groupValue: selectedOption,
+                        onChanged: (v) {
+                          if (v != null) onOptionSelected(v);
+                        },
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 16),
             FilledButton(
               onPressed: selectedOption != null ? onNext : null,
               child: const Text(AppStrings.next),

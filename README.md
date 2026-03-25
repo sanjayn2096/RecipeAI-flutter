@@ -21,12 +21,12 @@ Flutter version of RecipeAI — generates recipes based on user suggestions and 
    flutter pub get
    ```
 
-2. Firebase: add your `google-services.json` (Android) / `GoogleService-Info.plist` (iOS) for project **recipeai-89d8b** and run:
-   ```bash
-   flutterfire configure
-   ```
+2. Firebase (required for Android): The app needs `FirebaseOptions` from a config file.
+   - **Android:** Download `google-services.json` from [Firebase Console](https://console.firebase.google.com/) → project **recipeai-89d8b** → Project settings → Your apps → Android app (or add one with package name `com.example.recipe_ai`). Place the file in **`android/app/google-services.json`**.
+   - **iOS:** Add `GoogleService-Info.plist` to the iOS project if you build for iOS.
+   - The Google Services Gradle plugin is already applied in this project; the file path above must be correct or you'll see "Failed to load FirebaseOptions from resource".
 
-3. Gemini API key: set in **Firebase Remote Config** with key `gemini_api_key`. The app fetches it at startup (no hardcoded key).
+3. **Recipe generation** is done by your backend (`POST generate-recipe`). The app does not call Gemini from the client.
 
 ## Run
 
@@ -41,7 +41,7 @@ flutter run
 - **Firebase sign out**: Sign out now calls `FirebaseAuth.signOut()` in addition to backend and session clear.
 - **Prompt**: Prompt text is built in `PromptBuilder` (testable), not inside the ViewModel.
 - **Session**: Single `SessionManager` instance created in `main.dart` and passed where needed.
-- **Recipe image**: Model supports both `imageUrl` (API/Gemini) and `image` for compatibility.
+- **Recipe image**: Model supports both `imageUrl` and `image` for API compatibility.
 
 ## Environment / base URL
 

@@ -35,4 +35,16 @@ class NutritionalValue {
         'vitamins': vitamins,
         'numberOfServings': numberOfServings,
       };
+
+  /// Payload for save-favorites / Firestore: include snake_case aliases so Node backends
+  /// do not read missing keys as `undefined` (Firestore rejects undefined).
+  Map<String, dynamic> toJsonForSaveFavorite() => {
+        'calories': calories,
+        'protein': protein,
+        'carbs': carbs,
+        'fat': fat,
+        'vitamins': vitamins,
+        'numberOfServings': numberOfServings,
+        'number_of_servings': numberOfServings,
+      };
 }

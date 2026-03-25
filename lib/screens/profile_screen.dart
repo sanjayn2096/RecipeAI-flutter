@@ -20,7 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    widget.homeViewModel.loadUserDetails();
+    widget.homeViewModel.loadProfileScreen();
   }
 
   @override
@@ -36,19 +36,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: ListenableBuilder(
         listenable: widget.homeViewModel,
         builder: (_, __) {
-          final userData = widget.homeViewModel.userData;
-          return Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: userData == null
-                ? const Center(child: Text('No user data'))
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Email: ${userData.email}'),
-                      const SizedBox(height: 8),
-                      Text('Name: ${userData.firstName} ${userData.lastName ?? ''}'),
-                    ],
-                  ),
+          final p = widget.homeViewModel.sessionProfile;
+          if (!p.hasDisplayFields) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'No profile details yet. They appear after you sign in.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Text('Email', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 4),
+              SelectableText(
+                p.email.isNotEmpty ? p.email : '—',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 20),
+              Text('First Name', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 4),
+              Text(
+                p.firstName.isNotEmpty ? p.firstName : '—',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 20),
+              Text('Last Name', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 4),
+              Text(
+                p.lastName.isNotEmpty ? p.lastName : '—',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ],
           );
         },
       ),

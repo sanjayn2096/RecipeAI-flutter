@@ -5,12 +5,14 @@ class UserData {
   const UserData({
     required this.email,
     required this.firstName,
+    this.userId,
     this.lastName,
     this.favoriteRecipes,
     this.createdRecipes = const [],
   });
 
   final String email;
+  final String? userId;
   final String firstName;
   final String? lastName;
   final List<Recipe>? favoriteRecipes;
@@ -20,6 +22,7 @@ class UserData {
     final fav = json['favorite_recipes'];
     final created = json['created_recipes'];
     return UserData(
+      userId: json['userId'] as String?,
       email: json['email'] as String? ?? '',
       firstName: json['firstName'] as String? ?? '',
       lastName: json['lastName'] as String?,
@@ -33,6 +36,7 @@ class UserData {
   }
 
   Map<String, dynamic> toJson() => {
+        'userId': userId,
         'email': email,
         'firstName': firstName,
         'lastName': lastName,

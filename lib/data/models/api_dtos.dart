@@ -42,9 +42,16 @@ class SaveFavoriteRecipesRequest {
   final Recipe recipes;
   final String userId;
   Map<String, dynamic> toJson() => {
-        'recipes': recipes.toJson(),
+        'recipes': recipes.toJsonForSaveFavorite(),
         'userId': userId,
       };
+}
+
+/// Body for POST generate-recipe (prompt = "What do you feel like eating?").
+class GenerateRecipeRequest {
+  GenerateRecipeRequest({required this.prompt});
+  final String prompt;
+  Map<String, dynamic> toJson() => {'prompt': prompt};
 }
 
 // --- Response DTOs ---
@@ -92,4 +99,49 @@ class SaveFavoriteRecipesResponse {
   final String? message;
   factory SaveFavoriteRecipesResponse.fromJson(Map<String, dynamic> json) =>
       SaveFavoriteRecipesResponse(message: json['message'] as String?);
+}
+
+/// Response from POST generate-recipe. Backend may return { "recipes": [...] } or array.
+class GenerateRecipeResponse {
+  GenerateRecipeResponse({required this.recipes});
+  final List<Recipe> recipes;
+  factory GenerateRecipeResponse.fromJson(dynamic json) {
+    if (json is List) {
+      return GenerateRecipeResponse(
+        recipes: (json as List)
+            .map((e) => Recipe.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+    }
+    final map = json as Map<String, dynamic>;
+    final list = map['recipes'] as List<dynamic>? ?? map['recipe'] as List<dynamic>? ?? [];
+    return GenerateRecipeResponse(
+      recipes: list.map((e) => Recipe.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+  }
+}
+
+/// Response from GET get_user_profile (used after Firebase sign-in).
+class UserProfileResponse {
+  UserProfileResponse({required this.userId, this.email, this.firstName, this.lastName});
+  final String userId;
+  final String? email;
+  final String? firstName;
+  final String? lastName;
+  factory UserProfileResponse.fromJson(Map<String, dynamic> json) {
+    final uid = json['userId'] ?? json['user_id'];
+    String? pickStr(String a, String b) {
+      final v = json[a] ?? json[b];
+      if (v == null) return null;
+      if (v is String) return v;
+      return v.toString();
+    }
+
+    return UserProfileResponse(
+      userId: uid is String ? uid : uid?.toString() ?? '',
+      email: json['email'] as String?,
+      firstName: pickStr('firstName', 'first_name'),
+      lastName: pickStr('lastName', 'last_name'),
+    );
+  }
 }

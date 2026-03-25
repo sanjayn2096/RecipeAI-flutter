@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -16,6 +17,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    if (kDebugMode) debugPrint('[SplashScreen] initState: adding listener, calling checkSession()');
     widget.loginViewModel.addListener(_onUpdate);
     widget.loginViewModel.checkSession();
   }
@@ -30,6 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
     if (widget.loginViewModel.isLoading) return;
     widget.loginViewModel.removeListener(_onUpdate);
+    if (kDebugMode) debugPrint('[SplashScreen] _onUpdate: isLoggedIn=${widget.loginViewModel.isLoggedIn}, navigating');
     if (widget.loginViewModel.isLoggedIn) {
       context.go('/home');
     } else {

@@ -26,14 +26,25 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
     _isFavorite = widget.recipe.isFavorite;
   }
 
-  void _toggleFavorite() {
-    widget.recipeViewModel?.saveFavorite(
-      widget.recipe.copyWith(isFavorite: true),
+  Future<void> _toggleFavorite() async {
+    final vm = widget.recipeViewModel;
+    if (vm == null) return;
+    final ok = await vm.toggleFavorite(
+      widget.recipe.copyWith(isFavorite: _isFavorite),
     );
-    setState(() => _isFavorite = true);
-    if (mounted) {
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _isFavorite = !_isFavorite);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Added to favorites')),
+        SnackBar(
+          content: Text(
+            _isFavorite ? 'Added to favorites' : 'Removed from favorites',
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update favorites')),
       );
     }
   }
@@ -50,11 +61,14 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
         actions: [
           if (widget.recipeViewModel != null)
             IconButton(
+              tooltip: _isFavorite ? 'Remove from favorites' : 'Add to favorites',
               icon: Icon(
                 _isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: _isFavorite ? Colors.red : null,
+                color: _isFavorite
+                    ? Colors.red
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-              onPressed: _isFavorite ? null : _toggleFavorite,
+              onPressed: _toggleFavorite,
             ),
         ],
       ),

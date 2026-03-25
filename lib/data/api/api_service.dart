@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/api_dtos.dart';
@@ -17,88 +18,180 @@ class ApiService {
   String _url(String path) =>
       '$_baseUrl${path.startsWith('/') ? path : '/$path'}';
 
-  Future<LoginResponse> login(LoginRequest request) async {
-    final r = await http.post(
-      Uri.parse(_url('login')),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(request.toJson()),
-    );
-    final map = _decodeBody(r.body);
+  /// GET get_user_profile. Pass [idToken] (Firebase ID token) if your backend
+  /// expects Authorization: Bearer <token>.
+  Future<UserProfileResponse> getUserProfile({String? idToken}) async {
+    final url = _url('get_user_profile');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await http.get(Uri.parse(url), headers: headers);
+    final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
-      return LoginResponse.fromJson(map);
+      return UserProfileResponse.fromJson(map as Map<String, dynamic>);
     }
     throw ApiException(r.statusCode, _extractError(map));
   }
 
   Future<SessionCheckResponse> checkSession(SessionCheckRequest request) async {
+    final url = _url('check-session');
     final r = await http.post(
-      Uri.parse(_url('check-session')),
+      Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(request.toJson()),
     );
-    final map = _decodeBody(r.body);
+    final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
-      return SessionCheckResponse.fromJson(map);
+      return SessionCheckResponse.fromJson(map as Map<String, dynamic>);
     }
     throw ApiException(r.statusCode, _extractError(map));
   }
 
   Future<SignupResponse> signup(SignupRequest request) async {
+    final url = _url('signup');
     final r = await http.post(
-      Uri.parse(_url('signup')),
+      Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(request.toJson()),
     );
-    final map = _decodeBody(r.body);
+    final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
-      return SignupResponse.fromJson(map);
+      return SignupResponse.fromJson(map as Map<String, dynamic>);
     }
     throw ApiException(r.statusCode, _extractError(map));
   }
 
   Future<SignoutResponse> signout(SignoutRequest request) async {
+    final url = _url('signout');
     final r = await http.post(
-      Uri.parse(_url('signout')),
+      Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(request.toJson()),
     );
-    final map = _decodeBody(r.body);
+    final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
-      return SignoutResponse.fromJson(map);
+      return SignoutResponse.fromJson(map as Map<String, dynamic>);
     }
     throw ApiException(r.statusCode, _extractError(map));
   }
 
   Future<UserData> fetchUserDetails(String? email) async {
-    final uri = Uri.parse(_url('fetch-user-details')).replace(
+    final url = _url('fetch-user-details');
+    final uri = Uri.parse(url).replace(
       queryParameters: email != null ? {'email': email} : null,
     );
     final r = await http.get(uri);
-    final map = _decodeBody(r.body);
+    final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
       return UserData.fromJson(map as Map<String, dynamic>);
     }
     throw ApiException(r.statusCode, _extractError(map));
   }
 
+  /// POST save-favorites. Pass [idToken] (Firebase ID token) for auth, same as generate-recipe.
   Future<SaveFavoriteRecipesResponse> saveFavoriteRecipes(
-    SaveFavoriteRecipesRequest request,
-  ) async {
+    SaveFavoriteRecipesRequest request, {
+    String? idToken,
+  }) async {
+    final url = _url('save-favorites');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
     final r = await http.post(
-      Uri.parse(_url('save-favorites')),
-      headers: {'Content-Type': 'application/json'},
+      Uri.parse(url),
+      headers: headers,
       body: jsonEncode(request.toJson()),
     );
-    final map = _decodeBody(r.body);
+    final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
-      return SaveFavoriteRecipesResponse.fromJson(map);
+      return SaveFavoriteRecipesResponse.fromJson(map as Map<String, dynamic>);
     }
     throw ApiException(r.statusCode, _extractError(map));
   }
 
-  static dynamic _decodeBody(String body) {
+  /// POST generate-recipe with user prompt. Pass [idToken] (Firebase ID token) for auth.
+  Future<GenerateRecipeResponse> generateRecipe(GenerateRecipeRequest request, {String? idToken}) async {
+    final url = _url('generate-recipe');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await http.post(
+      Uri.parse(url),
+      headers: headers,
+      body: jsonEncode(request.toJson()),
+    );
+    if (kDebugMode) {
+      debugPrint('[ApiService] generate-recipe response: statusCode=${r.statusCode}');
+      debugPrint('[ApiService] generate-recipe raw body:\n${r.body}');
+    }
+    final body = _decodeBody(r.body, url);
+    if (kDebugMode) {
+      debugPrint('[ApiService] generate-recipe decoded: $body');
+    }
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return GenerateRecipeResponse.fromJson(body);
+    }
+    throw ApiException(r.statusCode, _extractError(body));
+  }
+
+  /// GET fetch-favorites (auth: Firebase ID token).
+  Future<List<Recipe>> fetchFavorites({String? idToken}) async {
+    final url = _url('fetch-favorites');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await http.get(Uri.parse(url), headers: headers);
+    final body = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return _parseRecipeList(body);
+    }
+    throw ApiException(r.statusCode, _extractError(body));
+  }
+
+  static List<Recipe> _parseRecipeList(dynamic json) {
+    if (json is List) {
+      return json
+          .map((e) => Recipe.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    final map = json as Map<String, dynamic>;
+    final list = map['favorite_recipes'] ??
+        map['favorites'] ??
+        map['recipes'] ??
+        map['data'];
+    if (list is! List) return [];
+    return list
+        .map((e) => Recipe.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Decodes response body as JSON. Throws a clear error if server returned HTML
+  /// (e.g. 404/502 page) so the app doesn't show raw FormatException.
+  static dynamic _decodeBody(String body, String requestUrl) {
     if (body.isEmpty) return <String, dynamic>{};
-    return jsonDecode(body);
+    final trimmed = body.trimLeft();
+    if (trimmed.startsWith('<') ||
+        trimmed.toLowerCase().startsWith('<!doctype')) {
+      throw ApiException(
+        0,
+        'Server returned an HTML page instead of JSON. '
+        'Check that the API base URL is correct and the backend is running. '
+        'Requested: $requestUrl',
+      );
+    }
+    try {
+      return jsonDecode(body);
+    } catch (e) {
+      throw ApiException(
+        0,
+        'Invalid JSON from server: ${e.toString().split('\n').first}. '
+        'URL: $requestUrl',
+      );
+    }
   }
 
   static String _extractError(dynamic map) {

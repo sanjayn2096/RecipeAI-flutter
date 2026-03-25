@@ -68,4 +68,10 @@ class LoginViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
   }
+
+  /// Call when user signs out so the login screen shows the form instead of redirecting to home.
+  void setLoggedOut() {
+    _isLoggedIn = false;
+    notifyListeners();
+  }
 }

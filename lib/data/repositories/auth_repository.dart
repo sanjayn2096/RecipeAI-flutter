@@ -19,74 +19,95 @@ class AuthRepository {
   final SessionManager _session;
   final FirebaseAuth _firebaseAuth;
 
-  /// Returns true if existing session is valid.
-  Future<bool> checkSession() async {
-    final sessionId = _session.getSession();
-    if (sessionId == null) return false;
-    try {
-      final res = await _api.checkSession(SessionCheckRequest(sessionId: sessionId));
-      if (res.message != null) return true;
-    } catch (_) {
-      await _session.clearSession();
+  /// GET get_user_profile: at most once per signed-in Firebase user while the app is running
+  /// (no duplicate calls from Profile or other screens; a new app launch will call again on [checkSession]/login).
+  String? _profileFetchedForFirebaseUid;
+
+  Future<void> _fetchAndPersistUserProfileOnce(User firebaseUser) async {
+    if (_profileFetchedForFirebaseUid == firebaseUser.uid) {
+      return;
     }
-    return false;
+    final token = await firebaseUser.getIdToken();
+    final profile = await _api.getUserProfile(idToken: token);
+    await _persistProfileFromResponse(firebaseUser, profile);
+    _profileFetchedForFirebaseUid = firebaseUser.uid;
   }
 
-  /// Sign in with Firebase, then register session with backend.
+  Future<void> _persistProfileFromResponse(User firebaseUser, UserProfileResponse profile) async {
+    final emailFromFirebase = firebaseUser.email ?? '';
+    final email = (profile.email != null && profile.email!.trim().isNotEmpty)
+        ? profile.email!.trim()
+        : emailFromFirebase;
+    await _session.persistUserProfile(
+      userId: profile.userId,
+      email: email,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+    );
+  }
+
+  /// Returns true if user is already signed in (Firebase + backend profile).
+  /// Uses Firebase Auth persistence; no backend check-session.
+  Future<bool> checkSession() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return false;
+    try {
+      await _fetchAndPersistUserProfileOnce(user);
+      return true;
+    } catch (_) {
+      await _firebaseAuth.signOut();
+      await _session.clearSession();
+      return false;
+    }
+  }
+
+  /// Sign in with Firebase, then fetch user profile from backend (GET get_user_profile).
+  /// No /login API; backend identifies user via Firebase ID token if sent.
   Future<void> login(String email, String password) async {
     final cred = await _firebaseAuth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
     if (cred.user == null) throw Exception('Login failed');
-    final sessionId = _generateSessionId();
-    await _session.saveSession(sessionId);
-    final res = await _api.login(LoginRequest(email: email, tokenId: sessionId));
-    if (res.userId != null) {
-      await _session.saveEmail(email);
-      await _session.saveUserId(res.userId!);
-    }
+    await _fetchAndPersistUserProfileOnce(cred.user!);
   }
 
   /// Sign up via backend (backend creates Firebase user). After success, sign in
-  /// with Firebase so the user is logged in on this device.
+  /// with Firebase and fetch profile (same as login).
   Future<void> signup({
     required String email,
     required String password,
     required String firstName,
     required String lastName,
   }) async {
-    final res = await _api.signup(SignupRequest(
-      email: email,
-      password: password,
-      firstName: firstName,
-      lastName: lastName,
-    ));
-    if (res.userId == null) throw Exception(res.message ?? 'Signup failed');
-    await _firebaseAuth.signInWithEmailAndPassword(
+    final signupResult = await _firebaseAuth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
+    if (signupResult.user == null) throw Exception('Signup failed');
+
     final sessionId = _generateSessionId();
     await _session.saveSession(sessionId);
-    await _session.saveEmail(email);
-    await _session.saveUserId(res.userId!);
+
+    final resolvedEmail = signupResult.user!.email ?? email;
+    await _session.saveEmail(resolvedEmail);
+    await _session.saveUserId(signupResult.user!.uid);
+    try {
+      final idToken = await signupResult.user?.getIdToken();
+      final profile = await _api.getUserProfile(idToken: idToken);
+      await _session.saveEmail(profile.email!);
+      await _session.saveUserId(profile.userId);
+        } catch (_) {}
   }
 
-  /// Sign out: backend signout + clear session + Firebase signOut (arch fix).
+  /// Sign out: Firebase Auth signOut on device + clear local session. No backend call.
   Future<void> signOut() async {
-    final email = _session.getEmail();
-    if (email != null && email.isNotEmpty) {
-      try {
-        await _api.signout(SignoutRequest(email: email));
-      } catch (_) {}
-    }
+    _profileFetchedForFirebaseUid = null;
     await _firebaseAuth.signOut();
     await _session.clearSession();
   }
 
   static String _generateSessionId() {
-    // Simple UUID-like id for session
     return '${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}';
   }
 }

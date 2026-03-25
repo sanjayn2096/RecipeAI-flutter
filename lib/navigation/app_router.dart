@@ -2,7 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../screens/splash_screen.dart';
 import '../screens/login_handler_screen.dart';
-import '../screens/home_screen.dart';
+import '../screens/home_shell_screen.dart';
 import '../screens/recipe_flow_screen.dart';
 import '../screens/show_recipe_screen.dart';
 import '../screens/profile_screen.dart';
@@ -36,8 +36,9 @@ class AppRouter {
       ),
       GoRoute(
         path: '/home',
-        builder: (_, __) => HomeScreen(
+        builder: (_, __) => HomeShellScreen(
           homeViewModel: homeViewModel,
+          loginViewModel: loginViewModel,
           recipeViewModel: recipeViewModel,
           sessionManager: sessionManager,
         ),
@@ -45,9 +46,18 @@ class AppRouter {
       GoRoute(
         path: '/recipe-flow',
         builder: (_, state) {
-          final userData = state.extra as UserData?;
+          final extra = state.extra;
+          UserData? userData;
+          String? initialPrompt;
+          if (extra is Map<String, dynamic>) {
+            userData = extra['userData'] as UserData?;
+            initialPrompt = extra['initialPrompt'] as String?;
+          } else {
+            userData = extra as UserData?;
+          }
           return RecipeFlowScreen(
             userData: userData,
+            initialPrompt: initialPrompt,
             recipeViewModel: recipeViewModel,
             sessionManager: sessionManager,
           );

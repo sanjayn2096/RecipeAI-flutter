@@ -1,6 +1,9 @@
 import 'nutritional_value.dart';
 
-/// Recipe model. API may return `imageUrl`; we map it to [image].
+/// Recipe model.
+///
+/// [recipeId] — unique string per recipe (from model / prompt; API may use `recipeId` or `recipe_id`).
+/// [image] — populated from API `imageUrl` or `image`.
 class Recipe {
   const Recipe({
     required this.recipeId,
@@ -25,8 +28,9 @@ class Recipe {
   final bool isFavorite;
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
+    final id = json['recipeId'] ?? json['recipe_id'];
     return Recipe(
-      recipeId: json['recipeId'] as String? ?? '',
+      recipeId: id is String ? id : (id?.toString() ?? ''),
       recipeName: json['recipeName'] as String? ?? '',
       image: (json['imageUrl'] ?? json['image']) as String? ?? '',
       ingredients: json['ingredients'] as String? ?? '',
@@ -51,6 +55,24 @@ class Recipe {
         'nutritionalValue': nutritionalValue.toJson(),
         'isFavorite': isFavorite,
       };
+
+  /// POST save-favorites: backends/Firestore often expect `imageUrl`; only sending `image`
+  /// leaves `imageUrl` as JavaScript `undefined` and Firestore throws.
+  Map<String, dynamic> toJsonForSaveFavorite() {
+    final safeImage = image.trim();
+    return {
+      'recipeId': recipeId,
+      'recipeName': recipeName,
+      'image': safeImage,
+      'imageUrl': safeImage,
+      'ingredients': ingredients,
+      'instructions': instructions,
+      'cookingTime': cookingTime,
+      'cuisine': cuisine,
+      'nutritionalValue': nutritionalValue.toJsonForSaveFavorite(),
+      'isFavorite': isFavorite,
+    };
+  }
 
   Recipe copyWith({bool? isFavorite}) => Recipe(
         recipeId: recipeId,

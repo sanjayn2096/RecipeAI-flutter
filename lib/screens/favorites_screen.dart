@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-import '../data/models/recipe.dart';
 import '../view_models/home_view_model.dart';
+import '../widgets/favorite_recipes_list_view.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({
@@ -24,7 +23,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   void initState() {
     super.initState();
-    widget.homeViewModel.loadUserDetails();
+    widget.homeViewModel.loadFavoritesFromApi();
   }
 
   @override
@@ -32,7 +31,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return ListenableBuilder(
       listenable: widget.homeViewModel,
       builder: (_, __) {
-        final favorites = widget.homeViewModel.userData?.favoriteRecipes ?? [];
         return Scaffold(
           appBar: AppBar(
             title: const Text("User's Favorites"),
@@ -41,27 +39,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               onPressed: widget.onBack,
             ),
           ),
-          body: favorites.isEmpty
-              ? const Center(child: Text('No favorites yet'))
-              : ListView.builder(
-                  itemCount: favorites.length,
-                  itemBuilder: (_, i) {
-                    final recipe = favorites[i];
-                    return ListTile(
-                      title: Text(recipe.recipeName),
-                      subtitle: Text(recipe.cuisine),
-                      onTap: () {
-                        context.push(
-                          '/show-recipe',
-                          extra: {
-                            'recipe': recipe,
-                            'recipeViewModel': widget.recipeViewModel,
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
+          body: FavoriteRecipesListView(
+            homeViewModel: widget.homeViewModel,
+            recipeViewModel: widget.recipeViewModel,
+          ),
         );
       },
     );

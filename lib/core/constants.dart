@@ -8,9 +8,13 @@ class AppConstants {
   static const String prefsSessionId = 'SESSION_ID';
   static const String prefsUserId = 'USER_ID';
   static const String prefsEmail = 'email';
+  static const String prefsFirstName = 'firstName';
+  static const String prefsLastName = 'lastName';
   static const String prefsMood = 'mood';
   static const String prefsCuisine = 'cuisinePreferences';
   static const String prefsCookingPreference = 'cookingPreferences';
   static const String prefsDietRestrictions = 'dietRestrictions';
   static const String prefsCustomPreference = 'customPreference';
+  /// Pantry / chosen ingredient labels (persisted as string list).
+  static const String prefsIngredients = 'ingredients';
 }

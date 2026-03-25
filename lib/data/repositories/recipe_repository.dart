@@ -1,45 +1,42 @@
-import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
-import 'package:google_generative_ai/google_generative_ai.dart';
-
+import '../api/api_service.dart';
+import '../models/api_dtos.dart';
 import '../models/recipe.dart';
 import '../../services/session_manager.dart';
 import '../../core/prompt_builder.dart';
 
-/// Fetches recipes via Gemini. Prompt built from session preferences (single place).
+/// Fetches recipes via backend `generate-recipe` only (no client-side LLM).
 class RecipeRepository {
   RecipeRepository({
-    required String apiKey,
     required SessionManager sessionManager,
+    ApiService? apiService,
+    FirebaseAuth? firebaseAuth,
     PromptBuilder? promptBuilder,
-  })  : _apiKey = apiKey,
-        _session = sessionManager,
+  })  : _api = apiService,
+        _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
         _promptBuilder = promptBuilder ?? PromptBuilder(sessionManager: sessionManager);
 
-  final String _apiKey;
-  final SessionManager _session;
+  final ApiService? _api;
+  final FirebaseAuth _firebaseAuth;
   final PromptBuilder _promptBuilder;
 
-  Future<List<Recipe>> fetchRecipes() async {
-    final prompt = _promptBuilder.build();
-    final model = GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: _apiKey,
-      generationConfig: GenerationConfig(
-        responseMimeType: 'application/json',
-      ),
-    );
-    final content = [Content.text(prompt)];
-    final response = await model.generateContent(content);
-    final text = response.text;
-    if (text == null || text.isEmpty) return [];
-    try {
-      final list = jsonDecode(text) as List<dynamic>;
-      return list
-          .map((e) => Recipe.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } catch (_) {
+  /// POST generate-recipe. [PromptBuilder] uses session (customPreference or mood/diet/cuisine/cooking).
+  Future<List<Recipe>> fetchRecipesFromBackend() async {
+    if (_api == null) {
+      if (kDebugMode) debugPrint('[RecipeRepository] fetchRecipesFromBackend: no ApiService, returning empty');
       return [];
     }
+    final prompt = _promptBuilder.build();
+    if (kDebugMode) {
+      debugPrint('[RecipeRepository] fetchRecipesFromBackend() -> POST generate-recipe');
+    }
+    final idToken = await _firebaseAuth.currentUser?.getIdToken();
+    final res = await _api!.generateRecipe(GenerateRecipeRequest(prompt: prompt), idToken: idToken);
+    return res.recipes;
   }
+
+  /// Same as [fetchRecipesFromBackend] — all recipe lists come from the backend.
+  Future<List<Recipe>> fetchRecipes() => fetchRecipesFromBackend();
 }
