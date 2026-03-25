@@ -141,4 +141,18 @@ class AppStrings {
         return null;
     }
   }
+
+  /// Step before [route] in Create Recipes flow (mood has no previous).
+  static String? previousRoute(String route) {
+    switch (route) {
+      case 'dietRestrictions':
+        return 'mood';
+      case 'cuisinePreferences':
+        return 'dietRestrictions';
+      case 'cookingPreferences':
+        return 'cuisinePreferences';
+      default:
+        return null;
+    }
+  }
 }

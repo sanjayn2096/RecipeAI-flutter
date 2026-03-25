@@ -125,6 +125,13 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
     setState(() => _currentRoute = nextRoute ?? _currentRoute);
   }
 
+  void _goToPreviousQuestionnaireStep() {
+    final prev = AppStrings.previousRoute(_currentRoute);
+    if (prev != null) {
+      setState(() => _currentRoute = prev);
+    }
+  }
+
   /// Home "Generate from text" must not override the Create Recipes questionnaire.
   void _clearCustomPreferenceForEmbeddedCreateFlow() {
     if (widget.embedInTab) {
@@ -260,6 +267,9 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
       selectedOption: _selectedForRoute,
       onOptionSelected: _selectOption,
       onNext: _next,
+      onBack: AppStrings.previousRoute(_currentRoute) != null
+          ? _goToPreviousQuestionnaireStep
+          : null,
     );
   }
 }

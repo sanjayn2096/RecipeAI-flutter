@@ -10,6 +10,7 @@ class PromptScreen extends StatelessWidget {
     required this.selectedOption,
     required this.onOptionSelected,
     required this.onNext,
+    this.onBack,
   });
 
   final String route;
@@ -17,13 +18,24 @@ class PromptScreen extends StatelessWidget {
   final String? selectedOption;
   final ValueChanged<String> onOptionSelected;
   final VoidCallback onNext;
+  /// When set, shows an AppBar back control to return to the previous questionnaire step.
+  final VoidCallback? onBack;
 
   String get _title => AppStrings.titleForRoute(route);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_title)),
+      appBar: AppBar(
+        title: Text(_title),
+        leading: onBack != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: onBack,
+              )
+            : null,
+        automaticallyImplyLeading: false,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
