@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../view_models/home_view_model.dart';
+import 'guest_signup_prompt.dart';
 
 /// Favorites list with swipe-left to remove (save-favorites with isFavorite: false).
 class FavoriteRecipesListView extends StatelessWidget {
@@ -9,16 +10,50 @@ class FavoriteRecipesListView extends StatelessWidget {
     super.key,
     required this.homeViewModel,
     required this.recipeViewModel,
+    this.isGuest = false,
+    this.onGuestSignUpTap,
   });
 
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
+  final bool isGuest;
+  final VoidCallback? onGuestSignUpTap;
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: homeViewModel,
       builder: (_, __) {
+        if (isGuest) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'No Favorites Yet',
+                    style: Theme.of(context).textTheme.titleLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Sign up to create and access your favorite recipes.',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: onGuestSignUpTap ?? () => goToSignup(context),
+                    child: const Text('Sign up'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
         if (homeViewModel.favoritesLoading) {
           return const Center(
             child: Column(

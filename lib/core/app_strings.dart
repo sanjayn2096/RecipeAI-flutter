@@ -4,6 +4,7 @@ class AppStrings {
 
   static const String appName = 'RecipeAI';
   static const String next = 'Next';
+  static const String ok = 'OK';
   static const String back = 'Back';
   static const String refresh = 'Refresh';
   static const String fetchRecipes = 'Fetch Recipes';
@@ -15,9 +16,14 @@ class AppStrings {
   static const String recipeDescription = 'Recipe Description';
   static const String description = 'Description';
   static const String sendingTastyRecipes = 'Sending some tasty recipes your way…';
-  static const String letsCookSomethingNice = "Let's help you cook Something Nice Today!";
+  static const String letsCookSomethingNice = "Let's cook something nice today";
   static const String whatDoYouFeelLikeEating = 'What do you feel like eating?';
-  static const String pantryStaples = 'Pantry staples - Click to suggest recipes based on what you have.';
+  static const String pantryStaples = 'Pantry staples — tap to add';
+  static const String pantryStaplesDialogTitle = 'Pantry staples';
+  /// Shown in the info dialog next to the pantry staples heading.
+  static const String pantryStaplesInfo =
+      'Click on any of the following items found in your pantry and I will suggest recipes accordingly.';
+  static const String pantryStaplesInfoIconTooltip = 'About pantry staples';
   static const String nothingSelected = 'Nothing Selected';
 
   // Mood

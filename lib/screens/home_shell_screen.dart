@@ -3,9 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../core/app_strings.dart';
 import '../core/pantry_items.dart';
-import '../data/models/user_data.dart';
 import '../view_models/home_view_model.dart';
 import '../widgets/favorite_recipes_list_view.dart';
+import '../widgets/guest_signup_prompt.dart';
 import 'recipe_flow_screen.dart';
 
 /// Main shell after login: bottom nav — Home, Create Recipes, Favorites.
@@ -58,7 +58,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       // Create Recipes uses mood/diet/cuisine only — ignore Home "Generate from text" session value.
       widget.sessionManager.savePreferenceSync('customPreference', '');
     }
-    if (index == 2) {
+    if (index == 2 && !widget.sessionManager.isGuestMode()) {
       widget.homeViewModel.loadFavoritesFromApi();
     }
   }
@@ -69,18 +69,21 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       listenable: widget.homeViewModel,
       builder: (_, __) {
         final userData = widget.homeViewModel.userData;
+        final isGuest = widget.sessionManager.isGuestMode();
         return Scaffold(
           appBar: _currentIndex == 1
               ? null
               : AppBar(
                   title: Text(_appBarTitle),
                   actions: [
-                    IconButton(
-                      icon: const Icon(Icons.person),
-                      onPressed: () => context.push('/profile'),
-                    ),
+                    if (!isGuest)
+                      IconButton(
+                        icon: const Icon(Icons.person),
+                        onPressed: () => context.push('/profile'),
+                      ),
                     IconButton(
                       icon: const Icon(Icons.logout),
+                      tooltip: isGuest ? 'Exit guest mode' : 'Log out',
                       onPressed: () => widget.homeViewModel.signOut(),
                     ),
                   ],
@@ -92,7 +95,6 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                 homeViewModel: widget.homeViewModel,
                 recipeViewModel: widget.recipeViewModel,
                 sessionManager: widget.sessionManager,
-                userData: userData,
               ),
               RecipeFlowScreen(
                 userData: userData,
@@ -103,6 +105,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
               _FavoritesTabBody(
                 homeViewModel: widget.homeViewModel,
                 recipeViewModel: widget.recipeViewModel,
+                isGuest: isGuest,
               ),
             ],
           ),
@@ -149,13 +152,11 @@ class _HomeTabBody extends StatefulWidget {
     required this.homeViewModel,
     required this.recipeViewModel,
     required this.sessionManager,
-    required this.userData,
   });
 
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
   final dynamic sessionManager;
-  final UserData? userData;
 
   @override
   State<_HomeTabBody> createState() => _HomeTabBodyState();
@@ -164,12 +165,9 @@ class _HomeTabBody extends StatefulWidget {
 class _HomeTabBodyState extends State<_HomeTabBody> {
   late final TextEditingController _customPreferenceController;
 
-  /// Prefer fetch-user-details name, then stored get_user_profile first name.
   String? _greetingName() {
-    final fromUser = widget.userData?.firstName.trim();
-    if (fromUser != null && fromUser.isNotEmpty) return fromUser;
-    final fromProfile = widget.homeViewModel.sessionProfile.firstName.trim();
-    if (fromProfile.isNotEmpty) return fromProfile;
+    final name = widget.homeViewModel.sessionProfile.firstName.trim();
+    if (name.isNotEmpty) return name;
     return null;
   }
 
@@ -189,6 +187,22 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     }
     widget.sessionManager.saveIngredientsSync(list);
     setState(() {});
+  }
+
+  void _showPantryStaplesInfoDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(AppStrings.pantryStaplesDialogTitle),
+        content: const Text(AppStrings.pantryStaplesInfo),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text(AppStrings.ok),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -265,20 +279,51 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                     return;
                   }
                   context.push('/recipe-flow', extra: {
-                    'userData': widget.userData,
+                    'userData': widget.homeViewModel.userData,
                     if (freeText.isNotEmpty) 'initialPrompt': freeText,
                   });
                 },
                 icon: const Icon(Icons.auto_awesome),
-                label: const Text('Find Recipes'),
+                label: const Text('Generate from text'),
               ),
               const SizedBox(height: 24),
-              Text(
-                AppStrings.pantryStaples,
+              Text.rich(
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                TextSpan(
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                  children: [
+                    TextSpan(text: AppStrings.pantryStaples),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.top,
+                      child: Transform.translate(
+                        offset: const Offset(3, -6),
+                        child: Tooltip(
+                          message: AppStrings.pantryStaplesInfoIconTooltip,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _showPantryStaplesInfoDialog,
+                              borderRadius: BorderRadius.circular(10),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                  vertical: 4,
+                                ),
+                                child: Icon(
+                                  Icons.info_outline,
+                                  size: 13,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
+                  ],
+                ),
               ),
               const SizedBox(height: 10),
               // Variable-width pills, fixed height; wrap to next row when a row doesn’t fit.
@@ -366,16 +411,20 @@ class _FavoritesTabBody extends StatelessWidget {
   const _FavoritesTabBody({
     required this.homeViewModel,
     required this.recipeViewModel,
+    required this.isGuest,
   });
 
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
+  final bool isGuest;
 
   @override
   Widget build(BuildContext context) {
     return FavoriteRecipesListView(
       homeViewModel: homeViewModel,
       recipeViewModel: recipeViewModel,
+      isGuest: isGuest,
+      onGuestSignUpTap: () => goToSignup(context),
     );
   }
 }

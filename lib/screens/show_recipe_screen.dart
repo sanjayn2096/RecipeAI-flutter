@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../core/app_strings.dart';
 import '../data/models/recipe.dart';
+import '../widgets/guest_signup_prompt.dart';
 
 class ShowRecipeScreen extends StatefulWidget {
   const ShowRecipeScreen({
     super.key,
     required this.recipe,
     this.recipeViewModel,
+    this.isGuest = false,
   });
 
   final Recipe recipe;
   final dynamic recipeViewModel;
+  final bool isGuest;
 
   @override
   State<ShowRecipeScreen> createState() => _ShowRecipeScreenState();
@@ -27,6 +30,14 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
   }
 
   Future<void> _toggleFavorite() async {
+    if (widget.isGuest) {
+      final goSignup = await showGuestFavoriteSignupDialog(context);
+      if (!mounted) return;
+      if (goSignup == true) {
+        goToSignup(context);
+      }
+      return;
+    }
     final vm = widget.recipeViewModel;
     if (vm == null) return;
     final ok = await vm.toggleFavorite(

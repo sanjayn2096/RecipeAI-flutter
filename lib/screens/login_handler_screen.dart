@@ -5,20 +5,27 @@ import 'login_screen.dart';
 import 'signup_screen.dart';
 
 class LoginHandlerScreen extends StatefulWidget {
-  const LoginHandlerScreen({super.key, required this.loginViewModel});
+  const LoginHandlerScreen({
+    super.key,
+    required this.loginViewModel,
+    this.openSignup = false,
+  });
 
   final dynamic loginViewModel;
+  /// When true (e.g. route `extra` from guest flows), show sign-up instead of login.
+  final bool openSignup;
 
   @override
   State<LoginHandlerScreen> createState() => _LoginHandlerScreenState();
 }
 
 class _LoginHandlerScreenState extends State<LoginHandlerScreen> {
-  bool _showSignup = false;
+  late bool _showSignup;
 
   @override
   void initState() {
     super.initState();
+    _showSignup = widget.openSignup;
     widget.loginViewModel.addListener(_onViewModelUpdate);
   }
 
@@ -29,7 +36,9 @@ class _LoginHandlerScreenState extends State<LoginHandlerScreen> {
   }
 
   void _onViewModelUpdate() {
-    if (widget.loginViewModel.isLoggedIn && mounted) {
+    // Only leave auth for a real login/signup. Guest mode still shows /login until
+    // Continue as guest explicitly navigates home (see LoginScreen).
+    if (mounted && widget.loginViewModel.isLoggedIn) {
       context.go('/home');
     }
     if (mounted) setState(() {});

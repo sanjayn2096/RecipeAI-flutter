@@ -1,12 +1,18 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/auth_error_message.dart';
 import '../data/repositories/auth_repository.dart';
+import '../services/session_manager.dart';
 
 class LoginViewModel extends ChangeNotifier {
-  LoginViewModel({required AuthRepository authRepository})
-      : _auth = authRepository;
+  LoginViewModel({
+    required AuthRepository authRepository,
+    required SessionManager sessionManager,
+  })  : _auth = authRepository,
+        _session = sessionManager;
 
   final AuthRepository _auth;
+  final SessionManager _session;
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
@@ -17,12 +23,24 @@ class LoginViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  bool get isGuestMode => _session.isGuestMode();
+
+  /// Browse without signing in. Cleared when the user logs in or signs up.
+  void enterGuestMode() {
+    _errorMessage = null;
+    _session.setGuestModeSync(true);
+    notifyListeners();
+  }
+
   Future<void> checkSession() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
     try {
       _isLoggedIn = await _auth.checkSession();
+      if (_isLoggedIn) {
+        _session.clearGuestModeSync();
+      }
     } catch (_) {
       _isLoggedIn = false;
     }
@@ -35,9 +53,10 @@ class LoginViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _auth.login(email, password);
+      _session.clearGuestModeSync();
       _isLoggedIn = true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = authErrorMessage(e);
     }
     notifyListeners();
   }
@@ -57,9 +76,10 @@ class LoginViewModel extends ChangeNotifier {
         firstName: firstName,
         lastName: lastName,
       );
+      _session.clearGuestModeSync();
       _isLoggedIn = true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = authErrorMessage(e);
     }
     notifyListeners();
   }

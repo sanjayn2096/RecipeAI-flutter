@@ -59,7 +59,10 @@ void main() async {
       firebaseAuth: FirebaseAuth.instance,
     );
 
-    final loginViewModel = LoginViewModel(authRepository: authRepo);
+    final loginViewModel = LoginViewModel(
+      authRepository: authRepo,
+      sessionManager: sessionManager,
+    );
     final homeViewModel = HomeViewModel(
       userRepository: userRepo,
       authRepository: authRepo,

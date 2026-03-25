@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 
 import '../models/api_dtos.dart';
 import '../models/recipe.dart';
-import '../models/user_data.dart';
 import '../../core/env_config.dart';
 
 /// Central API service for all backend and session-related calls.
@@ -72,19 +71,6 @@ class ApiService {
     final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
       return SignoutResponse.fromJson(map as Map<String, dynamic>);
-    }
-    throw ApiException(r.statusCode, _extractError(map));
-  }
-
-  Future<UserData> fetchUserDetails(String? email) async {
-    final url = _url('fetch-user-details');
-    final uri = Uri.parse(url).replace(
-      queryParameters: email != null ? {'email': email} : null,
-    );
-    final r = await http.get(uri);
-    final map = _decodeBody(r.body, url);
-    if (r.statusCode >= 200 && r.statusCode < 300) {
-      return UserData.fromJson(map as Map<String, dynamic>);
     }
     throw ApiException(r.statusCode, _extractError(map));
   }
@@ -195,7 +181,15 @@ class ApiService {
   }
 
   static String _extractError(dynamic map) {
-    if (map is Map && map['error'] != null) return map['error'].toString();
+    if (map is! Map) return 'Request failed';
+    final m = map;
+    for (final key in ['message', 'error', 'detail', 'msg', 'description']) {
+      final v = m[key];
+      if (v != null) {
+        final s = v.toString().trim();
+        if (s.isNotEmpty) return s;
+      }
+    }
     return 'Request failed';
   }
 }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/app_strings.dart';
 import '../data/models/user_data.dart';
+import '../widgets/guest_signup_prompt.dart';
 
 import 'prompt_screen.dart';
 
@@ -223,8 +224,18 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                           ? Colors.red
                           : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                    onPressed: () =>
-                        widget.recipeViewModel.toggleFavorite(recipe),
+                    onPressed: () async {
+                      if (widget.sessionManager.isGuestMode()) {
+                        final goSignup =
+                            await showGuestFavoriteSignupDialog(context);
+                        if (!context.mounted) return;
+                        if (goSignup == true) {
+                          goToSignup(context);
+                        }
+                        return;
+                      }
+                      await widget.recipeViewModel.toggleFavorite(recipe);
+                    },
                   ),
                   onTap: () {
                     context.push(

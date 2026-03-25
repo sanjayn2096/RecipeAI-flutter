@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../services/session_manager.dart';
 import '../view_models/home_view_model.dart';
 import '../widgets/favorite_recipes_list_view.dart';
+import '../widgets/guest_signup_prompt.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({
     super.key,
     required this.homeViewModel,
     required this.recipeViewModel,
+    required this.sessionManager,
     required this.onBack,
   });
 
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
+  final SessionManager sessionManager;
   final VoidCallback onBack;
 
   @override
@@ -23,7 +27,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   void initState() {
     super.initState();
-    widget.homeViewModel.loadFavoritesFromApi();
+    if (!widget.sessionManager.isGuestMode()) {
+      widget.homeViewModel.loadFavoritesFromApi();
+    }
   }
 
   @override
@@ -42,6 +48,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           body: FavoriteRecipesListView(
             homeViewModel: widget.homeViewModel,
             recipeViewModel: widget.recipeViewModel,
+            isGuest: widget.sessionManager.isGuestMode(),
+            onGuestSignUpTap: () => goToSignup(context),
           ),
         );
       },

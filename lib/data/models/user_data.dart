@@ -1,4 +1,5 @@
 import 'recipe.dart';
+import 'session_profile.dart';
 
 /// User profile and recipe lists from backend.
 class UserData {
@@ -17,6 +18,18 @@ class UserData {
   final String? lastName;
   final List<Recipe>? favoriteRecipes;
   final List<Recipe> createdRecipes;
+
+  /// Built from fields persisted after GET get_user_profile (no fetch-user-details).
+  factory UserData.fromSessionProfile(SessionProfile profile) {
+    return UserData(
+      userId: profile.userId,
+      email: profile.email,
+      firstName: profile.firstName,
+      lastName: profile.lastName.isEmpty ? null : profile.lastName,
+      favoriteRecipes: null,
+      createdRecipes: const [],
+    );
+  }
 
   factory UserData.fromJson(Map<String, dynamic> json) {
     final fav = json['favorite_recipes'];

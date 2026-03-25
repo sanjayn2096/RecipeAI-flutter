@@ -32,8 +32,14 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
     if (widget.loginViewModel.isLoading) return;
     widget.loginViewModel.removeListener(_onUpdate);
-    if (kDebugMode) debugPrint('[SplashScreen] _onUpdate: isLoggedIn=${widget.loginViewModel.isLoggedIn}, navigating');
-    if (widget.loginViewModel.isLoggedIn) {
+    if (kDebugMode) {
+      debugPrint(
+        '[SplashScreen] _onUpdate: isLoggedIn=${widget.loginViewModel.isLoggedIn}, '
+        'isGuest=${widget.loginViewModel.isGuestMode}, navigating',
+      );
+    }
+    if (widget.loginViewModel.isLoggedIn ||
+        widget.loginViewModel.isGuestMode) {
       context.go('/home');
     } else {
       context.go('/login');

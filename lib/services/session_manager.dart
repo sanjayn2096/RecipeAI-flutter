@@ -26,6 +26,7 @@ class SessionManager {
     await p.remove(_prefix + AppConstants.prefsFirstName);
     await p.remove(_prefix + AppConstants.prefsLastName);
     await p.remove(_prefix + AppConstants.prefsIngredients);
+    await p.remove(_prefix + AppConstants.prefsGuestMode);
   }
 
   Future<void> saveUserId(String userId) async {
@@ -116,5 +117,16 @@ class SessionManager {
       _prefix + AppConstants.prefsIngredients,
       ingredients,
     );
+  }
+
+  bool isGuestMode() =>
+      _prefs?.getBool(_prefix + AppConstants.prefsGuestMode) ?? false;
+
+  void setGuestModeSync(bool value) {
+    _prefs?.setBool(_prefix + AppConstants.prefsGuestMode, value);
+  }
+
+  void clearGuestModeSync() {
+    _prefs?.remove(_prefix + AppConstants.prefsGuestMode);
   }
 }

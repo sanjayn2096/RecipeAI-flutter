@@ -18,7 +18,8 @@ class AuthRepository {
   final ApiService _api;
   final SessionManager _session;
   final FirebaseAuth _firebaseAuth;
-
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
   /// GET get_user_profile: at most once per signed-in Firebase user while the app is running
   /// (no duplicate calls from Profile or other screens; a new app launch will call again on [checkSession]/login).
   String? _profileFetchedForFirebaseUid;
@@ -84,20 +85,29 @@ class AuthRepository {
       email: email,
       password: password,
     );
-    if (signupResult.user == null) throw Exception('Signup failed');
-
-    final sessionId = _generateSessionId();
-    await _session.saveSession(sessionId);
-
-    final resolvedEmail = signupResult.user!.email ?? email;
-    await _session.saveEmail(resolvedEmail);
-    await _session.saveUserId(signupResult.user!.uid);
-    try {
-      final idToken = await signupResult.user?.getIdToken();
-      final profile = await _api.getUserProfile(idToken: idToken);
-      await _session.saveEmail(profile.email!);
-      await _session.saveUserId(profile.userId);
-        } catch (_) {}
+    if (signupResult.user == null) {
+      throw Exception('Signup failed, retry again');
+    } else {
+      try {
+      final sessionId = _generateSessionId();
+      await _session.saveSession(sessionId);
+      final displayName = '$firstName $lastName'.trim();
+      if (displayName.isNotEmpty) {
+        await signupResult.user!.updateDisplayName(displayName);
+      }
+      final resolvedEmail = signupResult.user!.email ?? email;
+      await _persistProfileFromResponse(
+          signupResult.user!,
+          UserProfileResponse(
+            userId: signupResult.user!.uid,
+            email: resolvedEmail,
+            firstName: firstName,
+            lastName: lastName,
+          ));
+      } catch (e) {
+        _errorMessage = e.toString().replaceFirst('Signup Update Exception: ', '');
+      }
+    }
   }
 
   /// Sign out: Firebase Auth signOut on device + clear local session. No backend call.

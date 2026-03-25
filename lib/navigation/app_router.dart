@@ -32,7 +32,15 @@ class AppRouter {
       ),
       GoRoute(
         path: '/login',
-        builder: (_, __) => LoginHandlerScreen(loginViewModel: loginViewModel),
+        builder: (_, state) {
+          final extra = state.extra;
+          final openSignup =
+              extra == true || extra == 'signup' || extra == 'Signup';
+          return LoginHandlerScreen(
+            loginViewModel: loginViewModel,
+            openSignup: openSignup,
+          );
+        },
       ),
       GoRoute(
         path: '/home',
@@ -67,13 +75,18 @@ class AppRouter {
         path: '/show-recipe',
         builder: (_, state) {
           final extra = state.extra;
+          final isGuest = sessionManager.isGuestMode();
           if (extra is Map<String, dynamic>) {
             final recipe = extra['recipe'] as Recipe;
             final vm = extra['recipeViewModel'] as dynamic;
-            return ShowRecipeScreen(recipe: recipe, recipeViewModel: vm);
+            return ShowRecipeScreen(
+              recipe: recipe,
+              recipeViewModel: vm,
+              isGuest: isGuest,
+            );
           }
           final recipe = extra as Recipe;
-          return ShowRecipeScreen(recipe: recipe);
+          return ShowRecipeScreen(recipe: recipe, isGuest: isGuest);
         },
       ),
       GoRoute(
@@ -88,6 +101,7 @@ class AppRouter {
         builder: (context, __) => FavoritesScreen(
           homeViewModel: homeViewModel,
           recipeViewModel: recipeViewModel,
+          sessionManager: sessionManager,
           onBack: () => context.pop(),
         ),
       ),

@@ -17,4 +17,6 @@ class AppConstants {
   static const String prefsCustomPreference = 'customPreference';
   /// Pantry / chosen ingredient labels (persisted as string list).
   static const String prefsIngredients = 'ingredients';
+  /// Browse app without account; cleared on real login or session clear.
+  static const String prefsGuestMode = 'guestMode';
 }

@@ -37,10 +37,12 @@ class HomeViewModel extends ChangeNotifier {
     _sessionProfile = _userRepo.readSessionProfile();
   }
 
-  /// Loads optional fetch-user-details data and syncs [sessionProfile] from local storage.
+  /// Syncs [sessionProfile] from storage and builds [userData] from it (no fetch-user-details API).
   Future<void> loadUserDetails() async {
     _refreshSessionProfileFromStorage();
-    _userData = await _userRepo.getUserDetails();
+    _userData = (_sessionProfile.hasDisplayFields || _sessionProfile.userId != null)
+        ? UserData.fromSessionProfile(_sessionProfile)
+        : null;
     notifyListeners();
   }
 

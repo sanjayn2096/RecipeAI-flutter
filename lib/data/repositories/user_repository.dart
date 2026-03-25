@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../api/api_service.dart';
-import '../models/user_data.dart';
 import '../models/recipe.dart';
 import '../models/api_dtos.dart';
 import '../models/session_profile.dart';
@@ -29,16 +28,6 @@ class UserRepository {
       firstName: _session.getFirstName() ?? '',
       lastName: _session.getLastName() ?? '',
     );
-  }
-
-  Future<UserData?> getUserDetails() async {
-    final email = _session.getStoredEmail();
-    if (email == null || email.isEmpty) return null;
-    try {
-      return await _api.fetchUserDetails(email);
-    } catch (_) {
-      return null;
-    }
   }
 
   Future<void> saveFavoriteRecipe(Recipe recipe) async {
