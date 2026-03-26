@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/api/api_service.dart';
+import '../data/models/recipe.dart';
 import '../view_models/home_view_model.dart';
 import 'guest_signup_prompt.dart';
 
@@ -135,20 +137,85 @@ class FavoriteRecipesListView extends StatelessWidget {
               child: ListTile(
                 title: Text(recipe.recipeName),
                 subtitle: Text(recipe.cuisine),
-                onTap: () {
-                  context.push(
-                    '/show-recipe',
-                    extra: {
-                      'recipe': recipe,
-                      'recipeViewModel': recipeViewModel,
-                    },
-                  );
-                },
+                onTap: () => _openFavoriteRecipe(
+                  context,
+                  homeViewModel: homeViewModel,
+                  listRecipe: recipe,
+                  recipeViewModel: recipeViewModel,
+                ),
               ),
             );
           },
         );
       },
     );
+  }
+}
+
+Future<void> _openFavoriteRecipe(
+  BuildContext context, {
+  required HomeViewModel homeViewModel,
+  required Recipe listRecipe,
+  required dynamic recipeViewModel,
+}) async {
+  if (listRecipe.recipeId.isEmpty) {
+    if (!context.mounted) return;
+    context.push(
+      '/show-recipe',
+      extra: {
+        'recipe': listRecipe,
+        'recipeViewModel': recipeViewModel,
+      },
+    );
+    return;
+  }
+
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => const Center(
+      child: Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading recipe…'),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  try {
+    final full =
+        await homeViewModel.fetchFavoriteRecipeDetail(listRecipe.recipeId);
+    final toShow = full.copyWith(isFavorite: true);
+    if (!context.mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    context.push(
+      '/show-recipe',
+      extra: {
+        'recipe': toShow,
+        'recipeViewModel': recipeViewModel,
+      },
+    );
+  } on ApiException catch (e) {
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    }
+  } catch (_) {
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load recipe')),
+      );
+    }
   }
 }

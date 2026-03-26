@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../core/app_strings.dart';
 import '../core/pantry_items.dart';
 import '../view_models/home_view_model.dart';
+import '../view_models/recipe_view_model.dart';
 import '../widgets/favorite_recipes_list_view.dart';
 import '../widgets/guest_signup_prompt.dart';
 import 'recipe_flow_screen.dart';
@@ -20,7 +21,7 @@ class HomeShellScreen extends StatefulWidget {
 
   final HomeViewModel homeViewModel;
   final dynamic loginViewModel;
-  final dynamic recipeViewModel;
+  final RecipeViewModel recipeViewModel;
   final dynamic sessionManager;
 
   @override
@@ -29,6 +30,8 @@ class HomeShellScreen extends StatefulWidget {
 
 class _HomeShellScreenState extends State<HomeShellScreen> {
   int _currentIndex = 0;
+  /// Bumped to remount embedded Create Recipes flow after generate-recipe error when user leaves the tab.
+  int _embeddedRecipeFlowKey = 0;
 
   @override
   void initState() {
@@ -53,6 +56,21 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   }
 
   void _onTabTapped(int index) {
+    final wasCreate = _currentIndex == 1;
+    if (wasCreate && index != 1) {
+      final err = widget.recipeViewModel.fetchError;
+      if (err != null && err.isNotEmpty) {
+        widget.recipeViewModel.clearRecipeGenerationState();
+        setState(() {
+          _embeddedRecipeFlowKey++;
+          _currentIndex = index;
+        });
+        if (index == 2 && !widget.sessionManager.isGuestMode()) {
+          widget.homeViewModel.loadFavoritesFromApi();
+        }
+        return;
+      }
+    }
     setState(() => _currentIndex = index);
     if (index == 1) {
       // Create Recipes uses mood/diet/cuisine only — ignore Home "Generate from text" session value.
@@ -97,6 +115,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                 sessionManager: widget.sessionManager,
               ),
               RecipeFlowScreen(
+                key: ValueKey<int>(_embeddedRecipeFlowKey),
                 userData: userData,
                 recipeViewModel: widget.recipeViewModel,
                 sessionManager: widget.sessionManager,
@@ -284,7 +303,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                   });
                 },
                 icon: const Icon(Icons.auto_awesome),
-                label: const Text('Generate from text'),
+                label: const Text('Get me Recipes'),
               ),
               const SizedBox(height: 24),
               Text.rich(

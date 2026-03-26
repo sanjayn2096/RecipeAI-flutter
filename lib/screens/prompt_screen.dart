@@ -18,7 +18,7 @@ class PromptScreen extends StatelessWidget {
   final String? selectedOption;
   final ValueChanged<String> onOptionSelected;
   final VoidCallback onNext;
-  /// When set, shows an AppBar back control to return to the previous questionnaire step.
+  /// Shown as AppBar back when non-null (previous questionnaire step or close pushed flow).
   final VoidCallback? onBack;
 
   String get _title => AppStrings.titleForRoute(route);
@@ -27,22 +27,23 @@ class PromptScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        centerTitle: false,
-        // Extra height so multi-line titles aren’t vertically clipped.
-        toolbarHeight: 72,
+        // Room for up to ~4 lines of [titleLarge] when questions are long.
+        toolbarHeight: 112,
         title: Text(
           _title,
           maxLines: 4,
           softWrap: true,
-          overflow: TextOverflow.clip,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleLarge,
         ),
+        automaticallyImplyLeading: false,
         leading: onBack != null
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
+                tooltip: AppStrings.back,
                 onPressed: onBack,
               )
             : null,
-        automaticallyImplyLeading: false,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

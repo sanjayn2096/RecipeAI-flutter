@@ -138,6 +138,27 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(body));
   }
 
+  /// GET get-recipe/:recipeId (auth: Firebase ID token). Full document from Firestore `recipes`.
+  Future<Recipe> getRecipe(String recipeId, {String? idToken}) async {
+    final encoded = Uri.encodeComponent(recipeId);
+    final url = _url('get-recipe/$encoded');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await http.get(Uri.parse(url), headers: headers);
+    final body = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      final map = body as Map<String, dynamic>;
+      final recipeJson = map['recipe'];
+      if (recipeJson is! Map<String, dynamic>) {
+        throw ApiException(0, 'Invalid get-recipe response: missing recipe');
+      }
+      return Recipe.fromJson(recipeJson);
+    }
+    throw ApiException(r.statusCode, _extractError(body));
+  }
+
   static List<Recipe> _parseRecipeList(dynamic json) {
     if (json is List) {
       return json

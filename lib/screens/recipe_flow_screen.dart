@@ -43,7 +43,9 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
       widget.sessionManager.savePreferenceSync('customPreference', widget.initialPrompt!);
       _currentRoute = 'recipeActivity';
       widget.recipeViewModel.fetchRecipesFromPrompt();
-    } else if (widget.sessionManager.getIngredients().isNotEmpty) {
+    } else if (!widget.embedInTab &&
+        widget.sessionManager.getIngredients().isNotEmpty) {
+      // Home pushed `/recipe-flow` (pantry-only). Bottom-nav Create tab always starts questionnaire.
       if (kDebugMode) {
         debugPrint('[RecipeFlowScreen] initState: ingredients only -> backend generate-recipe (PromptBuilder uses session ingredients)');
       }
@@ -125,13 +127,6 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
     setState(() => _currentRoute = nextRoute ?? _currentRoute);
   }
 
-  void _goToPreviousQuestionnaireStep() {
-    final prev = AppStrings.previousRoute(_currentRoute);
-    if (prev != null) {
-      setState(() => _currentRoute = prev);
-    }
-  }
-
   /// Home "Generate from text" must not override the Create Recipes questionnaire.
   void _clearCustomPreferenceForEmbeddedCreateFlow() {
     if (widget.embedInTab) {
@@ -158,6 +153,25 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
     });
   }
 
+  void _goToPreviousQuestionnaireStep() {
+    final prev = AppStrings.previousRoute(_currentRoute);
+    if (prev != null) {
+      setState(() => _currentRoute = prev);
+    }
+  }
+
+  VoidCallback? get _promptOnBack {
+    if (AppStrings.previousRoute(_currentRoute) != null) {
+      return _goToPreviousQuestionnaireStep;
+    }
+    if (!widget.embedInTab) {
+      return () {
+        if (context.mounted) context.pop();
+      };
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_currentRoute == 'recipeActivity') {
@@ -181,25 +195,55 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
           }
           final recipes = widget.recipeViewModel.recipes;
           if (recipes.isEmpty) {
+            final err = widget.recipeViewModel.fetchError as String?;
+            final isError = err != null && err.isNotEmpty;
             return Scaffold(
               appBar: AppBar(title: const Text(AppStrings.fetchRecipes)),
               body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('No recipes found. Try again.'),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () {
-                        if (kDebugMode) {
-                          debugPrint('[RecipeFlowScreen] Empty results refresh: calling backend generate-recipe again');
-                        }
-                        _clearCustomPreferenceForEmbeddedCreateFlow();
-                        widget.recipeViewModel.fetchRecipes();
-                      },
-                      child: const Text(AppStrings.refresh),
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isError ? Icons.error_outline : Icons.restaurant_outlined,
+                        size: 48,
+                        color: isError
+                            ? Theme.of(context).colorScheme.error
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        isError ? 'Couldn’t load recipes' : 'No recipes yet',
+                        style: Theme.of(context).textTheme.titleLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        isError
+                            ? err
+                            : 'Nothing came back this time. Tap Refresh to try again, '
+                                'or use Back to adjust mood, diet, cuisine, or cooking time.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: () {
+                          if (kDebugMode) {
+                            debugPrint(
+                              '[RecipeFlowScreen] Empty/error refresh: generate-recipe again',
+                            );
+                          }
+                          _clearCustomPreferenceForEmbeddedCreateFlow();
+                          widget.recipeViewModel.fetchRecipes();
+                        },
+                        child: const Text(AppStrings.refresh),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -267,9 +311,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
       selectedOption: _selectedForRoute,
       onOptionSelected: _selectOption,
       onNext: _next,
-      onBack: AppStrings.previousRoute(_currentRoute) != null
-          ? _goToPreviousQuestionnaireStep
-          : null,
+      onBack: _promptOnBack,
     );
   }
 }

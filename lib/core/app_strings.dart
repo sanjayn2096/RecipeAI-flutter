@@ -142,9 +142,11 @@ class AppStrings {
     }
   }
 
-  /// Step before [route] in Create Recipes flow (mood has no previous).
+  /// Prior questionnaire step (mood has no previous).
   static String? previousRoute(String route) {
     switch (route) {
+      case 'mood':
+        return null;
       case 'dietRestrictions':
         return 'mood';
       case 'cuisinePreferences':

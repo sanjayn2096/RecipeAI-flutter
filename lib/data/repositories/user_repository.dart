@@ -45,4 +45,10 @@ class UserRepository {
     final token = await _firebaseAuth.currentUser?.getIdToken();
     return _api.fetchFavorites(idToken: token);
   }
+
+  /// GET get-recipe/:recipeId with Firebase ID token.
+  Future<Recipe> fetchRecipeById(String recipeId) async {
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    return _api.getRecipe(recipeId, idToken: token);
+  }
 }

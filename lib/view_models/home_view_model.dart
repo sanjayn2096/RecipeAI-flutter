@@ -85,6 +85,11 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// GET get-recipe/:recipeId — full recipe doc for a favorited item.
+  Future<Recipe> fetchFavoriteRecipeDetail(String recipeId) async {
+    return _userRepo.fetchRecipeById(recipeId);
+  }
+
   static bool _matchesFavoriteForRemoval(Recipe r, Recipe dismissed) {
     if (dismissed.recipeId.isNotEmpty) {
       return r.recipeId == dismissed.recipeId;

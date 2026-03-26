@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/recipe_fetch_error_message.dart';
 import '../data/models/recipe.dart';
 import '../data/repositories/recipe_repository.dart';
 import '../data/repositories/user_repository.dart';
@@ -22,6 +23,10 @@ class RecipeViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  /// Set when [fetchRecipes] fails; cleared on a new fetch start or success.
+  String? _fetchError;
+  String? get fetchError => _fetchError;
+
   bool _isBeingEdited = false;
   bool get isBeingEdited => _isBeingEdited;
 
@@ -29,11 +34,18 @@ class RecipeViewModel extends ChangeNotifier {
   Future<void> fetchRecipes() async {
     if (_kRecipeLogging) debugPrint('[RecipeViewModel] fetchRecipes() -> backend generate-recipe');
     _isLoading = true;
+    _fetchError = null;
     notifyListeners();
     try {
       _recipes = await _recipeRepo.fetchRecipes();
-    } catch (_) {
+      _fetchError = null;
+    } catch (e, st) {
       _recipes = [];
+      _fetchError = recipeFetchErrorMessage(e);
+      if (_kRecipeLogging) {
+        debugPrint('[RecipeViewModel] fetchRecipes failed: $e');
+        debugPrint('$st');
+      }
     }
     _isLoading = false;
     notifyListeners();
@@ -41,6 +53,13 @@ class RecipeViewModel extends ChangeNotifier {
 
   /// Same as [fetchRecipes] — kept for call sites that name the “free text” flow explicitly.
   Future<void> fetchRecipesFromPrompt() => fetchRecipes();
+
+  /// Clears recipes and last fetch error (e.g. after leaving Create Recipes tab on failure).
+  void clearRecipeGenerationState() {
+    _fetchError = null;
+    _recipes = [];
+    notifyListeners();
+  }
 
   void setBeingEdited() {
     _isBeingEdited = true;

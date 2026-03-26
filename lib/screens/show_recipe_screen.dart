@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_strings.dart';
 import '../data/models/recipe.dart';
 import '../widgets/guest_signup_prompt.dart';
+import '../widgets/recipe_image_box.dart';
 
 class ShowRecipeScreen extends StatefulWidget {
   const ShowRecipeScreen({
@@ -88,17 +89,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (widget.recipe.image.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  widget.recipe.image,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox(height: 200),
-                ),
-              ),
+            RecipeImageBox(imageUrl: widget.recipe.image),
             const SizedBox(height: 16),
             Text(
               widget.recipe.cookingTime,
