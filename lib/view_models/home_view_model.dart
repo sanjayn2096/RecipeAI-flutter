@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../data/models/recipe.dart';
@@ -5,16 +7,22 @@ import '../data/models/session_profile.dart';
 import '../data/models/user_data.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/user_repository.dart';
+import '../services/session_manager.dart';
 
 class HomeViewModel extends ChangeNotifier {
   HomeViewModel({
     required UserRepository userRepository,
     required AuthRepository authRepository,
+    required SessionManager sessionManager,
   })  : _userRepo = userRepository,
-        _authRepo = authRepository;
+        _authRepo = authRepository,
+        _session = sessionManager;
 
   final UserRepository _userRepo;
   final AuthRepository _authRepo;
+  final SessionManager _session;
+
+  StreamSubscription<List<Recipe>>? _favoritesFirestoreSub;
 
   UserData? _userData;
   UserData? get userData => _userData;
@@ -26,12 +34,44 @@ class HomeViewModel extends ChangeNotifier {
   bool? _isSignedOut;
   bool? get isSignedOut => _isSignedOut;
 
-  /// Favorites from GET fetch-favorites (Favorites tab).
+  /// Favorites: Firestore stream + Hive; HTTP only when cache is missing.
   List<Recipe> _apiFavorites = [];
   List<Recipe> get apiFavorites => _apiFavorites;
 
   bool _favoritesLoading = false;
   bool get favoritesLoading => _favoritesLoading;
+
+  @override
+  void dispose() {
+    _favoritesFirestoreSub?.cancel();
+    super.dispose();
+  }
+
+  void _stopFavoritesFirestoreSync() {
+    _favoritesFirestoreSub?.cancel();
+    _favoritesFirestoreSub = null;
+  }
+
+  void _startFavoritesFirestoreSync() {
+    if (_session.isGuestMode()) return;
+    final uid = _userRepo.readSessionProfile().userId;
+    if (uid == null || uid.isEmpty) return;
+
+    _favoritesFirestoreSub?.cancel();
+    _favoritesFirestoreSub =
+        _userRepo.watchFavoritesFromFirestore(uid).listen(
+      (list) async {
+        _apiFavorites = dedupeFavoritesByRecipeId(list);
+        await _userRepo.writeCachedFavorites(_apiFavorites);
+        notifyListeners();
+      },
+      onError: (Object e, StackTrace _) {
+        if (kDebugMode) {
+          debugPrint('[HomeViewModel] Firestore favorites stream error: $e');
+        }
+      },
+    );
+  }
 
   void _refreshSessionProfileFromStorage() {
     _sessionProfile = _userRepo.readSessionProfile();
@@ -44,6 +84,12 @@ class HomeViewModel extends ChangeNotifier {
         ? UserData.fromSessionProfile(_sessionProfile)
         : null;
     notifyListeners();
+
+    if (_session.isGuestMode()) {
+      _stopFavoritesFirestoreSync();
+    } else {
+      _startFavoritesFirestoreSync();
+    }
   }
 
   /// Profile screen: read Email / First / Last name from storage (get_user_profile runs once at auth).
@@ -68,21 +114,54 @@ class HomeViewModel extends ChangeNotifier {
     return out;
   }
 
+  /// Favorites tab: read Hive when present; otherwise GET fetch-favorites once.
   Future<void> loadFavoritesFromApi({bool showLoading = true}) async {
+    final profile = _userRepo.readSessionProfile();
+    final userId = profile.userId;
+
+    if (showLoading && userId != null && userId.isNotEmpty) {
+      final cached = _userRepo.readCachedFavoritesSync();
+      if (cached != null) {
+        _apiFavorites = dedupeFavoritesByRecipeId(cached);
+        _favoritesLoading = false;
+        notifyListeners();
+        return;
+      }
+    }
+
     if (showLoading) {
       _favoritesLoading = true;
       notifyListeners();
     }
+
     try {
       final raw = await _userRepo.fetchFavorites();
       _apiFavorites = dedupeFavoritesByRecipeId(raw);
+      if (userId != null && userId.isNotEmpty) {
+        await _userRepo.writeCachedFavorites(_apiFavorites);
+      }
     } catch (_) {
-      _apiFavorites = [];
+      if (_apiFavorites.isEmpty) {
+        _apiFavorites = [];
+      }
     }
+
     if (showLoading) {
       _favoritesLoading = false;
     }
     notifyListeners();
+  }
+
+  Future<void> _recoverFavoritesFromNetwork() async {
+    try {
+      final raw = await _userRepo.fetchFavorites();
+      _apiFavorites = dedupeFavoritesByRecipeId(raw);
+      final uid = _userRepo.readSessionProfile().userId;
+      if (uid != null && uid.isNotEmpty) {
+        await _userRepo.writeCachedFavorites(_apiFavorites);
+      }
+      notifyListeners();
+    } catch (_) {}
   }
 
   /// GET get-recipe/:recipeId — full recipe doc for a favorited item.
@@ -97,8 +176,7 @@ class HomeViewModel extends ChangeNotifier {
     return identical(r, dismissed);
   }
 
-  /// Swipe-to-remove: optimistic UI, then POST save-favorites with [isFavorite] false, then
-  /// refetch so local state matches Firestore (avoids drift; dedupe hides duplicate docs).
+  /// Swipe-to-remove: optimistic UI, POST save-favorites; Firestore stream refreshes list.
   Future<bool> removeFavoriteWithSwipe(Recipe recipe) async {
     _apiFavorites = _apiFavorites
         .where((r) => !_matchesFavoriteForRemoval(r, recipe))
@@ -106,15 +184,15 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _userRepo.saveFavoriteRecipe(recipe.copyWith(isFavorite: false));
-      await loadFavoritesFromApi(showLoading: false);
       return true;
     } catch (_) {
-      await loadFavoritesFromApi(showLoading: false);
+      await _recoverFavoritesFromNetwork();
       return false;
     }
   }
 
   Future<void> signOut() async {
+    _stopFavoritesFirestoreSync();
     try {
       await _authRepo.signOut();
       _isSignedOut = true;

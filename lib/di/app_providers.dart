@@ -1,7 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/api/api_service.dart';
+import '../data/local/favorites_hive_store.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/recipe_repository.dart';
 import '../data/repositories/user_repository.dart';
@@ -17,12 +19,23 @@ final sessionManagerProvider = Provider<SessionManager>((ref) {
   );
 });
 
+final favoritesHiveStoreProvider = Provider<FavoritesHiveStore>((ref) {
+  throw UnimplementedError(
+    'FavoritesHiveStore must be overridden after Hive.initFlutter + openBox',
+  );
+});
+
 final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
+
+final firebaseFirestoreProvider = Provider<FirebaseFirestore>(
+  (ref) => FirebaseFirestore.instance,
+);
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
     apiService: ref.watch(apiServiceProvider),
     sessionManager: ref.watch(sessionManagerProvider),
+    favoritesHiveStore: ref.watch(favoritesHiveStoreProvider),
   );
 });
 
@@ -30,6 +43,8 @@ final userRepositoryProvider = Provider<UserRepository>((ref) {
   return UserRepository(
     apiService: ref.watch(apiServiceProvider),
     sessionManager: ref.watch(sessionManagerProvider),
+    favoritesHiveStore: ref.watch(favoritesHiveStoreProvider),
+    firestore: ref.watch(firebaseFirestoreProvider),
   );
 });
 

@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../api/api_service.dart';
+import '../local/favorites_hive_store.dart';
 import '../models/api_dtos.dart';
 import '../../services/session_manager.dart';
 
@@ -10,16 +11,18 @@ class AuthRepository {
   AuthRepository({
     required ApiService apiService,
     required SessionManager sessionManager,
+    required FavoritesHiveStore favoritesHiveStore,
     FirebaseAuth? firebaseAuth,
   })  : _api = apiService,
         _session = sessionManager,
+        _favoritesHiveStore = favoritesHiveStore,
         _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   final ApiService _api;
   final SessionManager _session;
+  final FavoritesHiveStore _favoritesHiveStore;
   final FirebaseAuth _firebaseAuth;
-  String? _errorMessage;
-  String? get errorMessage => _errorMessage;
+
   /// GET get_user_profile: at most once per signed-in Firebase user while the app is running
   /// (no duplicate calls from Profile or other screens; a new app launch will call again on [checkSession]/login).
   String? _profileFetchedForFirebaseUid;
@@ -81,32 +84,27 @@ class AuthRepository {
     required String firstName,
     required String lastName,
   }) async {
-    final signupResult = await _firebaseAuth.createUserWithEmailAndPassword(
+    final res = await _api.signup(SignupRequest(
+      email: email,
+      password: password,
+      firstName: firstName,
+      lastName: lastName,
+    ));
+    if (res.userId == null) throw Exception(res.message ?? 'Signup failed');
+    await _firebaseAuth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
-    if (signupResult.user == null) {
-      throw Exception('Signup failed, retry again');
+    final cred = _firebaseAuth.currentUser;
+    if (cred != null) {
+      await _fetchAndPersistUserProfileOnce(cred);
     } else {
-      try {
-      final sessionId = _generateSessionId();
-      await _session.saveSession(sessionId);
-      final displayName = '$firstName $lastName'.trim();
-      if (displayName.isNotEmpty) {
-        await signupResult.user!.updateDisplayName(displayName);
-      }
-      final resolvedEmail = signupResult.user!.email ?? email;
-      await _persistProfileFromResponse(
-          signupResult.user!,
-          UserProfileResponse(
-            userId: signupResult.user!.uid,
-            email: resolvedEmail,
-            firstName: firstName,
-            lastName: lastName,
-          ));
-      } catch (e) {
-        _errorMessage = e.toString().replaceFirst('Signup Update Exception: ', '');
-      }
+      await _session.persistUserProfile(
+        userId: res.userId!,
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+      );
     }
   }
 
@@ -115,9 +113,7 @@ class AuthRepository {
     _profileFetchedForFirebaseUid = null;
     await _firebaseAuth.signOut();
     await _session.clearSession();
+    await _favoritesHiveStore.clear();
   }
 
-  static String _generateSessionId() {
-    return '${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}';
-  }
 }

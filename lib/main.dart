@@ -1,12 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/theme.dart';
 import 'data/api/api_service.dart';
+import 'data/local/favorites_hive_store.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/recipe_repository.dart';
 import 'data/repositories/user_repository.dart';
@@ -40,6 +43,10 @@ void main() async {
   }
 
   try {
+    await Hive.initFlutter();
+    final favoritesBox = await FavoritesHiveStore.openBox();
+    final favoritesHiveStore = FavoritesHiveStore(favoritesBox);
+
     final prefs = await SharedPreferences.getInstance();
     final sessionManager = SessionManager(prefs: prefs);
 
@@ -47,11 +54,14 @@ void main() async {
     final authRepo = AuthRepository(
       apiService: apiService,
       sessionManager: sessionManager,
+      favoritesHiveStore: favoritesHiveStore,
     );
     final userRepo = UserRepository(
       apiService: apiService,
       sessionManager: sessionManager,
+      favoritesHiveStore: favoritesHiveStore,
       firebaseAuth: FirebaseAuth.instance,
+      firestore: FirebaseFirestore.instance,
     );
     final recipeRepo = RecipeRepository(
       sessionManager: sessionManager,
@@ -66,6 +76,7 @@ void main() async {
     final homeViewModel = HomeViewModel(
       userRepository: userRepo,
       authRepository: authRepo,
+      sessionManager: sessionManager,
     );
     final recipeViewModel = RecipeViewModel(
       recipeRepository: recipeRepo,

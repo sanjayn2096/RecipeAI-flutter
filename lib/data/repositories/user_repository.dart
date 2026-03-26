@@ -1,6 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../core/firestore_paths.dart';
 import '../api/api_service.dart';
+import '../firestore/favorites_firestore_mapper.dart';
+import '../local/favorites_hive_store.dart';
 import '../models/recipe.dart';
 import '../models/api_dtos.dart';
 import '../models/session_profile.dart';
@@ -11,14 +15,42 @@ class UserRepository {
   UserRepository({
     required ApiService apiService,
     required SessionManager sessionManager,
+    required FavoritesHiveStore favoritesHiveStore,
     FirebaseAuth? firebaseAuth,
+    FirebaseFirestore? firestore,
   })  : _api = apiService,
         _session = sessionManager,
-        _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
+        _favoritesHiveStore = favoritesHiveStore,
+        _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance;
 
   final ApiService _api;
   final SessionManager _session;
+  final FavoritesHiveStore _favoritesHiveStore;
   final FirebaseAuth _firebaseAuth;
+  final FirebaseFirestore _firestore;
+
+  /// `users/{userId}/{favoritesSubcollection}` — live updates when Firestore changes.
+  Stream<List<Recipe>> watchFavoritesFromFirestore(String userId) {
+    return _firestore
+        .collection(FirestorePaths.usersCollection)
+        .doc(userId)
+        .collection(FirestorePaths.favoritesSubcollection)
+        .snapshots()
+        .map(FavoritesFirestoreMapper.recipesFromQuerySnapshot);
+  }
+
+  /// Synchronous read from opened Hive box (called from UI isolate after startup).
+  List<Recipe>? readCachedFavoritesSync() =>
+      _favoritesHiveStore.readForUserSync(_session.getUserId());
+
+  Future<void> writeCachedFavorites(List<Recipe> recipes) async {
+    final id = _session.getUserId();
+    if (id == null || id.isEmpty) return;
+    await _favoritesHiveStore.write(id, recipes);
+  }
+
+  Future<void> clearFavoritesCache() => _favoritesHiveStore.clear();
 
   /// Fields last saved from GET get_user_profile (also updated on login / session restore).
   SessionProfile readSessionProfile() {

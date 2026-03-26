@@ -19,4 +19,7 @@ class AppConstants {
   static const String prefsIngredients = 'ingredients';
   /// Browse app without account; cleared on real login or session clear.
   static const String prefsGuestMode = 'guestMode';
+
+  /// Hive box for cached GET fetch-favorites JSON (`userId` + `recipes`).
+  static const String hiveFavoritesBox = 'favorites_cache';
 }
