@@ -27,7 +27,15 @@ class PromptScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_title),
+        centerTitle: false,
+        // Extra height so multi-line titles aren’t vertically clipped.
+        toolbarHeight: 72,
+        title: Text(
+          _title,
+          maxLines: 4,
+          softWrap: true,
+          overflow: TextOverflow.clip,
+        ),
         leading: onBack != null
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),

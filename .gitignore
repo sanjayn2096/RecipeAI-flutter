@@ -23,12 +23,14 @@ android/captures/
 android/gradlew
 android/gradlew.bat
 android/key.properties
+android/app/google-services.json
 
 # iOS
 **/ios/Pods/
 **/ios/.symlinks/
 **/ios/Flutter/Flutter.framework
 **/ios/Flutter/Flutter.podspec
+**ios/Runner/GoogleService-Info.plist
 *.ipa
 
 # Web
