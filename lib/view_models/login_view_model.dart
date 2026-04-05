@@ -26,9 +26,10 @@ class LoginViewModel extends ChangeNotifier {
   bool get isGuestMode => _session.isGuestMode();
 
   /// Browse without signing in. Cleared when the user logs in or signs up.
-  void enterGuestMode() {
+  Future<void> enterGuestMode() async {
     _errorMessage = null;
     _session.setGuestModeSync(true);
+    await _session.getOrCreateAnonymousId();
     notifyListeners();
   }
 
@@ -40,6 +41,7 @@ class LoginViewModel extends ChangeNotifier {
       _isLoggedIn = await _auth.checkSession();
       if (_isLoggedIn) {
         _session.clearGuestModeSync();
+        _session.clearAnonymousAndGuestQuotaSync();
       }
     } catch (_) {
       _isLoggedIn = false;
@@ -54,6 +56,7 @@ class LoginViewModel extends ChangeNotifier {
     try {
       await _auth.login(email, password);
       _session.clearGuestModeSync();
+      _session.clearAnonymousAndGuestQuotaSync();
       _isLoggedIn = true;
     } catch (e) {
       _errorMessage = authErrorMessage(e);
@@ -77,6 +80,7 @@ class LoginViewModel extends ChangeNotifier {
         lastName: lastName,
       );
       _session.clearGuestModeSync();
+      _session.clearAnonymousAndGuestQuotaSync();
       _isLoggedIn = true;
     } catch (e) {
       _errorMessage = authErrorMessage(e);

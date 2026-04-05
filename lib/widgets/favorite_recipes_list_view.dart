@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
 import '../view_models/home_view_model.dart';
+import 'cartoon_outlined_card.dart';
 import 'guest_signup_prompt.dart';
 
 /// Favorites list with swipe-left to remove (save-favorites with isFavorite: false).
@@ -73,7 +74,7 @@ class FavoriteRecipesListView extends StatelessWidget {
           return const Center(child: Text('No favorites yet'));
         }
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           itemCount: favorites.length,
           itemBuilder: (_, i) {
             final recipe = favorites[i];
@@ -134,14 +135,20 @@ class FavoriteRecipesListView extends StatelessWidget {
                   }
                 });
               },
-              child: ListTile(
-                title: Text(recipe.recipeName),
-                subtitle: Text(recipe.cuisine),
-                onTap: () => _openFavoriteRecipe(
-                  context,
-                  homeViewModel: homeViewModel,
-                  listRecipe: recipe,
-                  recipeViewModel: recipeViewModel,
+              child: CartoonOutlinedCard(
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  title: Text(recipe.recipeName),
+                  subtitle: Text(recipe.cuisine),
+                  onTap: () => _openFavoriteRecipe(
+                    context,
+                    homeViewModel: homeViewModel,
+                    listRecipe: recipe,
+                    recipeViewModel: recipeViewModel,
+                  ),
                 ),
               ),
             );

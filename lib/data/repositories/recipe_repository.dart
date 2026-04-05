@@ -14,10 +14,13 @@ class RecipeRepository {
     ApiService? apiService,
     FirebaseAuth? firebaseAuth,
     PromptBuilder? promptBuilder,
-  })  : _api = apiService,
+  })  : _session = sessionManager,
+        _api = apiService,
         _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _promptBuilder = promptBuilder ?? PromptBuilder(sessionManager: sessionManager);
+        _promptBuilder =
+            promptBuilder ?? PromptBuilder(sessionManager: sessionManager);
 
+  final SessionManager _session;
   final ApiService? _api;
   final FirebaseAuth _firebaseAuth;
   final PromptBuilder _promptBuilder;
@@ -32,8 +35,17 @@ class RecipeRepository {
     if (kDebugMode) {
       debugPrint('[RecipeRepository] fetchRecipesFromBackend() -> POST generate-recipe');
     }
-    final idToken = await _firebaseAuth.currentUser?.getIdToken();
-    final res = await _api!.generateRecipe(GenerateRecipeRequest(prompt: prompt), idToken: idToken);
+    final user = _firebaseAuth.currentUser;
+    final idToken = await user?.getIdToken();
+    final String? anonymousId =
+        user == null ? await _session.getOrCreateAnonymousId() : null;
+    final res = await _api!.generateRecipe(
+      GenerateRecipeRequest(prompt: prompt, anonymousId: anonymousId),
+      idToken: idToken,
+    );
+    if (user == null) {
+      await _session.recordGuestRecipeGenerationSuccess();
+    }
     return res.recipes;
   }
 

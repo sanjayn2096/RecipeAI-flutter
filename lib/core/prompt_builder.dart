@@ -18,8 +18,6 @@ Each recipe object MUST include these fields (use JSON keys exactly as shown):
 - cuisine: String
 - nutritionalValue: object with calories, protein, carbs, fat, vitamins (each String), numberOfServings (Int)
 
-Recipe = {'recipeId': String, 'recipeName': String, 'imageUrl': String, 'ingredients': String, 'instructions' : String, 'cookingTime' : String, 'cuisine' : String, 'nutritionalValue':NutritionalValue}
-NutritionalValue should be an object which has mandatory fields like 'calories' : String, 'protein': String , 'carbs' : String, 'fat' : String, 'vitamins' : String, 'numberOfServings' : Int
 Calories should be in the format 'x' kcal. Protein, Fat, Carbs, Vitamins should be in grams. output should be like 'x' g. If Anything is not defined, just output N/A
 Return Array<Recipe>. The ingredients and instructions should be in bullet points.
 Mention the ingredients which are optional or replacements. Provide the nutritional value, how much calories per serving of the dish
@@ -60,6 +58,6 @@ Respond with only raw JSON. Do not include markdown, code blocks, no "Here is th
         "I am feeling: $mood, I have the following diet restrictions: $diet, "
         "I prefer spending $cooking time on cooking and I feel like eating this cuisine: $cuisine. "
         "Output the recipes in this format. $_recipeFormat "
-        "What image you gave me was not correct give me a different one. Also $_rawJsonOnly";
+        "Also $_rawJsonOnly";
   }
 }

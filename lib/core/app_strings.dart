@@ -2,7 +2,7 @@
 class AppStrings {
   AppStrings._();
 
-  static const String appName = 'RecipeAI';
+  static const String appName = 'Sous Chef';
   static const String next = 'Next';
   static const String ok = 'OK';
   static const String back = 'Back';

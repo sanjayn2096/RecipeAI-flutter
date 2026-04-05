@@ -20,6 +20,15 @@ class AppConstants {
   /// Browse app without account; cleared on real login or session clear.
   static const String prefsGuestMode = 'guestMode';
 
+  /// Stable id for POST generate-recipe when not signed in (device-local; new after reinstall).
+  static const String prefsAnonymousId = 'anonymousId';
+
+  /// UTC calendar day `YYYY-MM-DD` for guest recipe quota mirror (align with backend dayKey).
+  static const String prefsGuestGenDayKey = 'guestGenDayKey';
+
+  /// Successful guest generate-recipe calls counted for [prefsGuestGenDayKey].
+  static const String prefsGuestGenCount = 'guestGenCount';
+
   /// Hive box for cached GET fetch-favorites JSON (`userId` + `recipes`).
   static const String hiveFavoritesBox = 'favorites_cache';
 }

@@ -60,12 +60,26 @@ String _fromApiException(ApiException e) {
 
   switch (code) {
     case 400:
+      if (rawLower.contains('anonymousid')) {
+        return _friendlyWithOptionalDetail(
+          'Guest mode couldn’t be verified. Try again, or sign up for an account.',
+          raw,
+        );
+      }
       return _friendlyWithOptionalDetail(
         'The recipe service couldn’t use this request. Try changing what you asked for, then try again.',
         raw,
       );
     case 401:
+      return 'We couldn’t verify your account for recipe generation. Try signing out and signing in again.';
     case 403:
+      if (rawLower.contains('free limit') ||
+          rawLower.contains('create an account')) {
+        if (raw.isNotEmpty && raw.length <= 220 && !_looksTooTechnical(raw)) {
+          return raw;
+        }
+        return 'Free limit reached for today. Create an account to keep generating recipes.';
+      }
       return 'We couldn’t verify your account for recipe generation. Try signing out and signing in again.';
     case 404:
       return 'The recipe endpoint wasn’t found. The service may be unavailable or misconfigured. Try again later.';

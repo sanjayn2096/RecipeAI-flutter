@@ -199,10 +199,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           letterSpacing: 0.2,
                         ),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     widget.loginViewModel.clearError();
-                    widget.loginViewModel.enterGuestMode();
-                    if (context.mounted) context.go('/home');
+                    await widget.loginViewModel.enterGuestMode();
+                    if (!context.mounted) return;
+                    context.go('/home');
                   },
                   child: const Text('Continue as guest'),
                 ),

@@ -283,7 +283,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   final freeText = _customPreferenceController.text.trim();
                   final hasIngredients =
                       widget.sessionManager.getIngredients().isNotEmpty;
@@ -297,6 +297,17 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                     );
                     return;
                   }
+                  if (widget.sessionManager.isGuestMode() &&
+                      await widget.sessionManager
+                          .isGuestRecipeQuotaExceededForToday()) {
+                    if (!context.mounted) return;
+                    final goSignup =
+                        await showGuestRecipeLimitReachedDialog(context);
+                    if (!context.mounted) return;
+                    if (goSignup == true) goToSignup(context);
+                    return;
+                  }
+                  if (!context.mounted) return;
                   context.push('/recipe-flow', extra: {
                     'userData': widget.homeViewModel.userData,
                     if (freeText.isNotEmpty) 'initialPrompt': freeText,

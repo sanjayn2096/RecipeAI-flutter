@@ -140,7 +140,7 @@ class RecipeAiApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'RecipeAI',
+      title: 'Sous Chef',
       theme: appTheme,
       routerConfig: router,
     );

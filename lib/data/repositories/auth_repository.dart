@@ -84,27 +84,36 @@ class AuthRepository {
     required String firstName,
     required String lastName,
   }) async {
-    final res = await _api.signup(SignupRequest(
-      email: email,
-      password: password,
-      firstName: firstName,
-      lastName: lastName,
-    ));
-    if (res.userId == null) throw Exception(res.message ?? 'Signup failed');
-    await _firebaseAuth.signInWithEmailAndPassword(
+    // 1. Create user
+
+    final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
-    final cred = _firebaseAuth.currentUser;
-    if (cred != null) {
-      await _fetchAndPersistUserProfileOnce(cred);
-    } else {
+
+    final user = userCredential.user;
+
+    if (user != null) {
+      final fullName = "$firstName $lastName";
+
+      // 2. ✅ Update Firebase Auth displayName
+      await user.updateDisplayName(fullName);
+
+      // Optional but recommended
+      await user.reload();
+
+      // 3. Fetch updated user
+      final updatedUser = _firebaseAuth.currentUser;
+
+      // 4. Persist locally / backend
       await _session.persistUserProfile(
-        userId: res.userId!,
+        userId: updatedUser!.uid,
         email: email,
         firstName: firstName,
         lastName: lastName,
       );
+    } else {
+      throw Exception('User Signup failed');
     }
   }
 

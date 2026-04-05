@@ -49,9 +49,16 @@ class SaveFavoriteRecipesRequest {
 
 /// Body for POST generate-recipe (prompt = "What do you feel like eating?").
 class GenerateRecipeRequest {
-  GenerateRecipeRequest({required this.prompt});
+  GenerateRecipeRequest({required this.prompt, this.anonymousId});
   final String prompt;
-  Map<String, dynamic> toJson() => {'prompt': prompt};
+  final String? anonymousId;
+  Map<String, dynamic> toJson() {
+    final m = <String, dynamic>{'prompt': prompt};
+    if (anonymousId != null && anonymousId!.trim().isNotEmpty) {
+      m['anonymousId'] = anonymousId!.trim();
+    }
+    return m;
+  }
 }
 
 // --- Response DTOs ---

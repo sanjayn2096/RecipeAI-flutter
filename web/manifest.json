@@ -1,11 +1,11 @@
 {
-    "name": "recipe_ai",
-    "short_name": "recipe_ai",
+    "name": "Sous Chef",
+    "short_name": "Sous Chef",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Sous Chef — recipe ideas tailored to you.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

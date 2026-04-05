@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/app_strings.dart';
 import '../data/models/user_data.dart';
+import '../widgets/cartoon_outlined_card.dart';
 import '../widgets/guest_signup_prompt.dart';
 
 import 'prompt_screen.dart';
@@ -36,27 +37,64 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _bootstrapInitialRoute();
+    });
+  }
+
+  Future<void> _bootstrapInitialRoute() async {
     if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
-      if (kDebugMode) {
-        debugPrint('[RecipeFlowScreen] initState: saving "${widget.initialPrompt}" as customPreference, then calling BACKEND with PromptBuilder prompt');
+      if (!await _ensureGuestCanGenerate(popRouteWhenBlocked: !widget.embedInTab)) {
+        return;
       }
-      widget.sessionManager.savePreferenceSync('customPreference', widget.initialPrompt!);
-      _currentRoute = 'recipeActivity';
-      widget.recipeViewModel.fetchRecipesFromPrompt();
-    } else if (!widget.embedInTab &&
-        widget.sessionManager.getIngredients().isNotEmpty) {
-      // Home pushed `/recipe-flow` (pantry-only). Bottom-nav Create tab always starts questionnaire.
+      if (!mounted) return;
       if (kDebugMode) {
-        debugPrint('[RecipeFlowScreen] initState: ingredients only -> backend generate-recipe (PromptBuilder uses session ingredients)');
+        debugPrint(
+          '[RecipeFlowScreen] bootstrap: saving "${widget.initialPrompt}" as customPreference, then calling BACKEND',
+        );
+      }
+      widget.sessionManager
+          .savePreferenceSync('customPreference', widget.initialPrompt!);
+      setState(() => _currentRoute = 'recipeActivity');
+      widget.recipeViewModel.fetchRecipesFromPrompt();
+      return;
+    }
+    if (!widget.embedInTab &&
+        widget.sessionManager.getIngredients().isNotEmpty) {
+      if (!await _ensureGuestCanGenerate(popRouteWhenBlocked: !widget.embedInTab)) {
+        return;
+      }
+      if (!mounted) return;
+      if (kDebugMode) {
+        debugPrint(
+          '[RecipeFlowScreen] bootstrap: ingredients only -> backend generate-recipe',
+        );
       }
       widget.sessionManager.savePreferenceSync('customPreference', '');
-      _currentRoute = 'recipeActivity';
+      setState(() => _currentRoute = 'recipeActivity');
       widget.recipeViewModel.fetchRecipesFromPrompt();
-    } else {
-      if (kDebugMode) {
-        debugPrint('[RecipeFlowScreen] initState: no initialPrompt -> mood/diet/cuisine flow, then backend generate-recipe');
-      }
+      return;
     }
+    if (kDebugMode) {
+      debugPrint(
+        '[RecipeFlowScreen] bootstrap: mood/diet/cuisine flow, then backend generate-recipe',
+      );
+    }
+  }
+
+  /// Returns false if guest is over quota (dialog; optional pop for blocked entry from Home).
+  Future<bool> _ensureGuestCanGenerate({bool popRouteWhenBlocked = false}) async {
+    final sm = widget.sessionManager;
+    if (!sm.isGuestMode()) return true;
+    if (!(await sm.isGuestRecipeQuotaExceededForToday())) return true;
+    if (!mounted) return false;
+    final goSignup = await showGuestRecipeLimitReachedDialog(context);
+    if (!mounted) return false;
+    if (goSignup == true) goToSignup(context);
+    if (popRouteWhenBlocked && !widget.embedInTab && context.mounted) {
+      context.pop();
+    }
+    return false;
   }
   String? _selectedMood;
   String? _selectedDiet;
@@ -135,12 +173,18 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
   }
 
   void _goToRecipeActivity() {
-    if (kDebugMode) {
-      debugPrint('[RecipeFlowScreen] _goToRecipeActivity: calling backend generate-recipe (fetchRecipes)');
-    }
-    _clearCustomPreferenceForEmbeddedCreateFlow();
-    widget.recipeViewModel.fetchRecipes();
-    setState(() => _currentRoute = 'recipeActivity');
+    Future(() async {
+      if (!await _ensureGuestCanGenerate()) return;
+      if (!mounted) return;
+      if (kDebugMode) {
+        debugPrint(
+          '[RecipeFlowScreen] _goToRecipeActivity: calling backend generate-recipe (fetchRecipes)',
+        );
+      }
+      _clearCustomPreferenceForEmbeddedCreateFlow();
+      widget.recipeViewModel.fetchRecipes();
+      setState(() => _currentRoute = 'recipeActivity');
+    });
   }
 
   void _resetFlowToStart() {
@@ -231,12 +275,14 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                       ),
                       const SizedBox(height: 24),
                       FilledButton(
-                        onPressed: () {
+                        onPressed: () async {
                           if (kDebugMode) {
                             debugPrint(
                               '[RecipeFlowScreen] Empty/error refresh: generate-recipe again',
                             );
                           }
+                          if (!await _ensureGuestCanGenerate()) return;
+                          if (!mounted) return;
                           _clearCustomPreferenceForEmbeddedCreateFlow();
                           widget.recipeViewModel.fetchRecipes();
                         },
@@ -259,44 +305,53 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
               ),
             ),
             body: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 10),
               itemCount: recipes.length,
               itemBuilder: (_, i) {
                 final recipe = recipes[i];
-                return ListTile(
-                  title: Text(recipe.recipeName),
-                  subtitle: Text(recipe.cuisine),
-                  trailing: IconButton(
-                    tooltip: recipe.isFavorite
-                        ? 'Remove from favorites'
-                        : 'Add to favorites',
-                    icon: Icon(
-                      recipe.isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: recipe.isFavorite
-                          ? Colors.red
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                return CartoonOutlinedCard(
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
                     ),
-                    onPressed: () async {
-                      if (widget.sessionManager.isGuestMode()) {
-                        final goSignup =
-                            await showGuestFavoriteSignupDialog(context);
-                        if (!context.mounted) return;
-                        if (goSignup == true) {
-                          goToSignup(context);
+                    title: Text(recipe.recipeName),
+                    subtitle: Text(recipe.cuisine),
+                    trailing: IconButton(
+                      tooltip: recipe.isFavorite
+                          ? 'Remove from favorites'
+                          : 'Add to favorites',
+                      icon: Icon(
+                        recipe.isFavorite
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        color: recipe.isFavorite
+                            ? Colors.red
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      onPressed: () async {
+                        if (widget.sessionManager.isGuestMode()) {
+                          final goSignup =
+                              await showGuestFavoriteSignupDialog(context);
+                          if (!context.mounted) return;
+                          if (goSignup == true) {
+                            goToSignup(context);
+                          }
+                          return;
                         }
-                        return;
-                      }
-                      await widget.recipeViewModel.toggleFavorite(recipe);
+                        await widget.recipeViewModel.toggleFavorite(recipe);
+                      },
+                    ),
+                    onTap: () {
+                      context.push(
+                        '/show-recipe',
+                        extra: {
+                          'recipe': recipe,
+                          'recipeViewModel': widget.recipeViewModel,
+                        },
+                      );
                     },
                   ),
-                  onTap: () {
-                    context.push(
-                      '/show-recipe',
-                      extra: {
-                        'recipe': recipe,
-                        'recipeViewModel': widget.recipeViewModel,
-                      },
-                    );
-                  },
                 );
               },
             ),
