@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../view_models/login_view_model.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
+import 'verify_email_screen.dart';
 
 class LoginHandlerScreen extends StatefulWidget {
   const LoginHandlerScreen({
@@ -11,7 +13,7 @@ class LoginHandlerScreen extends StatefulWidget {
     this.openSignup = false,
   });
 
-  final dynamic loginViewModel;
+  final LoginViewModel loginViewModel;
   /// When true (e.g. route `extra` from guest flows), show sign-up instead of login.
   final bool openSignup;
 
@@ -46,17 +48,24 @@ class _LoginHandlerScreenState extends State<LoginHandlerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: ListenableBuilder(
-        listenable: widget.loginViewModel,
-        builder: (_, __) {
-          if (widget.loginViewModel.isLoggedIn) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) context.go('/home');
-            });
-            return const Center(child: CircularProgressIndicator());
-          }
-          return _showSignup
+    return ListenableBuilder(
+      listenable: widget.loginViewModel,
+      builder: (_, __) {
+        if (widget.loginViewModel.isLoggedIn) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) context.go('/home');
+          });
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (widget.loginViewModel.needsEmailVerification) {
+          return VerifyEmailScreen(
+            loginViewModel: widget.loginViewModel,
+          );
+        }
+        return Scaffold(
+          body: _showSignup
               ? SignupScreen(
                   loginViewModel: widget.loginViewModel,
                   onLoginTap: () => setState(() => _showSignup = false),
@@ -64,9 +73,9 @@ class _LoginHandlerScreenState extends State<LoginHandlerScreen> {
               : LoginScreen(
                   loginViewModel: widget.loginViewModel,
                   onSignupTap: () => setState(() => _showSignup = true),
-                );
-        },
-      ),
+                ),
+        );
+      },
     );
   }
 }

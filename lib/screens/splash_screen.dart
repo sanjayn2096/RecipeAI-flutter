@@ -38,7 +38,9 @@ class _SplashScreenState extends State<SplashScreen> {
         'isGuest=${widget.loginViewModel.isGuestMode}, navigating',
       );
     }
-    if (widget.loginViewModel.isLoggedIn ||
+    if (widget.loginViewModel.needsEmailVerification) {
+      context.go('/verify-email');
+    } else if (widget.loginViewModel.isLoggedIn ||
         widget.loginViewModel.isGuestMode) {
       context.go('/home');
     } else {

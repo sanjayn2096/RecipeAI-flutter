@@ -1,9 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../data/api/api_service.dart';
+import 'email_not_verified_exception.dart';
 
 /// Short, user-facing copy for signup/login failures (no stack traces).
 String authErrorMessage(Object error) {
+  if (error is EmailNotVerifiedException) {
+    return error.message;
+  }
+
   if (error is ApiException) {
     final msg = error.message.trim();
     if (msg.isEmpty) return _generic;

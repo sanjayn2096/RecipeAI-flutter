@@ -47,34 +47,6 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(map));
   }
 
-  Future<SignupResponse> signup(SignupRequest request) async {
-    final url = _url('signup');
-    final r = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(request.toJson()),
-    );
-    final map = _decodeBody(r.body, url);
-    if (r.statusCode >= 200 && r.statusCode < 300) {
-      return SignupResponse.fromJson(map as Map<String, dynamic>);
-    }
-    throw ApiException(r.statusCode, _extractError(map));
-  }
-
-  Future<SignoutResponse> signout(SignoutRequest request) async {
-    final url = _url('signout');
-    final r = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(request.toJson()),
-    );
-    final map = _decodeBody(r.body, url);
-    if (r.statusCode >= 200 && r.statusCode < 300) {
-      return SignoutResponse.fromJson(map as Map<String, dynamic>);
-    }
-    throw ApiException(r.statusCode, _extractError(map));
-  }
-
   /// POST save-favorites. Pass [idToken] (Firebase ID token) for auth, same as generate-recipe.
   Future<SaveFavoriteRecipesResponse> saveFavoriteRecipes(
     SaveFavoriteRecipesRequest request, {

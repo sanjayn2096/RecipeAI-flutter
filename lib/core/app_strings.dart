@@ -7,7 +7,7 @@ class AppStrings {
   static const String ok = 'OK';
   static const String back = 'Back';
   static const String refresh = 'Refresh';
-  static const String fetchRecipes = 'Fetch Recipes';
+  static const String fetchRecipes = 'Fetching Recipes...';
   static const String fetchMoreRecipes = 'Fetch More Recipes';
   static const String editPreferences = 'Edit Preferences';
   static const String recipeInstructions = 'Recipe Instructions';

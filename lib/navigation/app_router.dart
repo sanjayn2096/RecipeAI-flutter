@@ -2,6 +2,8 @@ import 'package:go_router/go_router.dart';
 
 import '../screens/splash_screen.dart';
 import '../screens/login_handler_screen.dart';
+import '../screens/verify_email_screen.dart';
+import '../view_models/login_view_model.dart';
 import '../screens/home_shell_screen.dart';
 import '../screens/recipe_flow_screen.dart';
 import '../screens/show_recipe_screen.dart';
@@ -41,6 +43,11 @@ class AppRouter {
             openSignup: openSignup,
           );
         },
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (_, __) =>
+            VerifyEmailScreen(loginViewModel: loginViewModel as LoginViewModel),
       ),
       GoRoute(
         path: '/home',
