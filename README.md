@@ -22,7 +22,7 @@ Flutter version of RecipeAI — generates recipes based on user suggestions and 
    ```
 
 2. Firebase (required for Android): The app needs `FirebaseOptions` from a config file.
-   - **Android:** Download `google-services.json` from [Firebase Console](https://console.firebase.google.com/) → project **recipeai-89d8b** → Project settings → Your apps → Android app (or add one with package name `com.example.recipe_ai`). Place the file in **`android/app/google-services.json`**.
+   - **Android:** Release `applicationId` is `com.sunj.souschefai`. Use **`android/app/google-services.json`** from Firebase Console → project **recipeai-89d8b** → Android app registered with that package (or run `firebase apps:sdkconfig ANDROID <appId> --project recipeai-89d8b`).
    - **iOS:** Add `GoogleService-Info.plist` to the iOS project if you build for iOS.
    - The Google Services Gradle plugin is already applied in this project; the file path above must be correct or you'll see "Failed to load FirebaseOptions from resource".
 

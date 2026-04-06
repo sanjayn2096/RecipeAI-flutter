@@ -1,4 +1,4 @@
-package com.sunj.recipeai
+package com.sunj.souschefai
 
 import io.flutter.embedding.android.FlutterActivity
 
