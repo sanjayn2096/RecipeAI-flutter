@@ -48,6 +48,10 @@ String _firebaseMessage(FirebaseAuthException e) {
       return 'Too many attempts. Please wait a moment and try again.';
     case 'operation-not-allowed':
       return 'Sign-in with email and password is not enabled.';
+    case 'requires-recent-login':
+      return 'Please sign out, sign in again, then try deleting your account.';
+    case 'no-current-user':
+      return 'You are not signed in.';
     default:
       final m = e.message?.trim();
       if (m != null && m.isNotEmpty && !m.contains('Instance of')) {

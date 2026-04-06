@@ -202,6 +202,17 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Permanently deletes the Firebase account after password confirmation.
+  /// Clears local session and favorites; navigate to login from the caller ([signOut] uses [isSignedOut] instead).
+  Future<void> deleteAccount(String password) async {
+    _stopFavoritesFirestoreSync();
+    await _authRepo.deleteAccountWithPassword(password);
+    _sessionProfile = const SessionProfile();
+    _userData = null;
+    _apiFavorites = [];
+    notifyListeners();
+  }
+
   void clearSignedOutFlag() {
     _isSignedOut = null;
     notifyListeners();

@@ -100,6 +100,7 @@ class AppRouter {
         path: '/profile',
         builder: (context, __) => ProfileScreen(
           homeViewModel: homeViewModel,
+          loginViewModel: loginViewModel,
           onBack: () => context.pop(),
         ),
       ),

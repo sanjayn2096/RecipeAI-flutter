@@ -160,4 +160,27 @@ class AuthRepository {
     await _favoritesHiveStore.clear();
   }
 
+  /// Re-authenticates with email/password, deletes the Firebase user, then clears local session
+  /// and favorites (same cleanup as [signOut]).
+  Future<void> deleteAccountWithPassword(String password) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(code: 'no-current-user', message: 'Not signed in.');
+    }
+    final email = user.email;
+    if (email == null || email.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'operation-not-allowed',
+        message: 'This account type cannot be deleted here.',
+      );
+    }
+    final credential = EmailAuthProvider.credential(email: email, password: password);
+    await user.reauthenticateWithCredential(credential);
+    await user.delete();
+    _profileFetchedForFirebaseUid = null;
+    await _firebaseAuth.signOut();
+    await _session.clearSession();
+    await _favoritesHiveStore.clear();
+  }
+
 }
