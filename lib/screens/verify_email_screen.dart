@@ -145,8 +145,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
             children: [
               Text(
                 email.isEmpty
-                    ? 'We sent a verification link to your email. Open it, then return to this app—we will continue automatically.'
-                    : 'We sent a verification link to $email. Open it, then return to this app—we will continue automatically.',
+                    ? 'We sent a verification link to your email. Open it, then return to this app—we will continue automatically. Please check Spam folder if you are not able to locate in inbox'
+                    : 'We sent a verification link to $email. Open it, then return to this app—we will continue automatically. Please check Spam folder if you are not able to locate in inbox',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 12),
