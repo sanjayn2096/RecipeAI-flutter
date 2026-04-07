@@ -127,7 +127,10 @@ class LoginViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> refreshVerificationAndComplete() async {
+  /// When [showNotVerifiedMessage] is false, still-unverified is silent (for polling / resume).
+  Future<void> refreshVerificationAndComplete({
+    bool showNotVerifiedMessage = true,
+  }) async {
     _errorMessage = null;
     notifyListeners();
     try {
@@ -137,7 +140,7 @@ class LoginViewModel extends ChangeNotifier {
         _session.clearGuestModeSync();
         _session.clearAnonymousAndGuestQuotaSync();
         _isLoggedIn = true;
-      } else {
+      } else if (showNotVerifiedMessage) {
         _errorMessage =
             'Not verified yet. Open the link in your email, then try again.';
       }

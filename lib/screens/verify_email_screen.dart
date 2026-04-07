@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 
 import '../view_models/login_view_model.dart';
 
+const Duration _verifyResumeDebounce = Duration(milliseconds: 400);
+const Duration _verifyPollInterval = Duration(seconds: 5);
+
 class VerifyEmailScreen extends StatefulWidget {
   const VerifyEmailScreen({super.key, required this.loginViewModel});
 
@@ -14,22 +17,46 @@ class VerifyEmailScreen extends StatefulWidget {
   State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
 }
 
-class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
+class _VerifyEmailScreenState extends State<VerifyEmailScreen>
+    with WidgetsBindingObserver {
   bool _busy = false;
+  bool _checkInFlight = false;
   int _resendSecs = 0;
   Timer? _resendTimer;
+  Timer? _pollTimer;
+  Timer? _resumeDebounce;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.loginViewModel.addListener(_onVm);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tryAutoVerification(silentWhenStillPending: true);
+    });
+    _pollTimer = Timer.periodic(_verifyPollInterval, (_) {
+      _tryAutoVerification(silentWhenStillPending: true);
+    });
   }
 
   @override
   void dispose() {
+    _resumeDebounce?.cancel();
+    _pollTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     widget.loginViewModel.removeListener(_onVm);
     _resendTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _resumeDebounce?.cancel();
+      _resumeDebounce = Timer(_verifyResumeDebounce, () {
+        _tryAutoVerification(silentWhenStillPending: true);
+      });
+    }
   }
 
   void _onVm() {
@@ -38,6 +65,28 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       context.go('/home');
     }
     setState(() {});
+  }
+
+  Future<void> _tryAutoVerification({required bool silentWhenStillPending}) async {
+    if (!mounted ||
+        _checkInFlight ||
+        widget.loginViewModel.isLoggedIn ||
+        !widget.loginViewModel.needsEmailVerification) {
+      return;
+    }
+    _checkInFlight = true;
+    try {
+      widget.loginViewModel.clearError();
+      await widget.loginViewModel.refreshVerificationAndComplete(
+        showNotVerifiedMessage: !silentWhenStillPending,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _checkInFlight = false);
+      } else {
+        _checkInFlight = false;
+      }
+    }
   }
 
   void _startResendCooldown() {
@@ -55,10 +104,9 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     });
   }
 
-  Future<void> _onVerifiedTap() async {
+  Future<void> _onCheckAgainTap() async {
     setState(() => _busy = true);
-    widget.loginViewModel.clearError();
-    await widget.loginViewModel.refreshVerificationAndComplete();
+    await _tryAutoVerification(silentWhenStillPending: false);
     if (mounted) setState(() => _busy = false);
   }
 
@@ -97,14 +145,21 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             children: [
               Text(
                 email.isEmpty
-                    ? 'We sent a verification link to your email. Open it, then tap the button below.'
-                    : 'We sent a verification link to $email. Open it, then tap the button below.',
+                    ? 'We sent a verification link to your email. Open it, then return to this app—we will continue automatically.'
+                    : 'We sent a verification link to $email. Open it, then return to this app—we will continue automatically.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
+              const SizedBox(height: 12),
+              Text(
+                'Stuck? Try Check again below.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
               const SizedBox(height: 28),
-              FilledButton(
-                onPressed: _busy ? null : _onVerifiedTap,
-                child: const Text("I've verified"),
+              OutlinedButton(
+                onPressed: (_busy || _checkInFlight) ? null : _onCheckAgainTap,
+                child: const Text('Check again'),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
