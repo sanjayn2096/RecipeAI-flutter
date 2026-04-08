@@ -103,7 +103,7 @@ class SessionManager {
   String? getCookingPreference() => getPreference(AppConstants.prefsCookingPreference) ?? 'No Cooking Preferences';
   String? getDietRestrictions() => getPreference(AppConstants.prefsDietRestrictions) ?? 'No Diet Restrictions';
 
-  /// Chosen pantry / ingredient labels for the prompt (see [PromptBuilder]).
+  /// Chosen pantry / ingredient labels sent to POST generate-recipe.
   List<String> getIngredients() {
     final list = _prefs?.getStringList(_prefix + AppConstants.prefsIngredients);
     return list ?? const [];

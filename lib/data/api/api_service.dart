@@ -69,7 +69,7 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(map));
   }
 
-  /// POST generate-recipe with user prompt. Pass [idToken] (Firebase ID token) for auth.
+  /// POST generate-recipe (recipe preferences body; server builds LLM prompt). Pass [idToken] if auth.
   Future<GenerateRecipeResponse> generateRecipe(GenerateRecipeRequest request, {String? idToken}) async {
     final url = _url('generate-recipe');
     final headers = <String, String>{

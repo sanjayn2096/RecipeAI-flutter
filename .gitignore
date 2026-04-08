@@ -47,3 +47,4 @@ lib/generated_plugin_registrant.dart
 *.log
 .env
 .env.*
+/backend_reference/

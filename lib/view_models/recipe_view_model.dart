@@ -30,7 +30,7 @@ class RecipeViewModel extends ChangeNotifier {
   bool _isBeingEdited = false;
   bool get isBeingEdited => _isBeingEdited;
 
-  /// POST generate-recipe (prompt from [PromptBuilder] / session).
+  /// POST generate-recipe with structured session fields (server builds prompt).
   Future<void> fetchRecipes() async {
     if (_kRecipeLogging) debugPrint('[RecipeViewModel] fetchRecipes() -> backend generate-recipe');
     _isLoading = true;

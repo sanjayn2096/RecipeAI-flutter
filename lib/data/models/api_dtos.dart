@@ -47,13 +47,48 @@ class SaveFavoriteRecipesRequest {
       };
 }
 
-/// Body for POST generate-recipe (prompt = "What do you feel like eating?").
+/// Stable wire value for POST /generate-recipe (avoids coupling "feeling lucky" to UI copy).
+enum RecipeGenerationMode {
+  custom('custom'),
+  lucky('lucky'),
+  preferences('preferences');
+
+  const RecipeGenerationMode(this.wireName);
+  final String wireName;
+}
+
+/// Body for POST generate-recipe. Server builds the LLM prompt from these fields.
 class GenerateRecipeRequest {
-  GenerateRecipeRequest({required this.prompt, this.anonymousId});
-  final String prompt;
+  GenerateRecipeRequest({
+    required this.ingredients,
+    required this.customPreference,
+    required this.mood,
+    required this.dietRestrictions,
+    required this.cuisine,
+    required this.cookingPreference,
+    required this.recipeMode,
+    this.anonymousId,
+  });
+
+  final List<String> ingredients;
+  final String customPreference;
+  final String mood;
+  final String dietRestrictions;
+  final String cuisine;
+  final String cookingPreference;
+  final RecipeGenerationMode recipeMode;
   final String? anonymousId;
+
   Map<String, dynamic> toJson() {
-    final m = <String, dynamic>{'prompt': prompt};
+    final m = <String, dynamic>{
+      'ingredients': ingredients,
+      'customPreference': customPreference,
+      'mood': mood,
+      'dietRestrictions': dietRestrictions,
+      'cuisine': cuisine,
+      'cookingPreference': cookingPreference,
+      'recipeMode': recipeMode.wireName,
+    };
     if (anonymousId != null && anonymousId!.trim().isNotEmpty) {
       m['anonymousId'] = anonymousId!.trim();
     }

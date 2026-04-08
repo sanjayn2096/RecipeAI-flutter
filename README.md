@@ -26,7 +26,7 @@ Flutter version of RecipeAI — generates recipes based on user suggestions and 
    - **iOS:** Add `GoogleService-Info.plist` to the iOS project if you build for iOS.
    - The Google Services Gradle plugin is already applied in this project; the file path above must be correct or you'll see "Failed to load FirebaseOptions from resource".
 
-3. **Recipe generation** is done by your backend (`POST generate-recipe`). The app does not call Gemini from the client.
+3. **Recipe generation** is done by your backend (`POST generate-recipe`). The app does not call Gemini from the client. Server-side prompt assembly and a route sketch live in [`backend_reference/recipe_prompt.js`](backend_reference/recipe_prompt.js) and [`backend_reference/generate_recipe_route.example.js`](backend_reference/generate_recipe_route.example.js); merge them into your Node API.
 
 ## Run
 
@@ -39,7 +39,7 @@ flutter run
 - **Repositories**: Auth and User use `AuthRepository` / `UserRepository` instead of calling API from ViewModels.
 - **Async**: All API/session work uses `async/await` (no callbacks).
 - **Firebase sign out**: Sign out now calls `FirebaseAuth.signOut()` in addition to backend and session clear.
-- **Prompt**: Prompt text is built in `PromptBuilder` (testable), not inside the ViewModel.
+- **Recipe generation request**: The app sends structured preferences (`ingredients`, `customPreference`, mood, diet, cuisine, cooking time) plus `recipeMode` (`custom` / `lucky` / `preferences`) so the backend does not rely on UI copy for the “feeling lucky” branch; the backend builds the LLM prompt.
 - **Session**: Single `SessionManager` instance created in `main.dart` and passed where needed.
 - **Recipe image**: Model supports both `imageUrl` and `image` for API compatibility.
 
