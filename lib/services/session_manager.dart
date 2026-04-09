@@ -27,6 +27,7 @@ class SessionManager {
     await p.remove(_prefix + AppConstants.prefsFirstName);
     await p.remove(_prefix + AppConstants.prefsLastName);
     await p.remove(_prefix + AppConstants.prefsIngredients);
+    await p.remove(_prefix + AppConstants.prefsUsualCuisines);
     await p.remove(_prefix + AppConstants.prefsGuestMode);
     await p.remove(_prefix + AppConstants.prefsAnonymousId);
     await p.remove(_prefix + AppConstants.prefsGuestGenDayKey);
@@ -51,7 +52,7 @@ class SessionManager {
 
   Future<void> saveFirstName(String? value) async {
     final p = await _p;
-    final key = _prefix + AppConstants.prefsFirstName;
+    const key = _prefix + AppConstants.prefsFirstName;
     if (value == null || value.trim().isEmpty) {
       await p.remove(key);
     } else {
@@ -61,7 +62,7 @@ class SessionManager {
 
   Future<void> saveLastName(String? value) async {
     final p = await _p;
-    final key = _prefix + AppConstants.prefsLastName;
+    const key = _prefix + AppConstants.prefsLastName;
     if (value == null || value.trim().isEmpty) {
       await p.remove(key);
     } else {
@@ -109,6 +110,13 @@ class SessionManager {
     return list ?? const [];
   }
 
+  /// Cuisines the user usually cooks (used to suggest pantry items on Home).
+  List<String> getUsualCuisines() {
+    final list =
+        _prefs?.getStringList(_prefix + AppConstants.prefsUsualCuisines);
+    return list ?? const [];
+  }
+
   Future<void> saveIngredients(List<String> ingredients) async {
     await (await _p).setStringList(
       _prefix + AppConstants.prefsIngredients,
@@ -120,6 +128,20 @@ class SessionManager {
     _prefs?.setStringList(
       _prefix + AppConstants.prefsIngredients,
       ingredients,
+    );
+  }
+
+  Future<void> saveUsualCuisines(List<String> cuisines) async {
+    await (await _p).setStringList(
+      _prefix + AppConstants.prefsUsualCuisines,
+      cuisines,
+    );
+  }
+
+  void saveUsualCuisinesSync(List<String> cuisines) {
+    _prefs?.setStringList(
+      _prefix + AppConstants.prefsUsualCuisines,
+      cuisines,
     );
   }
 
@@ -151,7 +173,7 @@ class SessionManager {
 
   Future<String> getOrCreateAnonymousId() async {
     final p = await _p;
-    final key = _prefix + AppConstants.prefsAnonymousId;
+    const key = _prefix + AppConstants.prefsAnonymousId;
     final existing = p.getString(key);
     if (existing != null && existing.isNotEmpty) return existing;
     final id = const Uuid().v4();
@@ -175,8 +197,8 @@ class SessionManager {
     if (!isGuestMode()) return;
     final p = await _p;
     final day = guestQuotaUtcDayKeyNow();
-    final keyDay = _prefix + AppConstants.prefsGuestGenDayKey;
-    final keyCount = _prefix + AppConstants.prefsGuestGenCount;
+    const keyDay = _prefix + AppConstants.prefsGuestGenDayKey;
+    const keyCount = _prefix + AppConstants.prefsGuestGenCount;
     final storedDay = p.getString(keyDay);
     int count = 0;
     if (storedDay == day) {

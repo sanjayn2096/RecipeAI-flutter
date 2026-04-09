@@ -9,6 +9,9 @@ import '../widgets/favorite_recipes_list_view.dart';
 import '../widgets/guest_signup_prompt.dart';
 import 'recipe_flow_screen.dart';
 
+/// Matches selected pantry pills and sheet highlights.
+const Color _kPantrySelectedGreen = Color(0xFF2E7D32);
+
 /// Main shell after login: bottom nav — Home, Create Recipes, Favorites.
 class HomeShellScreen extends StatefulWidget {
   const HomeShellScreen({
@@ -184,6 +187,13 @@ class _HomeTabBody extends StatefulWidget {
 class _HomeTabBodyState extends State<_HomeTabBody> {
   late final TextEditingController _customPreferenceController;
 
+  List<String> get _cuisineOptionsForUsualCuisines {
+    // "Surprise Me" isn't a meaningful "usual cuisine" preference.
+    return AppStrings.cuisineOptions
+        .where((c) => c != AppStrings.surpriseMe)
+        .toList();
+  }
+
   String? _greetingName() {
     final name = widget.homeViewModel.sessionProfile.firstName.trim();
     if (name.isNotEmpty) return name;
@@ -205,6 +215,96 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
       list.add(item);
     }
     widget.sessionManager.saveIngredientsSync(list);
+    setState(() {});
+  }
+
+  Future<void> _showUsualCuisinesBottomSheet() async {
+    final current = widget.sessionManager.getUsualCuisines().toSet();
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 8),
+                    ListTile(
+                      title: const Text('Cuisines you usually cook'),
+                      subtitle: Text(
+                        current.isEmpty
+                            ? 'Pick one or more cuisines to personalize pantry suggestions.'
+                            : current.join(', '),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          for (final cuisine in _cuisineOptionsForUsualCuisines)
+                            CheckboxListTile(
+                              value: current.contains(cuisine),
+                              title: Text(cuisine),
+                              onChanged: (_) {
+                                if (current.contains(cuisine)) {
+                                  current.remove(cuisine);
+                                } else {
+                                  current.add(cuisine);
+                                }
+                                widget.sessionManager
+                                    .saveUsualCuisinesSync(current.toList());
+                                setSheetState(() {});
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Done'),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _showPantryPickerBottomSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return _PantryPickerSheet(
+          sessionManager: widget.sessionManager,
+          initialSelected: widget.sessionManager.getIngredients(),
+          cuisines: widget.sessionManager.getUsualCuisines(),
+        );
+      },
+    );
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -247,6 +347,13 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     final greeting = _greetingName();
     final colorScheme = Theme.of(context).colorScheme;
     final selected = widget.sessionManager.getIngredients().toSet();
+    final usualCuisines = widget.sessionManager.getUsualCuisines().toSet();
+    final suggestedQuickChips =
+        PantryItems.suggestedForCuisines(usualCuisines.toList(), limit: 24);
+    final selectedSorted = List<String>.from(selected)..sort();
+    final suggestionChipsOnly = suggestedQuickChips
+        .where((item) => !selected.contains(item))
+        .toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -317,6 +424,21 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 label: const Text('Get me Recipes'),
               ),
               const SizedBox(height: 24),
+              Card(
+                elevation: 0,
+                color: colorScheme.surfaceContainerHighest,
+                child: ListTile(
+                  title: const Text('Cuisines you usually cook'),
+                  subtitle: Text(
+                    usualCuisines.isEmpty
+                        ? 'Tap to choose cuisines (for better pantry suggestions).'
+                        : usualCuisines.join(', '),
+                  ),
+                  trailing: const Icon(Icons.tune),
+                  onTap: _showUsualCuisinesBottomSheet,
+                ),
+              ),
+              const SizedBox(height: 16),
               Text.rich(
                 textAlign: TextAlign.center,
                 TextSpan(
@@ -324,7 +446,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                         color: colorScheme.onSurfaceVariant,
                       ),
                   children: [
-                    TextSpan(text: AppStrings.pantryStaples),
+                    const TextSpan(text: AppStrings.pantryStaples),
                     WidgetSpan(
                       alignment: PlaceholderAlignment.top,
                       child: Transform.translate(
@@ -356,17 +478,60 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 ),
               ),
               const SizedBox(height: 10),
-              // Variable-width pills, fixed height; wrap to next row when a row doesn’t fit.
+              Center(
+                child: OutlinedButton.icon(
+                  onPressed: _showPantryPickerBottomSheet,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add pantry items'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (selectedSorted.isNotEmpty) ...[
+                Text(
+                  'In your pantry',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    for (final item in selectedSorted)
+                      _PantryPill(
+                        label: item,
+                        selected: true,
+                        colorScheme: colorScheme,
+                        onTap: () => _togglePantryItem(item),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+              if (suggestionChipsOnly.isNotEmpty) ...[
+                Text(
+                  'Suggestions',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+              ],
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 alignment: WrapAlignment.center,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  for (final item in PantryItems.common)
+                  for (final item in suggestionChipsOnly)
                     _PantryPill(
                       label: item,
-                      selected: selected.contains(item),
+                      selected: false,
                       colorScheme: colorScheme,
                       onTap: () => _togglePantryItem(item),
                     ),
@@ -375,6 +540,263 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
               const SizedBox(height: 32),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PantryPickerSheet extends StatefulWidget {
+  const _PantryPickerSheet({
+    required this.sessionManager,
+    required this.initialSelected,
+    required this.cuisines,
+  });
+
+  final dynamic sessionManager;
+  final List<String> initialSelected;
+  final List<String> cuisines;
+
+  @override
+  State<_PantryPickerSheet> createState() => _PantryPickerSheetState();
+}
+
+class _PantryPickerSheetState extends State<_PantryPickerSheet> {
+  late final TextEditingController _controller;
+  late final Set<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _selected = widget.initialSelected.toSet();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  static String _normalizeCustomIngredient(String raw) => raw.trim();
+
+  static bool _containsCaseInsensitive(Iterable<String> list, String value) {
+    final v = value.trim().toLowerCase();
+    for (final item in list) {
+      if (item.trim().toLowerCase() == v) return true;
+    }
+    return false;
+  }
+
+  void _toggle(String item) {
+    if (_selected.contains(item)) {
+      _selected.remove(item);
+    } else {
+      _selected.add(item);
+    }
+    widget.sessionManager.saveIngredientsSync(_selected.toList());
+    setState(() {});
+  }
+
+  void _addCustom(String raw) {
+    final normalized = _normalizeCustomIngredient(raw);
+    if (normalized.isEmpty) return;
+    if (_containsCaseInsensitive(_selected, normalized)) return;
+    _selected.add(normalized);
+    widget.sessionManager.saveIngredientsSync(_selected.toList());
+    _controller.clear();
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _controller.text.trim();
+    final filtered = query.isEmpty
+        ? const <String>[]
+        : PantryItems.allItems
+            .where((e) => e.toLowerCase().contains(query.toLowerCase()))
+            .toList();
+
+    final canAddCustom = query.isNotEmpty &&
+        query.length <= 40 &&
+        !_containsCaseInsensitive(PantryItems.allItems, query) &&
+        !_containsCaseInsensitive(_selected, query);
+
+    final suggestionCuisines = widget.cuisines.isEmpty
+        ? const [PantryItems.cuisinePopular]
+        : widget.cuisines;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            TextField(
+              controller: _controller,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                labelText: 'Search pantry items',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 6),
+                    child: Text(
+                      'Your pantry',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  if (_selected.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'Nothing selected yet — pick below or search.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final item in (List<String>.from(_selected)
+                            ..sort()))
+                            InputChip(
+                              label: Text(item),
+                              onDeleted: () => _toggle(item),
+                              deleteIconColor: Colors.white,
+                              backgroundColor: _kPantrySelectedGreen,
+                              labelStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              side: BorderSide.none,
+                            ),
+                        ],
+                      ),
+                    ),
+                  if (canAddCustom)
+                    ListTile(
+                      leading: const Icon(Icons.add),
+                      title: Text('Add "$query"'),
+                      onTap: () => _addCustom(query),
+                    ),
+                  if (filtered.isNotEmpty) ...[
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8, bottom: 6),
+                      child: Text(
+                        'Search results',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    Theme(
+                      data: Theme.of(context).copyWith(
+                        checkboxTheme: CheckboxThemeData(
+                          fillColor: WidgetStateProperty.resolveWith((states) {
+                            if (states.contains(WidgetState.selected)) {
+                              return _kPantrySelectedGreen;
+                            }
+                            return null;
+                          }),
+                          checkColor: WidgetStateProperty.all(Colors.white),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final item in filtered)
+                            CheckboxListTile(
+                              value: _selected.contains(item),
+                              title: Text(item),
+                              onChanged: (_) => _toggle(item),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const Divider(),
+                  ],
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8, bottom: 6),
+                    child: Text(
+                      'Suggested for you',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  for (final cuisine in suggestionCuisines) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10, bottom: 6),
+                      child: Text(
+                        cuisine,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final item in (PantryItems.staplesByCuisine[cuisine] ??
+                            const <String>[]))
+                          Builder(
+                            builder: (ctx) {
+                              final sel = _selected.contains(item);
+                              return FilterChip(
+                                label: Text(
+                                  item,
+                                  style: TextStyle(
+                                    color: sel
+                                        ? Colors.white
+                                        : Theme.of(ctx).colorScheme.onSurface,
+                                    fontWeight:
+                                        sel ? FontWeight.w600 : FontWeight.w500,
+                                  ),
+                                ),
+                                selected: sel,
+                                showCheckmark: true,
+                                checkmarkColor: Colors.white,
+                                selectedColor: _kPantrySelectedGreen,
+                                backgroundColor: Theme.of(ctx)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                                side: BorderSide.none,
+                                onSelected: (_) => _toggle(item),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  _selected.isEmpty
+                      ? 'Done'
+                      : 'Done (${_selected.length} selected)',
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -407,7 +829,7 @@ class _PantryPill extends StatelessWidget {
           shadowColor: Colors.black26,
           borderRadius: BorderRadius.circular(22),
           color: selected
-              ? const Color(0xFF2E7D32)
+              ? _kPantrySelectedGreen
               : colorScheme.surfaceContainerHighest,
           child: InkWell(
             onTap: onTap,

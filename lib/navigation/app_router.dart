@@ -7,6 +7,7 @@ import '../view_models/login_view_model.dart';
 import '../screens/home_shell_screen.dart';
 import '../screens/recipe_flow_screen.dart';
 import '../screens/show_recipe_screen.dart';
+import '../screens/cook_recipe_flow_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/favorites_screen.dart';
 import '../data/models/recipe.dart';
@@ -94,6 +95,19 @@ class AppRouter {
           }
           final recipe = extra as Recipe;
           return ShowRecipeScreen(recipe: recipe, isGuest: isGuest);
+        },
+      ),
+      GoRoute(
+        path: '/cook-recipe',
+        builder: (_, state) {
+          final extra = state.extra;
+          final Recipe recipe;
+          if (extra is Map<String, dynamic>) {
+            recipe = extra['recipe'] as Recipe;
+          } else {
+            recipe = extra as Recipe;
+          }
+          return CookRecipeFlowScreen(recipe: recipe);
         },
       ),
       GoRoute(

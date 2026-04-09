@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/app_strings.dart';
 import '../data/models/recipe.dart';
@@ -68,7 +69,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
         title: Text(widget.recipe.recipeName),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.pop(),
         ),
         actions: [
           if (widget.recipeViewModel != null)
@@ -108,6 +109,18 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => context.push(
+                '/cook-recipe',
+                extra: {'recipe': widget.recipe},
+              ),
+              icon: const Icon(Icons.restaurant_menu),
+              label: const Text("Let's get cooking"),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
+            ),
+            const SizedBox(height: 24),
             Text(
               'Ingredients',
               style: Theme.of(context).textTheme.titleMedium,
