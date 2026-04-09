@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 
 import '../core/app_strings.dart';
 import '../data/models/user_data.dart';
@@ -225,13 +226,20 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
           if (widget.recipeViewModel.isLoading) {
             return Scaffold(
               appBar: AppBar(title: const Text(AppStrings.fetchRecipes)),
-              body: const Center(
+              body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(AppStrings.sendingTastyRecipes),
+                    SizedBox(
+                      width: 260,
+                      child: Lottie.asset(
+                        'assets/animations/cooking_animation.json',
+                        repeat: true,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(AppStrings.sendingTastyRecipes),
                   ],
                 ),
               ),

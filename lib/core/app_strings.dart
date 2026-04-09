@@ -66,6 +66,7 @@ class AppStrings {
   static const String tenTo30Min = '10 – 30 Minutes';
   static const String thirtyTo60Min = '30 – 60 Minutes';
   static const String over60Min = '> 60 Minutes';
+  static const String notParticular = 'Not Particular';
 
   static List<String> get moodOptions => [
         happyExcited,
@@ -74,8 +75,7 @@ class AppStrings {
         neutral,
         feelingLucky,
         angry,
-        confused,
-        nothingSelected,
+        confused
       ];
 
   static List<String> get dietOptions => [
@@ -88,8 +88,7 @@ class AppStrings {
         paleo,
         keto,
         glutenFree,
-        noRestrictions,
-        nothingSelected,
+        noRestrictions
       ];
 
   static List<String> get cuisineOptions => [
@@ -100,8 +99,7 @@ class AppStrings {
         korean,
         italian,
         american,
-        surpriseMe,
-        nothingSelected,
+        surpriseMe
       ];
 
   static List<String> get cookingTimeOptions => [
@@ -109,7 +107,7 @@ class AppStrings {
         tenTo30Min,
         thirtyTo60Min,
         over60Min,
-        nothingSelected,
+        notParticular,
       ];
 
   static String titleForRoute(String route) {
