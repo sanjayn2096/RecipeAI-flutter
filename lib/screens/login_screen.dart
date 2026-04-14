@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/app_strings.dart';
+import '../view_models/login_view_model.dart';
+import '../widgets/sous_chef_brand.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
@@ -10,7 +12,7 @@ class LoginScreen extends StatefulWidget {
     required this.onSignupTap,
   });
 
-  final dynamic loginViewModel;
+  final LoginViewModel loginViewModel;
   final VoidCallback onSignupTap;
 
   @override
@@ -22,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _googleSigningIn = false;
   String? _emailError;
   String? _passwordError;
 
@@ -99,12 +102,8 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                AppStrings.appName,
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 48),
+              const SousChefLoginHeader(),
+              const SizedBox(height: 32),
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(
@@ -180,6 +179,47 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () => _submitLogin(context),
                 child: const Text('Login'),
               ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Theme.of(context).dividerColor)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'or',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Theme.of(context).dividerColor)),
+                ],
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton(
+                onPressed: _googleSigningIn
+                    ? null
+                    : () => _submitGoogleSignIn(context),
+                child: _googleSigningIn
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FaIcon(
+                            FontAwesomeIcons.google,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text('Continue with Google'),
+                        ],
+                      ),
+              ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: widget.onSignupTap,
@@ -234,5 +274,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (widget.loginViewModel.isLoggedIn && context.mounted) {
       // Navigation handled by parent
     }
+  }
+
+  Future<void> _submitGoogleSignIn(BuildContext context) async {
+    setState(() => _googleSigningIn = true);
+    widget.loginViewModel.clearError();
+    await widget.loginViewModel.signInWithGoogle();
+    if (mounted) setState(() => _googleSigningIn = false);
   }
 }

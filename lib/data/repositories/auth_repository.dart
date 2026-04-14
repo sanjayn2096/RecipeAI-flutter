@@ -1,10 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/email_not_verified_exception.dart';
 import '../api/api_service.dart';
 import '../local/favorites_hive_store.dart';
 import '../models/api_dtos.dart';
 import '../../services/session_manager.dart';
+
+/// Web client OAuth 2.0 ID from Firebase (Project settings → Your apps → Web client).
+/// Lets [GoogleSignIn] return an idToken for [GoogleAuthProvider] on Android/iOS.
+const String _kGoogleWebClientId =
+    '516167677061-ig3llepi6f5jk5jg0ajmcma7ps54ino5.apps.googleusercontent.com';
 
 /// Auth operations: Firebase sign-in/sign-up, then backend profile (GET get_user_profile).
 class AuthRepository {
@@ -33,6 +39,13 @@ class AuthRepository {
   bool get hasUnverifiedFirebaseUser {
     final u = _firebaseAuth.currentUser;
     return u != null && !u.emailVerified;
+  }
+
+  /// True if the signed-in user has Google Sign-In linked (use Google reauth to delete).
+  bool get currentUserHasGoogleProvider {
+    final u = _firebaseAuth.currentUser;
+    if (u == null) return false;
+    return u.providerData.any((p) => p.providerId == 'google.com');
   }
 
   Future<void> _fetchAndPersistUserProfileOnce(User firebaseUser) async {
@@ -78,6 +91,18 @@ class AuthRepository {
     }
   }
 
+  Future<void> _completeLoginForCurrentUser() async {
+    final u = _firebaseAuth.currentUser;
+    if (u == null) throw Exception('Login failed');
+    await u.reload();
+    final fresh = _firebaseAuth.currentUser;
+    if (fresh == null) throw Exception('Login failed');
+    if (!fresh.emailVerified) {
+      throw EmailNotVerifiedException();
+    }
+    await _fetchAndPersistUserProfileOnce(fresh);
+  }
+
   /// Sign in with Firebase, then fetch user profile from backend (GET get_user_profile).
   Future<void> login(String email, String password) async {
     final cred = await _firebaseAuth.signInWithEmailAndPassword(
@@ -85,13 +110,29 @@ class AuthRepository {
       password: password,
     );
     if (cred.user == null) throw Exception('Login failed');
-    await cred.user!.reload();
-    final u = _firebaseAuth.currentUser;
-    if (u == null) throw Exception('Login failed');
-    if (!u.emailVerified) {
-      throw EmailNotVerifiedException();
+    await _completeLoginForCurrentUser();
+  }
+
+  /// Google Sign-In, then same profile hydration as [login].
+  /// Returns `false` if the user closed the Google account picker without signing in.
+  Future<bool> signInWithGoogle() async {
+    final googleSignIn = GoogleSignIn(
+      scopes: const ['email', 'profile'],
+      serverClientId: _kGoogleWebClientId,
+    );
+    final account = await googleSignIn.signIn();
+    if (account == null) {
+      return false;
     }
-    await _fetchAndPersistUserProfileOnce(u);
+    final googleAuth = await account.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    final userCred = await _firebaseAuth.signInWithCredential(credential);
+    if (userCred.user == null) throw Exception('Login failed');
+    await _completeLoginForCurrentUser();
+    return true;
   }
 
   /// Create the Firebase account on-device, send verification email, then require verified
@@ -150,11 +191,27 @@ class AuthRepository {
   Future<void> signOutFirebaseOnly() async {
     _profileFetchedForFirebaseUid = null;
     await _firebaseAuth.signOut();
+    try {
+      await GoogleSignIn(serverClientId: _kGoogleWebClientId).signOut();
+    } catch (_) {}
   }
 
   /// Sign out: Firebase Auth signOut on device + clear local session. No backend call.
   Future<void> signOut() async {
     _profileFetchedForFirebaseUid = null;
+    await _firebaseAuth.signOut();
+    try {
+      await GoogleSignIn(serverClientId: _kGoogleWebClientId).signOut();
+    } catch (_) {}
+    await _session.clearSession();
+    await _favoritesHiveStore.clear();
+  }
+
+  Future<void> _clearLocalStateAfterAccountRemoval() async {
+    _profileFetchedForFirebaseUid = null;
+    try {
+      await GoogleSignIn(serverClientId: _kGoogleWebClientId).signOut();
+    } catch (_) {}
     await _firebaseAuth.signOut();
     await _session.clearSession();
     await _favoritesHiveStore.clear();
@@ -177,10 +234,33 @@ class AuthRepository {
     final credential = EmailAuthProvider.credential(email: email, password: password);
     await user.reauthenticateWithCredential(credential);
     await user.delete();
-    _profileFetchedForFirebaseUid = null;
-    await _firebaseAuth.signOut();
-    await _session.clearSession();
-    await _favoritesHiveStore.clear();
+    await _clearLocalStateAfterAccountRemoval();
+  }
+
+  /// Re-authenticates with Google, deletes the Firebase user, then clears local state.
+  /// Returns `false` if the user closed the Google picker without signing in.
+  Future<bool> deleteAccountWithGoogleReauth() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(code: 'no-current-user', message: 'Not signed in.');
+    }
+    final googleSignIn = GoogleSignIn(
+      scopes: const ['email', 'profile'],
+      serverClientId: _kGoogleWebClientId,
+    );
+    final account = await googleSignIn.signIn();
+    if (account == null) {
+      return false;
+    }
+    final googleAuth = await account.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    await user.reauthenticateWithCredential(credential);
+    await user.delete();
+    await _clearLocalStateAfterAccountRemoval();
+    return true;
   }
 
 }

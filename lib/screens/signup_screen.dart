@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/sous_chef_brand.dart';
+
 class SignupScreen extends StatefulWidget {
   const SignupScreen({
     super.key,
@@ -145,6 +147,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+              const SousChefLoginHeader(),
+              const SizedBox(height: 32),
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(

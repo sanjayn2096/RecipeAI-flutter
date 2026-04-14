@@ -6,6 +6,7 @@ import '../core/pantry_items.dart';
 import '../view_models/home_view_model.dart';
 import '../view_models/recipe_view_model.dart';
 import '../widgets/favorite_recipes_list_view.dart';
+import '../widgets/sous_chef_brand.dart';
 import '../widgets/guest_signup_prompt.dart';
 import 'recipe_flow_screen.dart';
 
@@ -95,7 +96,9 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
           appBar: _currentIndex == 1
               ? null
               : AppBar(
-                  title: Text(_appBarTitle),
+                  title: _currentIndex == 0
+                      ? const SousChefInlineTitle()
+                      : Text(_appBarTitle),
                   actions: [
                     if (!isGuest)
                       IconButton(

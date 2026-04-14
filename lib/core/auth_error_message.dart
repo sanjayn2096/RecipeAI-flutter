@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 
 import '../data/api/api_service.dart';
 import 'email_not_verified_exception.dart';
@@ -7,6 +8,10 @@ import 'email_not_verified_exception.dart';
 String authErrorMessage(Object error) {
   if (error is EmailNotVerifiedException) {
     return error.message;
+  }
+
+  if (error is PlatformException) {
+    return _platformMessage(error);
   }
 
   if (error is ApiException) {
@@ -27,6 +32,29 @@ String authErrorMessage(Object error) {
   return _stringFromException(error.toString());
 }
 
+/// [Google Sign-In Android: ApiException 10](https://developers.google.com/android/guides/client-auth)
+/// means the app’s SHA-1 (and usually SHA-256) is missing or wrong in Firebase for this package name.
+String _platformMessage(PlatformException e) {
+  final msg = e.message ?? '';
+  if (e.code == 'sign_in_failed' && (msg.contains('ApiException: 10') || msg.contains(': 10:'))) {
+    return 'Google sign-in: add your debug SHA-1 in Firebase (Project settings → Android app) '
+        'and replace android/app/google-services.json. Run: cd android && ./gradlew :app:signingReport';
+  }
+  // Android USER_CANCELLED (12501); iOS often uses sign_in_canceled
+  if (e.code == 'sign_in_canceled' ||
+      (e.code == 'sign_in_failed' &&
+          (msg.contains('12501') || msg.contains('ApiException: 12501')))) {
+    return 'Sign-in was cancelled.';
+  }
+  if (msg.isNotEmpty && msg.length <= 220) {
+    return msg;
+  }
+  if (msg.length > 220) {
+    return '${msg.substring(0, 217)}…';
+  }
+  return _generic;
+}
+
 String _firebaseMessage(FirebaseAuthException e) {
   switch (e.code) {
     case 'email-already-in-use':
@@ -42,6 +70,8 @@ String _firebaseMessage(FirebaseAuthException e) {
       return 'Incorrect email or password.';
     case 'invalid-credential':
       return 'Invalid email or password. Try again.';
+    case 'account-exists-with-different-credential':
+      return 'An account already exists with this email using a different sign-in method. Try email and password, or the provider you used before.';
     case 'network-request-failed':
       return 'Network problem. Check your connection and try again.';
     case 'too-many-requests':
@@ -49,7 +79,7 @@ String _firebaseMessage(FirebaseAuthException e) {
     case 'operation-not-allowed':
       return 'Sign-in with email and password is not enabled.';
     case 'requires-recent-login':
-      return 'Please sign out, sign in again, then try deleting your account.';
+      return 'For your security, sign in again, then try deleting your account.';
     case 'no-current-user':
       return 'You are not signed in.';
     default:

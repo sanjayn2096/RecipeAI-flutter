@@ -89,6 +89,24 @@ class LoginViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> signInWithGoogle() async {
+    _errorMessage = null;
+    _clearVerificationPending();
+    notifyListeners();
+    try {
+      final ok = await _auth.signInWithGoogle();
+      if (!ok) return;
+      _session.clearGuestModeSync();
+      _session.clearAnonymousAndGuestQuotaSync();
+      _isLoggedIn = true;
+    } on EmailNotVerifiedException {
+      _setVerificationPending(_auth.currentUserEmail);
+    } catch (e) {
+      _errorMessage = authErrorMessage(e);
+    }
+    notifyListeners();
+  }
+
   Future<void> signup({
     required String email,
     required String password,
