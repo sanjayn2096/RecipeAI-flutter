@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/app_strings.dart';
+import '../tutorial/coach_tour.dart';
 import '../core/pantry_items.dart';
 import '../view_models/home_view_model.dart';
 import '../view_models/recipe_view_model.dart';
@@ -33,13 +34,104 @@ class HomeShellScreen extends StatefulWidget {
 }
 
 class _HomeShellScreenState extends State<HomeShellScreen> {
+  final GlobalKey<ScaffoldState> _shellScaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey _coachNavKey = GlobalKey();
+  final GlobalKey _coachGetRecipesKey = GlobalKey();
+  final GlobalKey _coachAddPantryKey = GlobalKey();
+  final GlobalKey _coachFavoritesKey = GlobalKey();
+  late final CoachTourController _coachTour;
+
   int _currentIndex = 0;
+
   /// Bumped to remount embedded Create Recipes flow after generate-recipe error when user leaves the tab.
   int _embeddedRecipeFlowKey = 0;
+
+  void _openAppDrawer() {
+    _shellScaffoldKey.currentState?.openDrawer();
+  }
+
+  void _applyTabSideEffects(int index) {
+    if (index == 1) {
+      widget.sessionManager.savePreferenceSync('customPreference', '');
+    }
+    if (index == 2 && !widget.sessionManager.isGuestMode()) {
+      widget.homeViewModel.loadFavoritesFromApi();
+    }
+  }
+
+  void _startCoachTour() {
+    if (_coachTour.isActive) return;
+    setState(() => _currentIndex = 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _coachTour.start();
+    });
+  }
+
+  void _onCoachNext() {
+    if (!_coachTour.isActive) return;
+    if (_coachTour.isLastStep) {
+      _coachTour.finish();
+      return;
+    }
+    final nextIdx = _coachTour.currentIndex + 1;
+    final nextStep = _coachTour.steps[nextIdx];
+    if (nextStep.tabIndex != null && nextStep.tabIndex != _currentIndex) {
+      setState(() {
+        _currentIndex = nextStep.tabIndex!;
+        _applyTabSideEffects(_currentIndex);
+      });
+    }
+    _coachTour.next();
+  }
+
+  void _onCoachBack() {
+    if (!_coachTour.isActive || _coachTour.currentIndex <= 0) return;
+    final prevIdx = _coachTour.currentIndex - 1;
+    final prevStep = _coachTour.steps[prevIdx];
+    if (prevStep.tabIndex != null && prevStep.tabIndex != _currentIndex) {
+      setState(() {
+        _currentIndex = prevStep.tabIndex!;
+        _applyTabSideEffects(_currentIndex);
+      });
+    }
+    _coachTour.previous();
+  }
+
+  void _onCoachSkip() {
+    _coachTour.skip();
+  }
 
   @override
   void initState() {
     super.initState();
+    _coachTour = CoachTourController(
+      steps: [
+        CoachTourStep(
+          targetKey: _coachNavKey,
+          title: AppStrings.coachStepNavTitle,
+          body: AppStrings.coachStepNavBody,
+          tabIndex: 0,
+        ),
+        CoachTourStep(
+          targetKey: _coachGetRecipesKey,
+          title: AppStrings.coachStepGetRecipesTitle,
+          body: AppStrings.coachStepGetRecipesBody,
+          tabIndex: 0,
+        ),
+        CoachTourStep(
+          targetKey: _coachAddPantryKey,
+          title: AppStrings.coachStepAddPantryTitle,
+          body: AppStrings.coachStepAddPantryBody,
+          tabIndex: 0,
+        ),
+        CoachTourStep(
+          targetKey: _coachFavoritesKey,
+          title: AppStrings.coachStepFavoritesTitle,
+          body: AppStrings.coachStepFavoritesBody,
+          tabIndex: 2,
+        ),
+      ],
+    );
     widget.homeViewModel.addListener(_onHomeUpdate);
     widget.homeViewModel.loadUserDetails();
   }
@@ -47,6 +139,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   @override
   void dispose() {
     widget.homeViewModel.removeListener(_onHomeUpdate);
+    _coachTour.dispose();
     super.dispose();
   }
 
@@ -92,69 +185,156 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       builder: (_, __) {
         final userData = widget.homeViewModel.userData;
         final isGuest = widget.sessionManager.isGuestMode();
-        return Scaffold(
-          appBar: _currentIndex == 1
-              ? null
-              : AppBar(
-                  title: _currentIndex == 0
-                      ? const SousChefInlineTitle()
-                      : Text(_appBarTitle),
-                  actions: [
-                    if (!isGuest)
-                      IconButton(
-                        icon: const Icon(Icons.person),
-                        onPressed: () => context.push('/profile'),
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Scaffold(
+              key: _shellScaffoldKey,
+              drawer: Drawer(
+                child: SafeArea(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      DrawerHeader(
+                        margin: EdgeInsets.zero,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              AppStrings.appName,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              AppStrings.tutorialDrawerSubtitle,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
                       ),
-                    IconButton(
-                      icon: const Icon(Icons.logout),
-                      tooltip: isGuest ? 'Exit guest mode' : 'Log out',
-                      onPressed: () => widget.homeViewModel.signOut(),
+                      ListTile(
+                        leading: const Icon(Icons.menu_book_outlined),
+                        title: const Text(AppStrings.howToUse),
+                        onTap: () async {
+                          Navigator.of(context).pop();
+                          final startCoach =
+                              await context.push<bool>('/tutorial');
+                          if (!context.mounted) return;
+                          if (startCoach == true) _startCoachTour();
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.touch_app_outlined),
+                        title: const Text(AppStrings.showMeAround),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          _startCoachTour();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              appBar: _currentIndex == 1
+                  ? null
+                  : AppBar(
+                      automaticallyImplyLeading: false,
+                      centerTitle: _currentIndex == 0,
+                      leading: _currentIndex == 0 || _currentIndex == 2
+                          ? IconButton(
+                              icon: const Icon(Icons.menu),
+                              tooltip: AppStrings.appMenuTooltip,
+                              onPressed: _openAppDrawer,
+                            )
+                          : null,
+                      title: _currentIndex == 0
+                          ? const SousChefInlineTitle(markSize: 52)
+                          : Text(_appBarTitle),
+                      actions: [
+                        if (!isGuest)
+                          IconButton(
+                            icon: const Icon(Icons.person),
+                            onPressed: () => context.push('/profile'),
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.logout),
+                          tooltip: isGuest ? 'Exit guest mode' : 'Log out',
+                          onPressed: () => widget.homeViewModel.signOut(),
+                        ),
+                      ],
+                    ),
+              body: IndexedStack(
+                index: _currentIndex,
+                children: [
+                  _HomeTabBody(
+                    homeViewModel: widget.homeViewModel,
+                    recipeViewModel: widget.recipeViewModel,
+                    sessionManager: widget.sessionManager,
+                    coachGetRecipesKey: _coachGetRecipesKey,
+                    coachAddPantryKey: _coachAddPantryKey,
+                  ),
+                  RecipeFlowScreen(
+                    key: ValueKey<int>(_embeddedRecipeFlowKey),
+                    userData: userData,
+                    recipeViewModel: widget.recipeViewModel,
+                    sessionManager: widget.sessionManager,
+                    embedInTab: true,
+                    onOpenAppMenu: _openAppDrawer,
+                  ),
+                  _FavoritesTabBody(
+                    homeViewModel: widget.homeViewModel,
+                    recipeViewModel: widget.recipeViewModel,
+                    isGuest: isGuest,
+                    coachFavoritesKey: _coachFavoritesKey,
+                  ),
+                ],
+              ),
+              bottomNavigationBar: KeyedSubtree(
+                key: _coachNavKey,
+                child: NavigationBar(
+                  selectedIndex: _currentIndex,
+                  onDestinationSelected: _onTabTapped,
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home),
+                      label: 'Home',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.restaurant_outlined),
+                      selectedIcon: Icon(Icons.restaurant),
+                      label: 'Create Recipes',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.favorite_outline),
+                      selectedIcon: Icon(Icons.favorite),
+                      label: 'Favorites',
                     ),
                   ],
                 ),
-          body: IndexedStack(
-            index: _currentIndex,
-            children: [
-              _HomeTabBody(
-                homeViewModel: widget.homeViewModel,
-                recipeViewModel: widget.recipeViewModel,
-                sessionManager: widget.sessionManager,
               ),
-              RecipeFlowScreen(
-                key: ValueKey<int>(_embeddedRecipeFlowKey),
-                userData: userData,
-                recipeViewModel: widget.recipeViewModel,
-                sessionManager: widget.sessionManager,
-                embedInTab: true,
-              ),
-              _FavoritesTabBody(
-                homeViewModel: widget.homeViewModel,
-                recipeViewModel: widget.recipeViewModel,
-                isGuest: isGuest,
-              ),
-            ],
-          ),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: _onTabTapped,
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.restaurant_outlined),
-                selectedIcon: Icon(Icons.restaurant),
-                label: 'Create Recipes',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.favorite_outline),
-                selectedIcon: Icon(Icons.favorite),
-                label: 'Favorites',
-              ),
-            ],
-          ),
+            ),
+            ListenableBuilder(
+              listenable: _coachTour,
+              builder: (_, __) {
+                if (!_coachTour.isActive) return const SizedBox.shrink();
+                return CoachMarkOverlay(
+                  controller: _coachTour,
+                  onNext: _onCoachNext,
+                  onBack: _onCoachBack,
+                  onSkip: _onCoachSkip,
+                );
+              },
+            ),
+          ],
         );
       },
     );
@@ -177,11 +357,15 @@ class _HomeTabBody extends StatefulWidget {
     required this.homeViewModel,
     required this.recipeViewModel,
     required this.sessionManager,
+    required this.coachGetRecipesKey,
+    required this.coachAddPantryKey,
   });
 
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
   final dynamic sessionManager;
+  final GlobalKey coachGetRecipesKey;
+  final GlobalKey coachAddPantryKey;
 
   @override
   State<_HomeTabBody> createState() => _HomeTabBodyState();
@@ -198,7 +382,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
   }
 
   String? _greetingName() {
-    final name = widget.homeViewModel.sessionProfile.firstName.trim();
+    final name = widget.homeViewModel.sessionProfile.firstNameForDisplay.trim();
     if (name.isNotEmpty) return name;
     return null;
   }
@@ -354,9 +538,8 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     final suggestedQuickChips =
         PantryItems.suggestedForCuisines(usualCuisines.toList(), limit: 24);
     final selectedSorted = List<String>.from(selected)..sort();
-    final suggestionChipsOnly = suggestedQuickChips
-        .where((item) => !selected.contains(item))
-        .toList();
+    final suggestionChipsOnly =
+        suggestedQuickChips.where((item) => !selected.contains(item)).toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -393,6 +576,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
+                key: widget.coachGetRecipesKey,
                 onPressed: () async {
                   final freeText = _customPreferenceController.text.trim();
                   final hasIngredients =
@@ -483,6 +667,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
               const SizedBox(height: 10),
               Center(
                 child: OutlinedButton.icon(
+                  key: widget.coachAddPantryKey,
                   onPressed: _showPantryPickerBottomSheet,
                   icon: const Icon(Icons.add),
                   label: const Text('Add pantry items'),
@@ -666,7 +851,9 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                       child: Text(
                         'Nothing selected yet — pick below or search.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                       ),
                     )
@@ -677,8 +864,8 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          for (final item in (List<String>.from(_selected)
-                            ..sort()))
+                          for (final item
+                              in (List<String>.from(_selected)..sort()))
                             InputChip(
                               label: Text(item),
                               onDeleted: () => _toggle(item),
@@ -752,8 +939,9 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (final item in (PantryItems.staplesByCuisine[cuisine] ??
-                            const <String>[]))
+                        for (final item
+                            in (PantryItems.staplesByCuisine[cuisine] ??
+                                const <String>[]))
                           Builder(
                             builder: (ctx) {
                               final sel = _selected.contains(item);
@@ -867,19 +1055,24 @@ class _FavoritesTabBody extends StatelessWidget {
     required this.homeViewModel,
     required this.recipeViewModel,
     required this.isGuest,
+    required this.coachFavoritesKey,
   });
 
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
   final bool isGuest;
+  final GlobalKey coachFavoritesKey;
 
   @override
   Widget build(BuildContext context) {
-    return FavoriteRecipesListView(
-      homeViewModel: homeViewModel,
-      recipeViewModel: recipeViewModel,
-      isGuest: isGuest,
-      onGuestSignUpTap: () => goToSignup(context),
+    return KeyedSubtree(
+      key: coachFavoritesKey,
+      child: FavoriteRecipesListView(
+        homeViewModel: homeViewModel,
+        recipeViewModel: recipeViewModel,
+        isGuest: isGuest,
+        onGuestSignUpTap: () => goToSignup(context),
+      ),
     );
   }
 }

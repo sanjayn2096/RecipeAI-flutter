@@ -18,6 +18,7 @@ class RecipeFlowScreen extends StatefulWidget {
     required this.recipeViewModel,
     required this.sessionManager,
     this.embedInTab = false,
+    this.onOpenAppMenu,
   });
 
   final UserData? userData;
@@ -27,6 +28,8 @@ class RecipeFlowScreen extends StatefulWidget {
   final dynamic sessionManager;
   /// When true (bottom tab), back from recipe list resets the flow instead of popping a route.
   final bool embedInTab;
+  /// Opens the parent [HomeShellScreen] drawer (nested scaffolds cannot use [Scaffold.of] for the shell).
+  final VoidCallback? onOpenAppMenu;
 
   @override
   State<RecipeFlowScreen> createState() => _RecipeFlowScreenState();
@@ -34,6 +37,19 @@ class RecipeFlowScreen extends StatefulWidget {
 
 class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
   String _currentRoute = 'mood';
+
+  List<Widget> _embedShellMenuActions() {
+    if (!widget.embedInTab || widget.onOpenAppMenu == null) {
+      return const <Widget>[];
+    }
+    return [
+      IconButton(
+        icon: const Icon(Icons.menu),
+        tooltip: AppStrings.appMenuTooltip,
+        onPressed: widget.onOpenAppMenu,
+      ),
+    ];
+  }
 
   @override
   void initState() {
@@ -225,7 +241,10 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
         builder: (_, __) {
           if (widget.recipeViewModel.isLoading) {
             return Scaffold(
-              appBar: AppBar(title: const Text(AppStrings.fetchRecipes)),
+              appBar: AppBar(
+                title: const Text(AppStrings.fetchRecipes),
+                actions: _embedShellMenuActions(),
+              ),
               body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -250,7 +269,10 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
             final err = widget.recipeViewModel.fetchError as String?;
             final isError = err != null && err.isNotEmpty;
             return Scaffold(
-              appBar: AppBar(title: const Text(AppStrings.fetchRecipes)),
+              appBar: AppBar(
+                title: const Text(AppStrings.fetchRecipes),
+                actions: _embedShellMenuActions(),
+              ),
               body: Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -311,6 +333,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                     ? _resetFlowToStart
                     : () => context.pop(),
               ),
+              actions: _embedShellMenuActions(),
             ),
             body: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -375,6 +398,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
       onOptionSelected: _selectOption,
       onNext: _next,
       onBack: _promptOnBack,
+      appBarActions: _embedShellMenuActions(),
     );
   }
 }

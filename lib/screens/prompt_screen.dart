@@ -11,6 +11,7 @@ class PromptScreen extends StatelessWidget {
     required this.onOptionSelected,
     required this.onNext,
     this.onBack,
+    this.appBarActions,
   });
 
   final String route;
@@ -20,6 +21,8 @@ class PromptScreen extends StatelessWidget {
   final VoidCallback onNext;
   /// Shown as AppBar back when non-null (previous questionnaire step or close pushed flow).
   final VoidCallback? onBack;
+  /// Extra actions (e.g. shell app menu when embedded in [HomeShellScreen]).
+  final List<Widget>? appBarActions;
 
   String get _title => AppStrings.titleForRoute(route);
 
@@ -44,6 +47,7 @@ class PromptScreen extends StatelessWidget {
                 onPressed: onBack,
               )
             : null,
+        actions: appBarActions ?? const [],
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

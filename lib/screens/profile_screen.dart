@@ -66,14 +66,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text('First Name', style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: 4),
               Text(
-                p.firstName.isNotEmpty ? p.firstName : '—',
+                p.firstName.isNotEmpty ? p.firstNameForDisplay : '—',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 20),
               Text('Last Name', style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: 4),
               Text(
-                p.lastName.isNotEmpty ? p.lastName : '—',
+                p.lastName.isNotEmpty ? p.lastNameForDisplay : '—',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 40),

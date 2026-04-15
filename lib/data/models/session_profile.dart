@@ -1,3 +1,5 @@
+import '../../core/person_name_format.dart';
+
 /// User fields persisted after GET get_user_profile (and shown on Profile screen).
 class SessionProfile {
   const SessionProfile({
@@ -12,8 +14,17 @@ class SessionProfile {
   final String firstName;
   final String lastName;
 
+  /// Title-cased for UI (e.g. "JOHN" → "John").
+  String get firstNameForDisplay => formatPersonNamePart(firstName);
+
+  /// Title-cased for UI.
+  String get lastNameForDisplay => formatPersonNamePart(lastName);
+
   String get displayName {
-    final parts = [firstName.trim(), lastName.trim()].where((s) => s.isNotEmpty).join(' ');
+    final parts = [
+      firstNameForDisplay.trim(),
+      lastNameForDisplay.trim(),
+    ].where((s) => s.isNotEmpty).join(' ');
     return parts.isEmpty ? '—' : parts;
   }
 

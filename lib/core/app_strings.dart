@@ -26,6 +26,47 @@ class AppStrings {
   static const String pantryStaplesInfoIconTooltip = 'About pantry staples';
   static const String nothingSelected = 'Nothing Selected';
 
+  // Tutorial / drawer
+  static const String howToUse = 'How to use';
+  static const String tutorialDrawerSubtitle = 'Tips and walkthrough';
+  static const String tutorialScreenTitle = 'How to use Sous Chef';
+  static const String tutorialOverviewTitle = 'Get around the app';
+  static const String tutorialOverviewBody =
+      'The bottom bar has three tabs: Home for quick ideas and your pantry, '
+      'Create Recipes for a step-by-step questionnaire (mood, diet, cuisine, cooking time), '
+      'and Favorites for recipes you have saved.';
+  static const String tutorialCreateRecipesTitle = 'Creating recipes';
+  static const String tutorialCreateRecipesBody =
+      'On Home, describe what you want under “What do you feel like eating?” and/or add pantry items, '
+      'then tap Get me Recipes. On Create Recipes, answer each question and tap Next until recipes are generated. '
+      'Tap a recipe in the list to see details and instructions.';
+  static const String tutorialPantryTitle = 'Pantry';
+  static const String tutorialPantryBody =
+      'Under Cuisines you usually cook, pick cuisines so suggestions match your cooking. '
+      'Tap Add pantry items to search staples, pick suggested chips, or add a custom item. '
+      'Selected items appear as green pills; tap a pill to remove it. The info icon explains how staples help.';
+  static const String tutorialFavoritesTitle = 'Favorites';
+  static const String tutorialFavoritesBody =
+      'On the recipe list, tap the heart to save or remove a favorite. Open the Favorites tab to browse saved recipes. '
+      'Guest mode lets you try the app; sign up to save favorites to your account.';
+  static const String appMenuTooltip = 'App menu';
+  static const String showMeAround = 'Show me around';
+  static const String showMeInApp = 'Show me in the app';
+  static const String skip = 'Skip';
+  static const String coachStepNavTitle = 'Three ways to cook';
+  static const String coachStepNavBody =
+      'Use Home for quick ideas and pantry, Create Recipes for the full questionnaire, '
+      'and Favorites for saved recipes.';
+  static const String coachStepGetRecipesTitle = 'Get recipes';
+  static const String coachStepGetRecipesBody =
+      'Describe what you want (optional), add pantry items if you like, then tap here to generate recipes.';
+  static const String coachStepAddPantryTitle = 'Your pantry';
+  static const String coachStepAddPantryBody =
+      'Add ingredients so suggestions match what you have. You can also tap suggestion chips below.';
+  static const String coachStepFavoritesTitle = 'Saved recipes';
+  static const String coachStepFavoritesBody =
+      'Recipes you heart appear here. Sign up from guest mode to sync favorites to your account.';
+
   // Mood
   static const String howAreYouFeelingToday = 'How are you feeling today?';
   static const String happyExcited = 'Happy/Excited';

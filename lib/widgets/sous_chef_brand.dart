@@ -70,19 +70,26 @@ class SousChefInlineTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SousChefLogoMark(size: markSize),
-        const SizedBox(width: 10),
-        Text(
-          AppStrings.appName,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
+    final style = theme.textTheme.titleLarge?.copyWith(
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.3,
+    );
+    // One inline line so the mark and title share the same vertical metrics (avoids Row cross-axis drift).
+    return Text.rich(
+      TextSpan(
+        style: style,
+        children: [
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: SousChefLogoMark(size: markSize),
           ),
-        ),
-      ],
+          const WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: SizedBox(width: 2),
+          ),
+          const TextSpan(text: AppStrings.appName),
+        ],
+      ),
     );
   }
 }

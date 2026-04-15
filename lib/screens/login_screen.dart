@@ -223,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: widget.onSignupTap,
-                child: const Text('Sign up'),
+                child: const Text('Sign Up with Email'),
               ),
               const SizedBox(height: 20),
               Center(

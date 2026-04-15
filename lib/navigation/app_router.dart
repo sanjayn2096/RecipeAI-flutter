@@ -10,6 +10,7 @@ import '../screens/show_recipe_screen.dart';
 import '../screens/cook_recipe_flow_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/favorites_screen.dart';
+import '../screens/tutorial_screen.dart';
 import '../data/models/recipe.dart';
 import '../data/models/user_data.dart';
 
@@ -126,6 +127,10 @@ class AppRouter {
           sessionManager: sessionManager,
           onBack: () => context.pop(),
         ),
+      ),
+      GoRoute(
+        path: '/tutorial',
+        builder: (_, __) => const TutorialScreen(),
       ),
     ],
   );

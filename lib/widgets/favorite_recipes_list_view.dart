@@ -8,7 +8,7 @@ import 'cartoon_outlined_card.dart';
 import 'guest_signup_prompt.dart';
 
 /// Favorites list with swipe-left to remove (save-favorites with isFavorite: false).
-class FavoriteRecipesListView extends StatelessWidget {
+class FavoriteRecipesListView extends StatefulWidget {
   const FavoriteRecipesListView({
     super.key,
     required this.homeViewModel,
@@ -23,11 +23,31 @@ class FavoriteRecipesListView extends StatelessWidget {
   final VoidCallback? onGuestSignUpTap;
 
   @override
+  State<FavoriteRecipesListView> createState() =>
+      _FavoriteRecipesListViewState();
+}
+
+class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: homeViewModel,
+      listenable: widget.homeViewModel,
       builder: (_, __) {
-        if (isGuest) {
+        if (widget.isGuest) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -49,7 +69,8 @@ class FavoriteRecipesListView extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   FilledButton(
-                    onPressed: onGuestSignUpTap ?? () => goToSignup(context),
+                    onPressed:
+                        widget.onGuestSignUpTap ?? () => goToSignup(context),
                     child: const Text('Sign up'),
                   ),
                 ],
@@ -57,7 +78,7 @@ class FavoriteRecipesListView extends StatelessWidget {
             ),
           );
         }
-        if (homeViewModel.favoritesLoading) {
+        if (widget.homeViewModel.favoritesLoading) {
           return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -69,90 +90,128 @@ class FavoriteRecipesListView extends StatelessWidget {
             ),
           );
         }
-        final favorites = homeViewModel.apiFavorites;
+        final favorites = widget.homeViewModel.apiFavorites;
         if (favorites.isEmpty) {
           return const Center(child: Text('No favorites yet'));
         }
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          itemCount: favorites.length,
-          itemBuilder: (_, i) {
-            final recipe = favorites[i];
-            final dismissKey = recipe.recipeId.isNotEmpty
-                ? 'favorite_${recipe.recipeId}'
-                : 'favorite_h_${Object.hash(recipe.recipeName, recipe.cuisine, recipe.cookingTime, i)}';
-            return Dismissible(
-              key: ValueKey(dismissKey),
-              direction: DismissDirection.endToStart,
-              confirmDismiss: (direction) async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (dialogContext) => AlertDialog(
-                    title: const Text('Remove from favorites?'),
-                    content: Text(
-                      'Remove "${recipe.recipeName}" from your favorites?',
+        final filtered = favorites
+            .where((r) => r.matchesSearchQuery(_searchController.text))
+            .toList();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  labelText: 'Search favorites',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No recipes match your search',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final recipe = filtered[i];
+                        final dismissKey = recipe.recipeId.isNotEmpty
+                            ? 'favorite_${recipe.recipeId}'
+                            : 'favorite_h_${Object.hash(recipe.recipeName, recipe.cuisine, recipe.cookingTime, i)}';
+                        return Dismissible(
+                          key: ValueKey(dismissKey),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (direction) async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text('Remove from favorites?'),
+                                content: Text(
+                                  'Remove "${recipe.recipeName}" from your favorites?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(dialogContext).pop(false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () =>
+                                        Navigator.of(dialogContext).pop(true),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor:
+                                          Theme.of(context).colorScheme.error,
+                                      foregroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .onError,
+                                    ),
+                                    child: const Text('Remove'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            return confirmed ?? false;
+                          },
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 24),
+                            color: Theme.of(context).colorScheme.error,
+                            child: Icon(
+                              Icons.delete_outline,
+                              color: Theme.of(context).colorScheme.onError,
+                              size: 28,
+                            ),
+                          ),
+                          onDismissed: (_) {
+                            widget.homeViewModel
+                                .removeFavoriteWithSwipe(recipe)
+                                .then((ok) {
+                              if (!ok && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Could not remove from favorites'),
+                                  ),
+                                );
+                              }
+                            });
+                          },
+                          child: CartoonOutlinedCard(
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 10,
+                              ),
+                              title: Text(recipe.recipeName),
+                              subtitle: Text(recipe.cuisine),
+                              onTap: () => _openFavoriteRecipe(
+                                context,
+                                homeViewModel: widget.homeViewModel,
+                                listRecipe: recipe,
+                                recipeViewModel: widget.recipeViewModel,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    actions: [
-                      TextButton(
-                        onPressed: () =>
-                            Navigator.of(dialogContext).pop(false),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        onPressed: () =>
-                            Navigator.of(dialogContext).pop(true),
-                        style: FilledButton.styleFrom(
-                          backgroundColor:
-                              Theme.of(context).colorScheme.error,
-                          foregroundColor:
-                              Theme.of(context).colorScheme.onError,
-                        ),
-                        child: const Text('Remove'),
-                      ),
-                    ],
-                  ),
-                );
-                return confirmed ?? false;
-              },
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 24),
-                color: Theme.of(context).colorScheme.error,
-                child: Icon(
-                  Icons.delete_outline,
-                  color: Theme.of(context).colorScheme.onError,
-                  size: 28,
-                ),
-              ),
-              onDismissed: (_) {
-                homeViewModel.removeFavoriteWithSwipe(recipe).then((ok) {
-                  if (!ok && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Could not remove from favorites'),
-                      ),
-                    );
-                  }
-                });
-              },
-              child: CartoonOutlinedCard(
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  title: Text(recipe.recipeName),
-                  subtitle: Text(recipe.cuisine),
-                  onTap: () => _openFavoriteRecipe(
-                    context,
-                    homeViewModel: homeViewModel,
-                    listRecipe: recipe,
-                    recipeViewModel: recipeViewModel,
-                  ),
-                ),
-              ),
-            );
-          },
+            ),
+          ],
         );
       },
     );

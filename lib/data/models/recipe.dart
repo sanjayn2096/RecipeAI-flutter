@@ -85,4 +85,37 @@ class Recipe {
         nutritionalValue: nutritionalValue,
         isFavorite: isFavorite ?? this.isFavorite,
       );
+
+  /// Combined text for client-side search across all recipe fields.
+  String get searchableText {
+    final n = nutritionalValue;
+    return [
+      recipeId,
+      recipeName,
+      image,
+      ingredients,
+      instructions,
+      cookingTime,
+      cuisine,
+      n.calories,
+      n.protein,
+      n.carbs,
+      n.fat,
+      n.vitamins,
+      n.numberOfServings.toString(),
+    ].join(' ');
+  }
+
+  /// Empty [query] matches all recipes. Otherwise every whitespace-separated
+  /// token must appear somewhere in [searchableText] (case-insensitive).
+  bool matchesSearchQuery(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return true;
+    final haystack = searchableText.toLowerCase();
+    for (final token in trimmed.toLowerCase().split(RegExp(r'\s+'))) {
+      if (token.isEmpty) continue;
+      if (!haystack.contains(token)) return false;
+    }
+    return true;
+  }
 }
