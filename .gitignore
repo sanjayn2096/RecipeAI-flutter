@@ -37,6 +37,9 @@ android/app/google-services.json
 # Web
 lib/generated_plugin_registrant.dart
 
+# Python (local image tooling)
+.venv/
+
 # IDE
 .idea/
 .vscode/

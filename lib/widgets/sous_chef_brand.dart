@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../core/app_strings.dart';
 
-/// Asset path for the Sous Chef logo (square PNG: mark + wordmark + tagline).
+/// Asset path for the Sous Chef logo — light theme (square PNG: mark + wordmark + tagline).
 const String kSousChefLogoAsset = 'assets/sous_chef_logo.png';
 
-/// Fraction of [kSousChefLogoAsset] height used for the icon-only mark (top portion).
+/// Dark-theme logo (charcoal background, orange + white artwork).
+const String kSousChefLogoAssetDark = 'assets/sous_chef_logo_dark.png';
+
+String sousChefLogoAssetFor(Brightness brightness) =>
+    brightness == Brightness.dark ? kSousChefLogoAssetDark : kSousChefLogoAsset;
+
+/// Fraction of logo asset height used for the icon-only mark (top portion of each variant).
 const double _kLogoMarkHeightFactor = 0.56;
 
 /// Chef hat + utensils only — top slice of the square logo, for inline headers.
@@ -25,7 +31,7 @@ class SousChefLogoMark extends StatelessWidget {
           alignment: Alignment.topCenter,
           heightFactor: _kLogoMarkHeightFactor,
           child: Image.asset(
-            kSousChefLogoAsset,
+            sousChefLogoAssetFor(Theme.of(context).brightness),
             width: size * 1.15,
             fit: BoxFit.fitWidth,
             filterQuality: FilterQuality.high,
@@ -105,7 +111,7 @@ class SousChefSplashContent extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Image.asset(
-          kSousChefLogoAsset,
+          sousChefLogoAssetFor(Theme.of(context).brightness),
           width: maxW.clamp(250, 400),
           fit: BoxFit.contain,
           filterQuality: FilterQuality.high,

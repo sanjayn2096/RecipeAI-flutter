@@ -24,6 +24,12 @@ class AppStrings {
   static const String pantryStaplesInfo =
       'Click on any of the following items found in your pantry and I will suggest recipes accordingly.';
   static const String pantryStaplesInfoIconTooltip = 'About pantry staples';
+  static const String pantrySuggestionsTitle = 'Suggestions';
+  static const String usualCuisinesHeading = 'Cuisines you usually cook';
+  static const String usualCuisinesPickerHint =
+      'Pick one or more to personalize pantry suggestions.';
+  static const String suggestionsTapToChooseCuisines =
+      'Tap to choose cuisines you usually cook';
   static const String nothingSelected = 'Nothing Selected';
 
   // Tutorial / drawer

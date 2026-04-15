@@ -405,76 +405,14 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     setState(() {});
   }
 
-  Future<void> _showUsualCuisinesBottomSheet() async {
+  void _toggleUsualCuisine(String cuisine) {
     final current = widget.sessionManager.getUsualCuisines().toSet();
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(ctx).viewInsets.bottom,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 8),
-                    ListTile(
-                      title: const Text('Cuisines you usually cook'),
-                      subtitle: Text(
-                        current.isEmpty
-                            ? 'Pick one or more cuisines to personalize pantry suggestions.'
-                            : current.join(', '),
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    Flexible(
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: [
-                          for (final cuisine in _cuisineOptionsForUsualCuisines)
-                            CheckboxListTile(
-                              value: current.contains(cuisine),
-                              title: Text(cuisine),
-                              onChanged: (_) {
-                                if (current.contains(cuisine)) {
-                                  current.remove(cuisine);
-                                } else {
-                                  current.add(cuisine);
-                                }
-                                widget.sessionManager
-                                    .saveUsualCuisinesSync(current.toList());
-                                setSheetState(() {});
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          child: const Text('Done'),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-    if (!mounted) return;
+    if (current.contains(cuisine)) {
+      current.remove(cuisine);
+    } else {
+      current.add(cuisine);
+    }
+    widget.sessionManager.saveUsualCuisinesSync(current.toList());
     setState(() {});
   }
 
@@ -610,21 +548,6 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 icon: const Icon(Icons.auto_awesome),
                 label: const Text('Get me Recipes'),
               ),
-              const SizedBox(height: 24),
-              Card(
-                elevation: 0,
-                color: colorScheme.surfaceContainerHighest,
-                child: ListTile(
-                  title: const Text('Cuisines you usually cook'),
-                  subtitle: Text(
-                    usualCuisines.isEmpty
-                        ? 'Tap to choose cuisines (for better pantry suggestions).'
-                        : usualCuisines.join(', '),
-                  ),
-                  trailing: const Icon(Icons.tune),
-                  onTap: _showUsualCuisinesBottomSheet,
-                ),
-              ),
               const SizedBox(height: 16),
               Text.rich(
                 textAlign: TextAlign.center,
@@ -700,31 +623,80 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 ),
                 const SizedBox(height: 16),
               ],
-              if (suggestionChipsOnly.isNotEmpty) ...[
-                Text(
-                  'Suggestions',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-              ],
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  for (final item in suggestionChipsOnly)
-                    _PantryPill(
-                      label: item,
-                      selected: false,
-                      colorScheme: colorScheme,
-                      onTap: () => _togglePantryItem(item),
+              Material(
+                color: colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: Theme(
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    title: Text(
+                      AppStrings.pantrySuggestionsTitle,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
-                ],
+                    subtitle: Text(
+                      usualCuisines.isEmpty
+                          ? AppStrings.suggestionsTapToChooseCuisines
+                          : usualCuisines.join(', '),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    maintainState: true,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              AppStrings.usualCuisinesHeading,
+                              style: Theme.of(context).textTheme.labelLarge,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              AppStrings.usualCuisinesPickerHint,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            for (final cuisine in _cuisineOptionsForUsualCuisines)
+                              CheckboxListTile(
+                                dense: true,
+                                value: usualCuisines.contains(cuisine),
+                                title: Text(cuisine),
+                                onChanged: (_) => _toggleUsualCuisine(cuisine),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
+              if (suggestionChipsOnly.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    for (final item in suggestionChipsOnly)
+                      _PantryPill(
+                        label: item,
+                        selected: false,
+                        colorScheme: colorScheme,
+                        onTap: () => _togglePantryItem(item),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 32),
             ],
           ),

@@ -47,4 +47,5 @@ flutter:
   assets:
     - assets/recipe_placeholder.png
     - assets/sous_chef_logo.png
+    - assets/sous_chef_logo_dark.png
     - assets/animations/cooking_animation.json

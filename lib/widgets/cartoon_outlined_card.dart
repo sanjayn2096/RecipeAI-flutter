@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Outlined card with a thin black stroke (no shadow).
+/// Outlined card with a thin stroke (no shadow).
 class CartoonOutlinedCard extends StatelessWidget {
   const CartoonOutlinedCard({
     super.key,
@@ -19,15 +19,15 @@ class CartoonOutlinedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = backgroundColor ??
-        Theme.of(context).colorScheme.surfaceContainerHighest;
+    final colorScheme = Theme.of(context).colorScheme;
+    final bg = backgroundColor ?? colorScheme.surfaceContainerHighest;
     return Container(
       margin: margin,
       child: Material(
         color: bg,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(borderRadius),
-          side: BorderSide(color: Colors.black, width: borderWidth),
+          side: BorderSide(color: colorScheme.outline, width: borderWidth),
         ),
         clipBehavior: Clip.antiAlias,
         child: child,

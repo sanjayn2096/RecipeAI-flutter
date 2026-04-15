@@ -61,3 +61,8 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // DayNight activity theme so Flutter reads system dark/light (uiMode) correctly.
+    implementation("com.google.android.material:material:1.12.0")
+}
