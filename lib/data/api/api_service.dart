@@ -3,29 +3,98 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../core/env_config.dart';
+import '../../core/telemetry/api_call_context.dart';
 import '../models/api_dtos.dart';
 import '../models/recipe.dart';
-import '../../core/env_config.dart';
 
 /// Central API service for all backend and session-related calls.
 class ApiService {
-  ApiService({String? baseUrl})
-      : _baseUrl = baseUrl ?? EnvConfig.baseUrl;
+  ApiService({
+    String? baseUrl,
+    this.getCallContext,
+    this.onApiCompleted,
+  }) : _baseUrl = baseUrl ?? EnvConfig.baseUrl;
 
   final String _baseUrl;
+
+  /// Resolves Firebase uid or guest anonymous id for metrics.
+  final Future<ApiCallContext> Function()? getCallContext;
+
+  final void Function(ApiCallMetrics metrics)? onApiCompleted;
+
+  static const _unknownActor = 'unknown';
 
   String _url(String path) =>
       '$_baseUrl${path.startsWith('/') ? path : '/$path'}';
 
+  Future<ApiCallContext> _resolveContext() async {
+    if (getCallContext == null) {
+      return const ApiCallContext(
+        actorId: _unknownActor,
+        actorType: ApiActorType.anonymous,
+      );
+    }
+    try {
+      return await getCallContext!();
+    } catch (_) {
+      return const ApiCallContext(
+        actorId: _unknownActor,
+        actorType: ApiActorType.anonymous,
+      );
+    }
+  }
+
+  Future<http.Response> _execute(
+    String method,
+    String metricPath,
+    Future<http.Response> Function() send,
+  ) async {
+    final ctx = await _resolveContext();
+    final sw = Stopwatch()..start();
+    try {
+      final r = await send();
+      sw.stop();
+      onApiCompleted?.call(
+        ApiCallMetrics(
+          path: metricPath,
+          method: method,
+          statusCode: r.statusCode,
+          durationMs: sw.elapsedMilliseconds,
+          actorId: ctx.actorId,
+          actorType: ctx.actorType,
+        ),
+      );
+      return r;
+    } catch (e) {
+      sw.stop();
+      onApiCompleted?.call(
+        ApiCallMetrics(
+          path: metricPath,
+          method: method,
+          statusCode: 0,
+          durationMs: sw.elapsedMilliseconds,
+          actorId: ctx.actorId,
+          actorType: ctx.actorType,
+          errorMessage: e.toString(),
+        ),
+      );
+      rethrow;
+    }
+  }
+
   /// GET get_user_profile. Pass [idToken] (Firebase ID token) if your backend
   /// expects Authorization: Bearer <token>.
   Future<UserProfileResponse> getUserProfile({String? idToken}) async {
+    const metricPath = 'get_user_profile';
     final url = _url('get_user_profile');
     final headers = <String, String>{
       'Content-Type': 'application/json',
       if (idToken != null) 'Authorization': 'Bearer $idToken',
     };
-    final r = await http.get(Uri.parse(url), headers: headers);
+    final r = await _execute('GET', metricPath, () async {
+      return http.get(Uri.parse(url), headers: headers);
+    });
     final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
       return UserProfileResponse.fromJson(map as Map<String, dynamic>);
@@ -34,12 +103,15 @@ class ApiService {
   }
 
   Future<SessionCheckResponse> checkSession(SessionCheckRequest request) async {
+    const metricPath = 'check-session';
     final url = _url('check-session');
-    final r = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(request.toJson()),
-    );
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(request.toJson()),
+      );
+    });
     final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
       return SessionCheckResponse.fromJson(map as Map<String, dynamic>);
@@ -52,16 +124,19 @@ class ApiService {
     SaveFavoriteRecipesRequest request, {
     String? idToken,
   }) async {
+    const metricPath = 'save-favorites';
     final url = _url('save-favorites');
     final headers = <String, String>{
       'Content-Type': 'application/json',
       if (idToken != null) 'Authorization': 'Bearer $idToken',
     };
-    final r = await http.post(
-      Uri.parse(url),
-      headers: headers,
-      body: jsonEncode(request.toJson()),
-    );
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(request.toJson()),
+      );
+    });
     final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
       return SaveFavoriteRecipesResponse.fromJson(map as Map<String, dynamic>);
@@ -70,17 +145,23 @@ class ApiService {
   }
 
   /// POST generate-recipe (recipe preferences body; server builds LLM prompt). Pass [idToken] if auth.
-  Future<GenerateRecipeResponse> generateRecipe(GenerateRecipeRequest request, {String? idToken}) async {
+  Future<GenerateRecipeResponse> generateRecipe(
+    GenerateRecipeRequest request, {
+    String? idToken,
+  }) async {
+    const metricPath = 'generate-recipe';
     final url = _url('generate-recipe');
     final headers = <String, String>{
       'Content-Type': 'application/json',
       if (idToken != null) 'Authorization': 'Bearer $idToken',
     };
-    final r = await http.post(
-      Uri.parse(url),
-      headers: headers,
-      body: jsonEncode(request.toJson()),
-    );
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(request.toJson()),
+      );
+    });
     if (kDebugMode) {
       debugPrint('[ApiService] generate-recipe response: statusCode=${r.statusCode}');
       debugPrint('[ApiService] generate-recipe raw body:\n${r.body}');
@@ -97,12 +178,15 @@ class ApiService {
 
   /// GET fetch-favorites (auth: Firebase ID token).
   Future<List<Recipe>> fetchFavorites({String? idToken}) async {
+    const metricPath = 'fetch-favorites';
     final url = _url('fetch-favorites');
     final headers = <String, String>{
       'Content-Type': 'application/json',
       if (idToken != null) 'Authorization': 'Bearer $idToken',
     };
-    final r = await http.get(Uri.parse(url), headers: headers);
+    final r = await _execute('GET', metricPath, () async {
+      return http.get(Uri.parse(url), headers: headers);
+    });
     final body = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
       return _parseRecipeList(body);
@@ -112,13 +196,16 @@ class ApiService {
 
   /// GET get-recipe/:recipeId (auth: Firebase ID token). Full document from Firestore `recipes`.
   Future<Recipe> getRecipe(String recipeId, {String? idToken}) async {
+    const metricPath = 'get-recipe';
     final encoded = Uri.encodeComponent(recipeId);
     final url = _url('get-recipe/$encoded');
     final headers = <String, String>{
       'Content-Type': 'application/json',
       if (idToken != null) 'Authorization': 'Bearer $idToken',
     };
-    final r = await http.get(Uri.parse(url), headers: headers);
+    final r = await _execute('GET', metricPath, () async {
+      return http.get(Uri.parse(url), headers: headers);
+    });
     final body = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
       final map = body as Map<String, dynamic>;

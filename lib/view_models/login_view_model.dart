@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import '../core/auth_error_message.dart';
 import '../core/email_not_verified_exception.dart';
+import '../core/telemetry/app_telemetry.dart';
+import '../core/telemetry/feature_ids.dart';
 import '../data/repositories/auth_repository.dart';
 import '../services/session_manager.dart';
 
@@ -9,11 +11,14 @@ class LoginViewModel extends ChangeNotifier {
   LoginViewModel({
     required AuthRepository authRepository,
     required SessionManager sessionManager,
+    required AppTelemetry appTelemetry,
   })  : _auth = authRepository,
-        _session = sessionManager;
+        _session = sessionManager,
+        _telemetry = appTelemetry;
 
   final AuthRepository _auth;
   final SessionManager _session;
+  final AppTelemetry _telemetry;
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
@@ -49,6 +54,8 @@ class LoginViewModel extends ChangeNotifier {
     await _auth.signOutFirebaseOnly();
     _session.setGuestModeSync(true);
     await _session.getOrCreateAnonymousId();
+    await _telemetry.syncUserIdentity(_session);
+    await _telemetry.logFeatureInteraction(featureId: FeatureIds.guestMode);
     notifyListeners();
   }
 
@@ -77,6 +84,10 @@ class LoginViewModel extends ChangeNotifier {
     _clearVerificationPending();
     notifyListeners();
     try {
+      await _telemetry.logFeatureInteraction(
+        featureId: FeatureIds.loginEmail,
+        action: 'submit',
+      );
       await _auth.login(email, password);
       _session.clearGuestModeSync();
       _session.clearAnonymousAndGuestQuotaSync();
@@ -94,6 +105,7 @@ class LoginViewModel extends ChangeNotifier {
     _clearVerificationPending();
     notifyListeners();
     try {
+      await _telemetry.logFeatureInteraction(featureId: FeatureIds.signInGoogle);
       final ok = await _auth.signInWithGoogle();
       if (!ok) return;
       _session.clearGuestModeSync();
@@ -117,6 +129,10 @@ class LoginViewModel extends ChangeNotifier {
     _clearVerificationPending();
     notifyListeners();
     try {
+      await _telemetry.logFeatureInteraction(
+        featureId: FeatureIds.signUp,
+        action: 'submit',
+      );
       await _auth.signup(
         email: email,
         password: password,

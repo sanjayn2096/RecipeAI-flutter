@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../data/models/recipe.dart';
 import '../data/models/session_profile.dart';
 import '../data/models/user_data.dart';
+import '../core/telemetry/app_telemetry.dart';
+import '../core/telemetry/feature_ids.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/user_repository.dart';
 import '../services/session_manager.dart';
@@ -14,13 +16,16 @@ class HomeViewModel extends ChangeNotifier {
     required UserRepository userRepository,
     required AuthRepository authRepository,
     required SessionManager sessionManager,
+    required AppTelemetry appTelemetry,
   })  : _userRepo = userRepository,
         _authRepo = authRepository,
-        _session = sessionManager;
+        _session = sessionManager,
+        _telemetry = appTelemetry;
 
   final UserRepository _userRepo;
   final AuthRepository _authRepo;
   final SessionManager _session;
+  final AppTelemetry _telemetry;
 
   StreamSubscription<List<Recipe>>? _favoritesFirestoreSub;
 
@@ -135,6 +140,10 @@ class HomeViewModel extends ChangeNotifier {
     }
 
     try {
+      await _telemetry.logFeatureInteraction(
+        featureId: FeatureIds.fetchFavorites,
+        action: 'load',
+      );
       final raw = await _userRepo.fetchFavorites();
       _apiFavorites = dedupeFavoritesByRecipeId(raw);
       if (userId != null && userId.isNotEmpty) {
@@ -183,6 +192,7 @@ class HomeViewModel extends ChangeNotifier {
         .toList();
     notifyListeners();
     try {
+      await _telemetry.logFeatureInteraction(featureId: FeatureIds.removeFavorite);
       await _userRepo.saveFavoriteRecipe(recipe.copyWith(isFavorite: false));
       return true;
     } catch (_) {
@@ -194,6 +204,7 @@ class HomeViewModel extends ChangeNotifier {
   Future<void> signOut() async {
     _stopFavoritesFirestoreSync();
     try {
+      await _telemetry.logFeatureInteraction(featureId: FeatureIds.signOut);
       await _authRepo.signOut();
       _isSignedOut = true;
     } catch (_) {

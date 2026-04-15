@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/telemetry/api_call_context.dart';
+import 'core/telemetry/app_telemetry.dart';
 import 'core/theme.dart';
 import 'data/api/api_service.dart';
 import 'data/local/favorites_hive_store.dart';
@@ -19,15 +25,24 @@ import 'view_models/home_view_model.dart';
 import 'view_models/recipe_view_model.dart';
 import 'navigation/app_router.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
+Future<void> _initCrashlytics() async {
+  await FirebaseCrashlytics.instance
+      .setCrashlyticsCollectionEnabled(!kDebugMode);
   FlutterError.onError = (details) {
     if (kDebugMode) {
       debugPrint('[FlutterError] ${details.exception}');
       debugPrint(details.stack?.toString() ?? '');
     }
+    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
   };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await Firebase.initializeApp();
@@ -43,6 +58,8 @@ void main() async {
     return;
   }
 
+  await _initCrashlytics();
+
   try {
     await Hive.initFlutter();
     final favoritesBox = await FavoritesHiveStore.openBox();
@@ -51,7 +68,26 @@ void main() async {
     final prefs = await SharedPreferences.getInstance();
     final sessionManager = SessionManager(prefs: prefs);
 
-    final apiService = ApiService();
+    final analytics = FirebaseAnalytics.instance;
+    final appTelemetry = AppTelemetry(analytics);
+
+    final apiService = ApiService(
+      getCallContext: () async {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          return ApiCallContext(
+            actorId: user.uid,
+            actorType: ApiActorType.firebaseUser,
+          );
+        }
+        final anon = await sessionManager.getOrCreateAnonymousId();
+        return ApiCallContext(
+          actorId: anon,
+          actorType: ApiActorType.anonymous,
+        );
+      },
+      onApiCompleted: appTelemetry.logApiCall,
+    );
     final authRepo = AuthRepository(
       apiService: apiService,
       sessionManager: sessionManager,
@@ -73,15 +109,18 @@ void main() async {
     final loginViewModel = LoginViewModel(
       authRepository: authRepo,
       sessionManager: sessionManager,
+      appTelemetry: appTelemetry,
     );
     final homeViewModel = HomeViewModel(
       userRepository: userRepo,
       authRepository: authRepo,
       sessionManager: sessionManager,
+      appTelemetry: appTelemetry,
     );
     final recipeViewModel = RecipeViewModel(
       recipeRepository: recipeRepo,
       userRepository: userRepo,
+      appTelemetry: appTelemetry,
     );
 
     final router = AppRouter(
@@ -89,9 +128,14 @@ void main() async {
       homeViewModel: homeViewModel,
       recipeViewModel: recipeViewModel,
       sessionManager: sessionManager,
+      analytics: analytics,
     ).router;
 
-    runApp(RecipeAiApp(router: router));
+    runApp(RecipeAiApp(
+      router: router,
+      sessionManager: sessionManager,
+      appTelemetry: appTelemetry,
+    ));
   } catch (e, st) {
     if (kDebugMode) {
       debugPrint('[main] App setup failed: $e');
@@ -146,10 +190,40 @@ class _ErrorApp extends StatelessWidget {
   }
 }
 
-class RecipeAiApp extends StatelessWidget {
-  const RecipeAiApp({super.key, required this.router});
+class RecipeAiApp extends StatefulWidget {
+  const RecipeAiApp({
+    super.key,
+    required this.router,
+    required this.sessionManager,
+    required this.appTelemetry,
+  });
 
   final GoRouter router;
+  final SessionManager sessionManager;
+  final AppTelemetry appTelemetry;
+
+  @override
+  State<RecipeAiApp> createState() => _RecipeAiAppState();
+}
+
+class _RecipeAiAppState extends State<RecipeAiApp> {
+  StreamSubscription<User?>? _authSub;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(widget.appTelemetry.syncUserIdentity(widget.sessionManager));
+    _authSub =
+        FirebaseAuth.instance.authStateChanges().listen((_) {
+      unawaited(widget.appTelemetry.syncUserIdentity(widget.sessionManager));
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +232,7 @@ class RecipeAiApp extends StatelessWidget {
       theme: appLightTheme,
       darkTheme: appDarkTheme,
       themeMode: ThemeMode.system,
-      routerConfig: router,
+      routerConfig: widget.router,
     );
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/recipe_fetch_error_message.dart';
+import '../core/telemetry/app_telemetry.dart';
+import '../core/telemetry/feature_ids.dart';
 import '../data/models/recipe.dart';
 import '../data/repositories/recipe_repository.dart';
 import '../data/repositories/user_repository.dart';
@@ -11,11 +13,14 @@ class RecipeViewModel extends ChangeNotifier {
   RecipeViewModel({
     required RecipeRepository recipeRepository,
     required UserRepository userRepository,
+    required AppTelemetry appTelemetry,
   })  : _recipeRepo = recipeRepository,
-        _userRepo = userRepository;
+        _userRepo = userRepository,
+        _telemetry = appTelemetry;
 
   final RecipeRepository _recipeRepo;
   final UserRepository _userRepo;
+  final AppTelemetry _telemetry;
 
   List<Recipe> _recipes = [];
   List<Recipe> get recipes => _recipes;
@@ -33,6 +38,10 @@ class RecipeViewModel extends ChangeNotifier {
   /// POST generate-recipe with structured session fields (server builds prompt).
   Future<void> fetchRecipes() async {
     if (_kRecipeLogging) debugPrint('[RecipeViewModel] fetchRecipes() -> backend generate-recipe');
+    await _telemetry.logFeatureInteraction(
+      featureId: FeatureIds.generateRecipe,
+      action: 'submit',
+    );
     _isLoading = true;
     _fetchError = null;
     notifyListeners();
@@ -70,6 +79,7 @@ class RecipeViewModel extends ChangeNotifier {
   Future<bool> toggleFavorite(Recipe recipe) async {
     final updated = recipe.copyWith(isFavorite: !recipe.isFavorite);
     try {
+      await _telemetry.logFeatureInteraction(featureId: FeatureIds.toggleFavorite);
       await _userRepo.saveFavoriteRecipe(updated);
       _recipes = _recipes
           .map((r) => r.recipeId == updated.recipeId ? updated : r)

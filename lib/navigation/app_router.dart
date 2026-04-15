@@ -1,3 +1,4 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:go_router/go_router.dart';
 
 import '../screens/splash_screen.dart';
@@ -20,15 +21,21 @@ class AppRouter {
     required this.homeViewModel,
     required this.recipeViewModel,
     required this.sessionManager,
+    this.analytics,
   });
 
   final dynamic loginViewModel;
   final dynamic homeViewModel;
   final dynamic recipeViewModel;
   final dynamic sessionManager;
+  final FirebaseAnalytics? analytics;
 
   late final GoRouter router = GoRouter(
     initialLocation: '/',
+    observers: [
+      if (analytics != null)
+        FirebaseAnalyticsObserver(analytics: analytics!),
+    ],
     routes: [
       GoRoute(
         path: '/',
