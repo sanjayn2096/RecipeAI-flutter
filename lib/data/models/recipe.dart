@@ -2,8 +2,8 @@ import 'nutritional_value.dart';
 
 /// Recipe model.
 ///
-/// [recipeId] — unique string per recipe (from model / prompt; API may use `recipeId` or `recipe_id`).
-/// [image] — populated from API `imageUrl` or `image`.
+/// [recipeId] — unique string per recipe.
+/// [image] — populated from API `imageUrl`.
 class Recipe {
   const Recipe({
     required this.recipeId,
@@ -28,13 +28,20 @@ class Recipe {
   final bool isFavorite;
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
-    final id = json['recipeId'] ?? json['recipe_id'];
+    final id = json['recipeId'];
+    final rawIngredients = json['ingredients'];
+    final rawInstructions = json['instructions'];
+    final rawImageUrl = json['imageUrl'];
     return Recipe(
       recipeId: id is String ? id : (id?.toString() ?? ''),
       recipeName: json['recipeName'] as String? ?? '',
-      image: (json['imageUrl'] ?? json['image']) as String? ?? '',
-      ingredients: json['ingredients'] as String? ?? '',
-      instructions: json['instructions'] as String? ?? '',
+      image: rawImageUrl is String ? rawImageUrl : rawImageUrl?.toString() ?? '',
+      ingredients: rawIngredients is String
+          ? rawIngredients
+          : rawIngredients?.toString() ?? '',
+      instructions: rawInstructions is String
+          ? rawInstructions
+          : rawInstructions?.toString() ?? '',
       cookingTime: json['cookingTime'] as String? ?? '',
       cuisine: json['cuisine'] as String? ?? '',
       nutritionalValue: NutritionalValue.fromJson(

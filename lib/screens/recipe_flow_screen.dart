@@ -7,6 +7,7 @@ import '../core/app_strings.dart';
 import '../data/models/user_data.dart';
 import '../widgets/cartoon_outlined_card.dart';
 import '../widgets/guest_signup_prompt.dart';
+import '../view_models/grocery_list_view_model.dart';
 
 import 'prompt_screen.dart';
 
@@ -16,6 +17,7 @@ class RecipeFlowScreen extends StatefulWidget {
     required this.userData,
     this.initialPrompt,
     required this.recipeViewModel,
+    required this.groceryListViewModel,
     required this.sessionManager,
     this.embedInTab = false,
     this.onOpenAppMenu,
@@ -25,6 +27,7 @@ class RecipeFlowScreen extends StatefulWidget {
   /// When set (e.g. from Home "What do you feel like eating?"), skip mood/diet/cuisine and call generate-recipe API.
   final String? initialPrompt;
   final dynamic recipeViewModel;
+  final GroceryListViewModel groceryListViewModel;
   final dynamic sessionManager;
   /// When true (bottom tab), back from recipe list resets the flow instead of popping a route.
   final bool embedInTab;
@@ -379,6 +382,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                         extra: {
                           'recipe': recipe,
                           'recipeViewModel': widget.recipeViewModel,
+                          'groceryListViewModel': widget.groceryListViewModel,
                         },
                       );
                     },

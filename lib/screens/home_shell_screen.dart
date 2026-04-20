@@ -6,27 +6,34 @@ import '../tutorial/coach_tour.dart';
 import '../core/pantry_items.dart';
 import '../view_models/home_view_model.dart';
 import '../view_models/recipe_view_model.dart';
+import '../view_models/grocery_list_view_model.dart';
 import '../widgets/favorite_recipes_list_view.dart';
 import '../widgets/sous_chef_brand.dart';
 import '../widgets/guest_signup_prompt.dart';
+import '../core/telemetry/app_telemetry.dart';
+import 'grocery_list_screen.dart';
 import 'recipe_flow_screen.dart';
 
 /// Matches selected pantry pills and sheet highlights.
 const Color _kPantrySelectedGreen = Color(0xFF2E7D32);
 
-/// Main shell after login: bottom nav — Home, Create Recipes, Favorites.
+/// Main shell after login: bottom nav — Home, Create Recipes, Grocery list, Favorites.
 class HomeShellScreen extends StatefulWidget {
   const HomeShellScreen({
     super.key,
     required this.homeViewModel,
     required this.loginViewModel,
     required this.recipeViewModel,
+    required this.groceryListViewModel,
+    required this.appTelemetry,
     required this.sessionManager,
   });
 
   final HomeViewModel homeViewModel;
   final dynamic loginViewModel;
   final RecipeViewModel recipeViewModel;
+  final GroceryListViewModel groceryListViewModel;
+  final AppTelemetry appTelemetry;
   final dynamic sessionManager;
 
   @override
@@ -54,7 +61,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     if (index == 1) {
       widget.sessionManager.savePreferenceSync('customPreference', '');
     }
-    if (index == 2 && !widget.sessionManager.isGuestMode()) {
+    if (index == 3 && !widget.sessionManager.isGuestMode()) {
       widget.homeViewModel.loadFavoritesFromApi();
     }
   }
@@ -128,7 +135,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
           targetKey: _coachFavoritesKey,
           title: AppStrings.coachStepFavoritesTitle,
           body: AppStrings.coachStepFavoritesBody,
-          tabIndex: 2,
+          tabIndex: 3,
         ),
       ],
     );
@@ -162,7 +169,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
           _embeddedRecipeFlowKey++;
           _currentIndex = index;
         });
-        if (index == 2 && !widget.sessionManager.isGuestMode()) {
+        if (index == 3 && !widget.sessionManager.isGuestMode()) {
           widget.homeViewModel.loadFavoritesFromApi();
         }
         return;
@@ -173,7 +180,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       // Create Recipes uses mood/diet/cuisine only — ignore Home "Generate from text" session value.
       widget.sessionManager.savePreferenceSync('customPreference', '');
     }
-    if (index == 2 && !widget.sessionManager.isGuestMode()) {
+    if (index == 3 && !widget.sessionManager.isGuestMode()) {
       widget.homeViewModel.loadFavoritesFromApi();
     }
   }
@@ -239,6 +246,14 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                           _startCoachTour();
                         },
                       ),
+                      ListTile(
+                        leading: const Icon(Icons.shopping_cart_outlined),
+                        title: const Text(AppStrings.groceryListDrawer),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          setState(() => _currentIndex = 2);
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -248,7 +263,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                   : AppBar(
                       automaticallyImplyLeading: false,
                       centerTitle: _currentIndex == 0,
-                      leading: _currentIndex == 0 || _currentIndex == 2
+                      leading: _currentIndex != 1
                           ? IconButton(
                               icon: const Icon(Icons.menu),
                               tooltip: AppStrings.appMenuTooltip,
@@ -285,13 +300,20 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                     key: ValueKey<int>(_embeddedRecipeFlowKey),
                     userData: userData,
                     recipeViewModel: widget.recipeViewModel,
+                    groceryListViewModel: widget.groceryListViewModel,
                     sessionManager: widget.sessionManager,
                     embedInTab: true,
                     onOpenAppMenu: _openAppDrawer,
                   ),
+                  GroceryListScreen(
+                    groceryListViewModel: widget.groceryListViewModel,
+                    appTelemetry: widget.appTelemetry,
+                    embedInShell: true,
+                  ),
                   _FavoritesTabBody(
                     homeViewModel: widget.homeViewModel,
                     recipeViewModel: widget.recipeViewModel,
+                    groceryListViewModel: widget.groceryListViewModel,
                     isGuest: isGuest,
                     coachFavoritesKey: _coachFavoritesKey,
                   ),
@@ -312,6 +334,11 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                       icon: Icon(Icons.restaurant_outlined),
                       selectedIcon: Icon(Icons.restaurant),
                       label: 'Create Recipes',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.shopping_cart_outlined),
+                      selectedIcon: Icon(Icons.shopping_cart),
+                      label: 'Grocery',
                     ),
                     NavigationDestination(
                       icon: Icon(Icons.favorite_outline),
@@ -345,6 +372,8 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       case 0:
         return AppStrings.appName;
       case 2:
+        return AppStrings.groceryListTitle;
+      case 3:
         return 'Favorites';
       default:
         return AppStrings.appName;
@@ -374,13 +403,6 @@ class _HomeTabBody extends StatefulWidget {
 class _HomeTabBodyState extends State<_HomeTabBody> {
   late final TextEditingController _customPreferenceController;
 
-  List<String> get _cuisineOptionsForUsualCuisines {
-    // "Surprise Me" isn't a meaningful "usual cuisine" preference.
-    return AppStrings.cuisineOptions
-        .where((c) => c != AppStrings.surpriseMe)
-        .toList();
-  }
-
   String? _greetingName() {
     final name = widget.homeViewModel.sessionProfile.firstNameForDisplay.trim();
     if (name.isNotEmpty) return name;
@@ -405,17 +427,6 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     setState(() {});
   }
 
-  void _toggleUsualCuisine(String cuisine) {
-    final current = widget.sessionManager.getUsualCuisines().toSet();
-    if (current.contains(cuisine)) {
-      current.remove(cuisine);
-    } else {
-      current.add(cuisine);
-    }
-    widget.sessionManager.saveUsualCuisinesSync(current.toList());
-    setState(() {});
-  }
-
   Future<void> _showPantryPickerBottomSheet() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -425,7 +436,6 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
         return _PantryPickerSheet(
           sessionManager: widget.sessionManager,
           initialSelected: widget.sessionManager.getIngredients(),
-          cuisines: widget.sessionManager.getUsualCuisines(),
         );
       },
     );
@@ -472,12 +482,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     final greeting = _greetingName();
     final colorScheme = Theme.of(context).colorScheme;
     final selected = widget.sessionManager.getIngredients().toSet();
-    final usualCuisines = widget.sessionManager.getUsualCuisines().toSet();
-    final suggestedQuickChips =
-        PantryItems.suggestedForCuisines(usualCuisines.toList(), limit: 24);
     final selectedSorted = List<String>.from(selected)..sort();
-    final suggestionChipsOnly =
-        suggestedQuickChips.where((item) => !selected.contains(item)).toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -593,7 +598,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                   key: widget.coachAddPantryKey,
                   onPressed: _showPantryPickerBottomSheet,
                   icon: const Icon(Icons.add),
-                  label: const Text('Add pantry items'),
+                  label: const Text('Add Pantry Items'),
                 ),
               ),
               const SizedBox(height: 10),
@@ -623,80 +628,6 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 ),
                 const SizedBox(height: 16),
               ],
-              Material(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-                clipBehavior: Clip.antiAlias,
-                child: Theme(
-                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                  child: ExpansionTile(
-                    title: Text(
-                      AppStrings.pantrySuggestionsTitle,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    subtitle: Text(
-                      usualCuisines.isEmpty
-                          ? AppStrings.suggestionsTapToChooseCuisines
-                          : usualCuisines.join(', '),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                    maintainState: true,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              AppStrings.usualCuisinesHeading,
-                              style: Theme.of(context).textTheme.labelLarge,
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              AppStrings.usualCuisinesPickerHint,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            for (final cuisine in _cuisineOptionsForUsualCuisines)
-                              CheckboxListTile(
-                                dense: true,
-                                value: usualCuisines.contains(cuisine),
-                                title: Text(cuisine),
-                                onChanged: (_) => _toggleUsualCuisine(cuisine),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (suggestionChipsOnly.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    for (final item in suggestionChipsOnly)
-                      _PantryPill(
-                        label: item,
-                        selected: false,
-                        colorScheme: colorScheme,
-                        onTap: () => _togglePantryItem(item),
-                      ),
-                  ],
-                ),
-              ],
               const SizedBox(height: 32),
             ],
           ),
@@ -710,12 +641,10 @@ class _PantryPickerSheet extends StatefulWidget {
   const _PantryPickerSheet({
     required this.sessionManager,
     required this.initialSelected,
-    required this.cuisines,
   });
 
   final dynamic sessionManager;
   final List<String> initialSelected;
-  final List<String> cuisines;
 
   @override
   State<_PantryPickerSheet> createState() => _PantryPickerSheetState();
@@ -724,6 +653,12 @@ class _PantryPickerSheet extends StatefulWidget {
 class _PantryPickerSheetState extends State<_PantryPickerSheet> {
   late final TextEditingController _controller;
   late final Set<String> _selected;
+
+  List<String> get _cuisineOptionsForUsualCuisines {
+    return AppStrings.cuisineOptions
+        .where((c) => c != AppStrings.surpriseMe)
+        .toList();
+  }
 
   @override
   void initState() {
@@ -768,6 +703,17 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
     setState(() {});
   }
 
+  void _toggleUsualCuisine(String cuisine) {
+    final current = widget.sessionManager.getUsualCuisines().toSet();
+    if (current.contains(cuisine)) {
+      current.remove(cuisine);
+    } else {
+      current.add(cuisine);
+    }
+    widget.sessionManager.saveUsualCuisinesSync(current.toList());
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = _controller.text.trim();
@@ -782,9 +728,19 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
         !_containsCaseInsensitive(PantryItems.allItems, query) &&
         !_containsCaseInsensitive(_selected, query);
 
-    final suggestionCuisines = widget.cuisines.isEmpty
+    final colorScheme = Theme.of(context).colorScheme;
+    final usualCuisines =
+        widget.sessionManager.getUsualCuisines().toSet();
+    final suggestedQuickChips =
+        PantryItems.suggestedForCuisines(usualCuisines.toList(), limit: 24);
+    final suggestionChipsOnly = suggestedQuickChips
+        .where((item) => !_selected.contains(item))
+        .toList();
+
+    final liveCuisines = widget.sessionManager.getUsualCuisines();
+    final suggestionCuisines = liveCuisines.isEmpty
         ? const [PantryItems.cuisinePopular]
-        : widget.cuisines;
+        : liveCuisines;
 
     return SafeArea(
       child: Padding(
@@ -899,46 +855,82 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  for (final cuisine in suggestionCuisines) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10, bottom: 6),
-                      child: Text(
-                        cuisine,
-                        style: Theme.of(context).textTheme.titleSmall,
+                  Material(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                    clipBehavior: Clip.antiAlias,
+                    child: Theme(
+                      data: Theme.of(context)
+                          .copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        title: Text(
+                          AppStrings.pantrySuggestionsTitle,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Text(
+                          usualCuisines.isEmpty
+                              ? AppStrings.suggestionsTapToChooseCuisines
+                              : usualCuisines.join(', '),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        maintainState: true,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  AppStrings.usualCuisinesHeading,
+                                  style: Theme.of(context).textTheme.labelLarge,
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  AppStrings.usualCuisinesPickerHint,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                for (final cuisine
+                                in _cuisineOptionsForUsualCuisines)
+                                  CheckboxListTile(
+                                    dense: true,
+                                    value: usualCuisines.contains(cuisine),
+                                    title: Text(cuisine),
+                                    onChanged: (_) =>
+                                        _toggleUsualCuisine(cuisine),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                  ),
+                  if (suggestionChipsOnly.isNotEmpty) ...[
+                    const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        for (final item
-                            in (PantryItems.staplesByCuisine[cuisine] ??
-                                const <String>[]))
-                          Builder(
-                            builder: (ctx) {
-                              final sel = _selected.contains(item);
-                              return FilterChip(
-                                label: Text(
-                                  item,
-                                  style: TextStyle(
-                                    color: sel
-                                        ? Colors.white
-                                        : Theme.of(ctx).colorScheme.onSurface,
-                                    fontWeight:
-                                        sel ? FontWeight.w600 : FontWeight.w500,
-                                  ),
-                                ),
-                                selected: sel,
-                                showCheckmark: true,
-                                checkmarkColor: Colors.white,
-                                selectedColor: _kPantrySelectedGreen,
-                                backgroundColor: Theme.of(ctx)
-                                    .colorScheme
-                                    .surfaceContainerHighest,
-                                side: BorderSide.none,
-                                onSelected: (_) => _toggle(item),
-                              );
-                            },
+                        for (final item in suggestionChipsOnly)
+                          _PantryPill(
+                            label: item,
+                            selected: false,
+                            colorScheme: colorScheme,
+                            onTap: () => _toggle(item),
                           ),
                       ],
                     ),
@@ -1026,12 +1018,14 @@ class _FavoritesTabBody extends StatelessWidget {
   const _FavoritesTabBody({
     required this.homeViewModel,
     required this.recipeViewModel,
+    required this.groceryListViewModel,
     required this.isGuest,
     required this.coachFavoritesKey,
   });
 
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
+  final GroceryListViewModel groceryListViewModel;
   final bool isGuest;
   final GlobalKey coachFavoritesKey;
 
@@ -1042,6 +1036,7 @@ class _FavoritesTabBody extends StatelessWidget {
       child: FavoriteRecipesListView(
         homeViewModel: homeViewModel,
         recipeViewModel: recipeViewModel,
+        groceryListViewModel: groceryListViewModel,
         isGuest: isGuest,
         onGuestSignUpTap: () => goToSignup(context),
       ),

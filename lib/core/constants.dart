@@ -33,4 +33,7 @@ class AppConstants {
 
   /// Hive box for cached GET fetch-favorites JSON (`userId` + `recipes`).
   static const String hiveFavoritesBox = 'favorites_cache';
+
+  /// Hive box for grocery list when there is no signed-in Firebase user (guest / signed out).
+  static const String hiveGroceryBox = 'grocery_list_local';
 }

@@ -10,12 +10,15 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'firebase_options.dart';
 
 import 'core/telemetry/api_call_context.dart';
 import 'core/telemetry/app_telemetry.dart';
 import 'core/theme.dart';
 import 'data/api/api_service.dart';
 import 'data/local/favorites_hive_store.dart';
+import 'data/local/grocery_hive_store.dart';
+import 'data/repositories/grocery_list_repository.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/recipe_repository.dart';
 import 'data/repositories/user_repository.dart';
@@ -23,9 +26,13 @@ import 'services/session_manager.dart';
 import 'view_models/login_view_model.dart';
 import 'view_models/home_view_model.dart';
 import 'view_models/recipe_view_model.dart';
+import 'view_models/grocery_list_view_model.dart';
 import 'navigation/app_router.dart';
 
 Future<void> _initCrashlytics() async {
+  if (kIsWeb) {
+    return;
+  }
   await FirebaseCrashlytics.instance
       .setCrashlyticsCollectionEnabled(!kDebugMode);
   FlutterError.onError = (details) {
@@ -45,7 +52,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e, st) {
     if (kDebugMode) {
       debugPrint('[main] Firebase.initializeApp failed: $e');
@@ -64,6 +73,8 @@ void main() async {
     await Hive.initFlutter();
     final favoritesBox = await FavoritesHiveStore.openBox();
     final favoritesHiveStore = FavoritesHiveStore(favoritesBox);
+    final groceryBox = await GroceryHiveStore.openBox();
+    final groceryHiveStore = GroceryHiveStore(groceryBox);
 
     final prefs = await SharedPreferences.getInstance();
     final sessionManager = SessionManager(prefs: prefs);
@@ -123,10 +134,19 @@ void main() async {
       appTelemetry: appTelemetry,
     );
 
+    final groceryRepo = GroceryListRepository(hiveStore: groceryHiveStore);
+    final groceryViewModel = GroceryListViewModel(
+      repository: groceryRepo,
+      appTelemetry: appTelemetry,
+    );
+    unawaited(groceryViewModel.init());
+
     final router = AppRouter(
       loginViewModel: loginViewModel,
       homeViewModel: homeViewModel,
       recipeViewModel: recipeViewModel,
+      groceryListViewModel: groceryViewModel,
+      appTelemetry: appTelemetry,
       sessionManager: sessionManager,
       analytics: analytics,
     ).router;

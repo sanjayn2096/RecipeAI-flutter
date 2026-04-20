@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Recipe image from network with local placeholder when URL is missing or fails to load.
+/// Recipe image placeholder (remote image URLs intentionally ignored).
 class RecipeImageBox extends StatelessWidget {
   const RecipeImageBox({
     super.key,
@@ -21,29 +21,13 @@ class RecipeImageBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = imageUrl.trim();
-    Widget child;
-    if (url.isEmpty) {
-      child = Image.asset(
-        _placeholder,
-        height: height,
-        width: width == double.infinity ? null : width,
-        fit: fit,
-      );
-    } else {
-      child = Image.network(
-        url,
-        height: height,
-        width: width == double.infinity ? null : width,
-        fit: fit,
-        errorBuilder: (_, __, ___) => Image.asset(
-          _placeholder,
-          height: height,
-          width: width == double.infinity ? null : width,
-          fit: fit,
-        ),
-      );
-    }
+    // Keep the input for API compatibility, but always render local placeholder art.
+    final child = Image.asset(
+      _placeholder,
+      height: height,
+      width: width == double.infinity ? null : width,
+      fit: fit,
+    );
     return ClipRRect(
       borderRadius: borderRadius,
       child: width == double.infinity

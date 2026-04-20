@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/app_strings.dart';
 import '../core/recipe_parsing.dart';
 import '../data/models/recipe.dart';
+import '../view_models/grocery_list_view_model.dart';
 
 /// Full-screen cooking mode: gather ingredients → step-by-step → Fin.
 class CookRecipeFlowScreen extends StatefulWidget {
-  const CookRecipeFlowScreen({super.key, required this.recipe});
+  const CookRecipeFlowScreen({
+    super.key,
+    required this.recipe,
+    this.groceryListViewModel,
+  });
 
   final Recipe recipe;
+  final GroceryListViewModel? groceryListViewModel;
 
   @override
   State<CookRecipeFlowScreen> createState() => _CookRecipeFlowScreenState();
@@ -108,14 +115,14 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
                 style: Theme.of(ctx).textTheme.titleSmall,
               ),
               const SizedBox(height: 8),
-              Text(widget.recipe.ingredients),
+              _buildIngredientList(_ingredients, widget.recipe.ingredients),
               const SizedBox(height: 16),
               Text(
                 'Instructions',
                 style: Theme.of(ctx).textTheme.titleSmall,
               ),
               const SizedBox(height: 8),
-              Text(widget.recipe.instructions),
+              _buildInstructionList(_instructions, widget.recipe.instructions),
             ],
           ),
         ),
@@ -125,6 +132,47 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildIngredientList(List<String> items, String fallback) {
+    if (items.isEmpty) return Text(fallback);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: items
+          .map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('• '),
+                  Expanded(child: Text(item)),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _buildInstructionList(List<String> items, String fallback) {
+    if (items.isEmpty) return Text(fallback);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(
+        items.length,
+        (index) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${index + 1}. '),
+              Expanded(child: Text(items[index])),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -247,6 +295,15 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
                   ),
           ),
           const SizedBox(height: 8),
+          if (total > 0 && widget.groceryListViewModel != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: OutlinedButton.icon(
+                onPressed: _addStillNeededToGroceryFromGather,
+                icon: const Icon(Icons.add_shopping_cart_outlined),
+                label: const Text(AppStrings.cookFlowAddUncheckedToGrocery),
+              ),
+            ),
           FilledButton.icon(
             onPressed: _nextFromGather,
             icon: const Icon(Icons.arrow_forward),
@@ -254,6 +311,36 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _addStillNeededToGroceryFromGather() async {
+    final vm = widget.groceryListViewModel;
+    if (vm == null) return;
+    final need = <String>[];
+    for (var i = 0; i < _ingredients.length; i++) {
+      if (!_checkedIngredientIndices.contains(i)) {
+        need.add(_ingredients[i]);
+      }
+    }
+    if (need.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'You marked every ingredient as gathered. Uncheck items you still need to buy.',
+          ),
+        ),
+      );
+      return;
+    }
+    await vm.addLinesFromRecipe(
+      lines: need,
+      recipeId: widget.recipe.recipeId,
+      recipeName: widget.recipe.recipeName,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text(AppStrings.recipeAddedToGroceryList)),
     );
   }
 

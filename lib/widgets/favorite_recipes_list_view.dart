@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
 import '../view_models/home_view_model.dart';
+import '../view_models/grocery_list_view_model.dart';
 import 'cartoon_outlined_card.dart';
 import 'guest_signup_prompt.dart';
 
@@ -13,12 +14,14 @@ class FavoriteRecipesListView extends StatefulWidget {
     super.key,
     required this.homeViewModel,
     required this.recipeViewModel,
+    required this.groceryListViewModel,
     this.isGuest = false,
     this.onGuestSignUpTap,
   });
 
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
+  final GroceryListViewModel groceryListViewModel;
   final bool isGuest;
   final VoidCallback? onGuestSignUpTap;
 
@@ -204,6 +207,7 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                                 homeViewModel: widget.homeViewModel,
                                 listRecipe: recipe,
                                 recipeViewModel: widget.recipeViewModel,
+                                groceryListViewModel: widget.groceryListViewModel,
                               ),
                             ),
                           ),
@@ -223,6 +227,7 @@ Future<void> _openFavoriteRecipe(
   required HomeViewModel homeViewModel,
   required Recipe listRecipe,
   required dynamic recipeViewModel,
+  required GroceryListViewModel groceryListViewModel,
 }) async {
   if (listRecipe.recipeId.isEmpty) {
     if (!context.mounted) return;
@@ -231,6 +236,7 @@ Future<void> _openFavoriteRecipe(
       extra: {
         'recipe': listRecipe,
         'recipeViewModel': recipeViewModel,
+        'groceryListViewModel': groceryListViewModel,
       },
     );
     return;
@@ -267,6 +273,7 @@ Future<void> _openFavoriteRecipe(
       extra: {
         'recipe': toShow,
         'recipeViewModel': recipeViewModel,
+        'groceryListViewModel': groceryListViewModel,
       },
     );
   } on ApiException catch (e) {

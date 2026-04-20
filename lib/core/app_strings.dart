@@ -18,7 +18,7 @@ class AppStrings {
   static const String sendingTastyRecipes = 'Sending some tasty recipes your way…';
   static const String letsCookSomethingNice = "Let's cook something nice today";
   static const String whatDoYouFeelLikeEating = 'What do you feel like eating?';
-  static const String pantryStaples = 'Pantry staples — tap to add';
+  static const String pantryStaples = 'Add Ingredients you have for better suggestions — tap to add';
   static const String pantryStaplesDialogTitle = 'Pantry staples';
   /// Shown in the info dialog next to the pantry staples heading.
   static const String pantryStaplesInfo =
@@ -38,9 +38,9 @@ class AppStrings {
   static const String tutorialScreenTitle = 'How to use Sous Chef';
   static const String tutorialOverviewTitle = 'Get around the app';
   static const String tutorialOverviewBody =
-      'The bottom bar has three tabs: Home for quick ideas and your pantry, '
+      'The bottom bar has four tabs: Home for quick ideas and your pantry, '
       'Create Recipes for a step-by-step questionnaire (mood, diet, cuisine, cooking time), '
-      'and Favorites for recipes you have saved.';
+      'Grocery for your shopping list, and Favorites for recipes you have saved.';
   static const String tutorialCreateRecipesTitle = 'Creating recipes';
   static const String tutorialCreateRecipesBody =
       'On Home, describe what you want under “What do you feel like eating?” and/or add pantry items, '
@@ -59,10 +59,10 @@ class AppStrings {
   static const String showMeAround = 'Show me around';
   static const String showMeInApp = 'Show me in the app';
   static const String skip = 'Skip';
-  static const String coachStepNavTitle = 'Three ways to cook';
+  static const String coachStepNavTitle = 'Four tabs to cook and shop';
   static const String coachStepNavBody =
       'Use Home for quick ideas and pantry, Create Recipes for the full questionnaire, '
-      'and Favorites for saved recipes.';
+      'Grocery for your list, and Favorites for saved recipes.';
   static const String coachStepGetRecipesTitle = 'Get recipes';
   static const String coachStepGetRecipesBody =
       'Describe what you want (optional), add pantry items if you like, then tap here to generate recipes.';
@@ -72,6 +72,35 @@ class AppStrings {
   static const String coachStepFavoritesTitle = 'Saved recipes';
   static const String coachStepFavoritesBody =
       'Recipes you heart appear here. Sign up from guest mode to sync favorites to your account.';
+  static const String groceryListTitle = 'Grocery list';
+  static const String groceryListDrawer = 'Grocery list';
+  static const String groceryEmptyHint =
+      'Items you add from a recipe or with + will show up here. Open a recipe and choose what you still need to buy.';
+  static const String groceryAddItem = 'Add item';
+  static const String groceryEditItem = 'Edit item';
+  static const String groceryFieldName = 'Name';
+  static const String groceryNameSearchHint = 'e.g. Garlic';
+  static const String groceryGroupOther = 'Other items';
+  static const String groceryGroupUnnamedRecipe = 'Recipe';
+
+  static String groceryIngredientsForRecipe(String recipeTitle) =>
+      'Ingredients needed for $recipeTitle';
+  static const String groceryFieldQuantity = 'Quantity';
+  static const String groceryFieldUnit = 'Unit';
+  static const String groceryFieldQuantityOptional = 'Quantity (optional)';
+  static const String groceryFieldUnitOptional = 'Unit (optional)';
+  static const String groceryFieldNoteOptional = 'Note (optional)';
+  static const String groceryShareList = 'Share list';
+  static const String groceryCopyList = 'Copy list';
+  static const String groceryShareStillNeed = 'Share items still needed';
+  static const String groceryCopyStillNeed = 'Copy items still needed';
+  static const String groceryShareSubject = 'Sous Chef — Grocery list';
+  static const String groceryCopied = 'List copied to clipboard';
+  static const String groceryNothingLeftToBuy = 'No unchecked items left to share';
+  static const String groceryClearChecked = 'Clear checked';
+  static const String groceryRemovedChecked = 'Removed checked items';
+  static const String recipeAddedToGroceryList = 'Added to grocery list';
+  static const String cookFlowAddUncheckedToGrocery = 'Add still needed to grocery list';
 
   // Mood
   static const String howAreYouFeelingToday = 'How are you feeling today?';

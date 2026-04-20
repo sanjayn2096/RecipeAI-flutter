@@ -12,14 +12,19 @@ import '../screens/cook_recipe_flow_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/favorites_screen.dart';
 import '../screens/tutorial_screen.dart';
+import '../screens/grocery_list_screen.dart';
 import '../data/models/recipe.dart';
 import '../data/models/user_data.dart';
+import '../core/telemetry/app_telemetry.dart';
+import '../view_models/grocery_list_view_model.dart';
 
 class AppRouter {
   AppRouter({
     required this.loginViewModel,
     required this.homeViewModel,
     required this.recipeViewModel,
+    required this.groceryListViewModel,
+    required this.appTelemetry,
     required this.sessionManager,
     this.analytics,
   });
@@ -27,6 +32,8 @@ class AppRouter {
   final dynamic loginViewModel;
   final dynamic homeViewModel;
   final dynamic recipeViewModel;
+  final GroceryListViewModel groceryListViewModel;
+  final AppTelemetry appTelemetry;
   final dynamic sessionManager;
   final FirebaseAnalytics? analytics;
 
@@ -64,6 +71,8 @@ class AppRouter {
           homeViewModel: homeViewModel,
           loginViewModel: loginViewModel,
           recipeViewModel: recipeViewModel,
+          groceryListViewModel: groceryListViewModel,
+          appTelemetry: appTelemetry,
           sessionManager: sessionManager,
         ),
       ),
@@ -83,6 +92,7 @@ class AppRouter {
             userData: userData,
             initialPrompt: initialPrompt,
             recipeViewModel: recipeViewModel,
+            groceryListViewModel: groceryListViewModel,
             sessionManager: sessionManager,
           );
         },
@@ -98,11 +108,16 @@ class AppRouter {
             return ShowRecipeScreen(
               recipe: recipe,
               recipeViewModel: vm,
+              groceryListViewModel: groceryListViewModel,
               isGuest: isGuest,
             );
           }
           final recipe = extra as Recipe;
-          return ShowRecipeScreen(recipe: recipe, isGuest: isGuest);
+          return ShowRecipeScreen(
+            recipe: recipe,
+            groceryListViewModel: groceryListViewModel,
+            isGuest: isGuest,
+          );
         },
       ),
       GoRoute(
@@ -110,13 +125,30 @@ class AppRouter {
         builder: (_, state) {
           final extra = state.extra;
           final Recipe recipe;
+          final GroceryListViewModel? groceryVm;
           if (extra is Map<String, dynamic>) {
             recipe = extra['recipe'] as Recipe;
+            groceryVm = extra['groceryListViewModel'] as GroceryListViewModel?;
           } else {
             recipe = extra as Recipe;
+            groceryVm = null;
           }
-          return CookRecipeFlowScreen(recipe: recipe);
+          return CookRecipeFlowScreen(
+            recipe: recipe,
+            groceryListViewModel: groceryVm ?? groceryListViewModel,
+          );
         },
+      ),
+      GoRoute(
+        path: '/shopping-list',
+        redirect: (context, state) => '/grocery-list',
+      ),
+      GoRoute(
+        path: '/grocery-list',
+        builder: (context, __) => GroceryListScreen(
+          groceryListViewModel: groceryListViewModel,
+          appTelemetry: appTelemetry,
+        ),
       ),
       GoRoute(
         path: '/profile',
@@ -131,6 +163,7 @@ class AppRouter {
         builder: (context, __) => FavoritesScreen(
           homeViewModel: homeViewModel,
           recipeViewModel: recipeViewModel,
+          groceryListViewModel: groceryListViewModel,
           sessionManager: sessionManager,
           onBack: () => context.pop(),
         ),

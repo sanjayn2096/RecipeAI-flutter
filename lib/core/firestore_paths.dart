@@ -6,4 +6,7 @@ class FirestorePaths {
 
   /// Subcollection under `users/{userId}/…`. Confirm name in console if needed.
   static const String favoritesSubcollection = 'favorites';
+
+  /// Grocery list items for signed-in users.
+  static const String grocerySubcollection = 'groceryItems';
 }

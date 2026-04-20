@@ -35,7 +35,6 @@ android/app/google-services.json
 *.ipa
 
 # Web
-lib/generated_plugin_registrant.dart
 
 # Python (local image tooling)
 .venv/
