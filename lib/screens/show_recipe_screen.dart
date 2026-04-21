@@ -119,7 +119,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Values shown per Serving (${widget.recipe.nutritionalValue.numberOfServings} servings total).',
+              'Values shown per serving.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
@@ -234,26 +234,10 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
   Widget _buildNutritionSection() {
     final nutrition = widget.recipe.nutritionalValue;
     final metrics = <_NutritionMetric>[
-      _NutritionMetric(
-        label: 'Calories',
-        value: nutrition.calories,
-        dotsFilled: _dotLevelForCalories(nutrition.calories),
-      ),
-      _NutritionMetric(
-        label: 'Protein',
-        value: nutrition.protein,
-        dotsFilled: _dotLevelForMacro(nutrition.protein),
-      ),
-      _NutritionMetric(
-        label: 'Carbs',
-        value: nutrition.carbs,
-        dotsFilled: _dotLevelForMacro(nutrition.carbs),
-      ),
-      _NutritionMetric(
-        label: 'Fat',
-        value: nutrition.fat,
-        dotsFilled: _dotLevelForMacro(nutrition.fat),
-      ),
+      _NutritionMetric(label: 'Calories', value: nutrition.calories),
+      _NutritionMetric(label: 'Protein', value: nutrition.protein),
+      _NutritionMetric(label: 'Carbs', value: nutrition.carbs),
+      _NutritionMetric(label: 'Fat', value: nutrition.fat),
     ].where((m) => _isAvailableNutritionValue(m.value)).toList();
 
     if (metrics.isEmpty) {
@@ -287,49 +271,134 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
       }
     }
 
-    return Column(
+    final nutritionGrid = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ...tileRows,
-        const SizedBox(height: 14),
-        ...List.generate(metrics.length, (index) {
-          final metric = metrics[index];
-          return Padding(
-            padding: EdgeInsets.only(bottom: index == metrics.length - 1 ? 0 : 8),
-            child: _buildNutritionScaleRow(
-              label: metric.label,
-              dotsFilled: metric.dotsFilled,
-            ),
+      children: tileRows,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 360;
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              nutritionGrid,
+              const SizedBox(height: 12),
+              _buildServingSizeCard(
+                context,
+                nutrition.numberOfServings,
+                expandVertically: false,
+                compact: false,
+              ),
+            ],
           );
-        }),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          children: [
-            Text(
-              'Servings: ${nutrition.numberOfServings}',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontSize: 15,
-              ),
-            ),
-            if (_isAvailableNutritionValue(nutrition.vitamins))
-              Text(
-                'Vitamins: ${nutrition.vitamins}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 15,
-                ),
-              ),
-          ],
-        ),
-      ],
+        }
+        // Measure the grid after layout and pin the servings column to that height.
+        return _WideNutritionWithSide(
+          nutritionGrid: nutritionGrid,
+          buildSide: (ctx, columnHeight) => _buildWideSideColumn(
+            ctx,
+            columnHeight,
+            nutrition.numberOfServings,
+          ),
+        );
+      },
     );
   }
 
-  bool _isAvailableNutritionValue(String raw) {
-    final value = raw.trim();
-    if (value.isEmpty) return false;
-    return value.toLowerCase() != 'n/a';
+  /// Right column: servings only, height [columnHeight] to match the macro grid.
+  Widget _buildWideSideColumn(
+    BuildContext context,
+    double columnHeight,
+    int numberOfServings,
+  ) {
+    return SizedBox(
+      height: columnHeight,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _buildServingSizeCard(
+              context,
+              numberOfServings,
+              expandVertically: true,
+              compact: false,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static const IconData _bowlIcon = Icons.ramen_dining_outlined;
+
+  Widget _buildServingSizeCard(
+    BuildContext context,
+    int numberOfServings, {
+    required bool expandVertically,
+    required bool compact,
+  }) {
+    final theme = Theme.of(context);
+    final n = numberOfServings < 1 ? 1 : numberOfServings;
+    final accent = theme.colorScheme.primary;
+    final smallBowl = compact
+        ? 18.0
+        : (expandVertically ? 26.0 : 22.0);
+    final largeBowl = compact ? 26.0 : (expandVertically ? 40.0 : 30.0);
+    final vPad = compact ? 8.0 : 12.0;
+    final hPad = compact ? 10.0 : 12.0;
+    final afterBowlsGap = compact ? 6.0 : (expandVertically ? 12.0 : 8.0);
+
+    final content = Column(
+      mainAxisSize: expandVertically ? MainAxisSize.max : MainAxisSize.min,
+      mainAxisAlignment:
+          expandVertically ? MainAxisAlignment.center : MainAxisAlignment.start,
+      children: [
+        Text(
+          'Servings',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        SizedBox(height: compact ? 2 : 4),
+        if (n <= 4)
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: compact ? 3 : 4,
+            runSpacing: compact ? 3 : 4,
+            children: List<Widget>.generate(
+              n,
+              (_) => Icon(_bowlIcon, size: smallBowl, color: accent),
+            ),
+          )
+        else
+          Icon(_bowlIcon, size: largeBowl, color: accent),
+        SizedBox(height: afterBowlsGap),
+        Text(
+          '$n',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            fontSize: compact ? 20 : 22,
+          ),
+        ),
+      ],
+    );
+
+    final decorated = Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: content,
+    );
+
+    if (expandVertically) {
+      return SizedBox.expand(child: decorated);
+    }
+    return decorated;
   }
 
   Widget _buildNutritionTile({required String label, required String value}) {
@@ -362,73 +431,85 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
     );
   }
 
-  Widget _buildNutritionScaleRow({
-    required String label,
-    required int dotsFilled,
-  }) {
-    final theme = Theme.of(context);
-    final safeDots = dotsFilled.clamp(0, 5);
-    return Row(
-      children: [
-        SizedBox(
-          width: 74,
-          child: Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(fontSize: 15),
-          ),
-        ),
-        ...List.generate(5, (index) {
-          final isFilled = index < safeDots;
-          return Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: Icon(
-              Icons.circle,
-              size: 9,
-              color: isFilled
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
+  bool _isAvailableNutritionValue(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return false;
+    return value.toLowerCase() != 'n/a';
+  }
+}
+
+/// Sizes the side column to the measured height of [nutritionGrid] so the
+/// macro tiles and servings share one bottom edge (avoids IntrinsicHeight
+/// + [Expanded] on the grid under-reporting height).
+class _WideNutritionWithSide extends StatefulWidget {
+  const _WideNutritionWithSide({
+    required this.nutritionGrid,
+    required this.buildSide,
+  });
+
+  final Widget nutritionGrid;
+  final Widget Function(BuildContext context, double columnHeight) buildSide;
+
+  @override
+  State<_WideNutritionWithSide> createState() => _WideNutritionWithSideState();
+}
+
+class _WideNutritionWithSideState extends State<_WideNutritionWithSide> {
+  final GlobalKey _gridKey = GlobalKey();
+  double? _measuredHeight;
+  bool _measurementScheduled = false;
+
+  void _scheduleMeasure() {
+    if (_measurementScheduled) return;
+    _measurementScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measurementScheduled = false;
+      if (!mounted) return;
+      final box = _gridKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box == null || !box.hasSize) return;
+      final h = box.size.height;
+      if (_measuredHeight == null || (h - _measuredHeight!).abs() > 0.5) {
+        setState(() => _measuredHeight = h);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _scheduleMeasure();
+    const gap = 12.0;
+    const sideW = 132.0;
+    final columnH = _measuredHeight ?? 200.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final leftW = (constraints.maxWidth - gap - sideW).clamp(48.0, double.infinity);
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: leftW,
+              child: KeyedSubtree(
+                key: _gridKey,
+                child: widget.nutritionGrid,
+              ),
             ),
-          );
-        }),
-      ],
+            const SizedBox(width: gap),
+            SizedBox(
+              width: sideW,
+              height: columnH,
+              child: widget.buildSide(context, columnH),
+            ),
+          ],
+        );
+      },
     );
-  }
-
-  int _dotLevelForMacro(String raw) {
-    final value = _extractLeadingNumber(raw);
-    if (value == null) return 0;
-    if (value < 10) return 1;
-    if (value < 20) return 2;
-    if (value < 35) return 3;
-    if (value < 50) return 4;
-    return 5;
-  }
-
-  int _dotLevelForCalories(String raw) {
-    final value = _extractLeadingNumber(raw);
-    if (value == null) return 0;
-    if (value < 200) return 1;
-    if (value < 350) return 2;
-    if (value < 500) return 3;
-    if (value < 700) return 4;
-    return 5;
-  }
-
-  double? _extractLeadingNumber(String raw) {
-    final match = RegExp(r'\d+(\.\d+)?').firstMatch(raw);
-    if (match == null) return null;
-    return double.tryParse(match.group(0)!);
   }
 }
 
 class _NutritionMetric {
-  _NutritionMetric({
-    required this.label,
-    required this.value,
-    required this.dotsFilled,
-  });
+  _NutritionMetric({required this.label, required this.value});
 
   final String label;
   final String value;
-  final int dotsFilled;
 }
