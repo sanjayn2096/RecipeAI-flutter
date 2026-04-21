@@ -24,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _emailLoginInProgress = false;
   bool _googleSigningIn = false;
   String? _emailError;
   String? _passwordError;
@@ -177,7 +178,17 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: () => _submitLogin(context),
-                child: const Text('Login'),
+                child: _emailLoginInProgress
+                    ? SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color:
+                              Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      )
+                    : const Text('Login'),
               ),
               const SizedBox(height: 20),
               Row(
@@ -264,13 +275,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submitLogin(BuildContext context) async {
+    if (_emailLoginInProgress) return;
     if (!_validateFields()) return;
 
-    widget.loginViewModel.clearError();
-    await widget.loginViewModel.login(
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
+    setState(() => _emailLoginInProgress = true);
+    try {
+      widget.loginViewModel.clearError();
+      await widget.loginViewModel.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+    } finally {
+      if (mounted) setState(() => _emailLoginInProgress = false);
+    }
     if (widget.loginViewModel.isLoggedIn && context.mounted) {
       // Navigation handled by parent
     }
