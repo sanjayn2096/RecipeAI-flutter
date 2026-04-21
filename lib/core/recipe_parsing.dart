@@ -1,26 +1,66 @@
-/// Heuristic parsing of recipe [ingredients] and [instructions] strings from the API.
+/// Heuristic parsing of legacy recipe [ingredients] single-string blobs and
+/// [instructions] strings from the API.
 ///
 /// Handles newline lists, bullets, numbered items, and simple single-paragraph fallbacks.
 abstract class RecipeParsing {
   RecipeParsing._();
 
-  static List<String> parseIngredients(String raw) {
-    final items = _parseLines(raw);
-    if (items.isEmpty) return [];
-    if (items.length == 1) {
-      final single = items.single;
-      if (single.contains(',') || single.contains(';')) {
-        final split = single
-            .split(RegExp(r'[,;]\s*'))
-            .map((s) => s.trim())
-            .where((s) => s.isNotEmpty)
-            .toList();
-        if (split.length > 1) {
-          return _dedupe(split);
-        }
-      }
+  /// Expands glued-up ingredient lines from the API (e.g. `2SalmonFillets(150gEach)`)
+  /// into spaced, readable text. Safe to call more than once.
+  static String formatIngredientLineForDisplay(String raw) {
+    var s = raw.trim();
+    if (s.isEmpty) return '';
+    s = s.replaceAll(RegExp(r'\s+'), ' ');
+    for (var i = 0; i < 12; i++) {
+      final before = s;
+      // e.g. 1/2Cup -> 1/2 Cup (fraction glued to a word)
+      s = s.replaceAllMapped(
+        RegExp(r'(\d/\d)([A-Za-z])'),
+        (m) => '${m[1]} ${m[2]}',
+      );
+      s = s.replaceAllMapped(RegExp(r',([^\s,])'), (m) => ', ${m[1]}');
+      s = s.replaceAllMapped(RegExp(r'(?<=[^\s\(])\('), (_) => ' (');
+      s = s.replaceAllMapped(RegExp(r'\)(?=[A-Za-z0-9])'), (_) => ') ');
+      s = s.replaceAllMapped(
+        RegExp(r'([a-z0-9])([A-Z])'),
+        (m) => '${m[1]} ${m[2]}',
+      );
+      s = s.replaceAllMapped(
+        RegExp(r'([A-Z])([A-Z][a-z])'),
+        (m) => '${m[1]} ${m[2]}',
+      );
+      s = s.replaceAllMapped(
+        RegExp(r'(\d+)([A-Za-z])'),
+        (m) => '${m[1]} ${m[2]}',
+      );
+      s = s.replaceAllMapped(
+        RegExp(r'([A-Za-z])(\d)'),
+        (m) => '${m[1]} ${m[2]}',
+      );
+      if (before == s) break;
     }
-    return _dedupe(items);
+    return s.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  /// Legacy-only: when [ingredients] was a single string (e.g. from old Firestore docs).
+  static List<String> parseIngredients(String raw) {
+    return _dedupe(_parseLines(raw));
+  }
+
+  /// Parses API / Firestore `ingredients`: array of strings, or legacy single string.
+  static List<String> ingredientsFromJson(dynamic raw) {
+    if (raw is List) {
+      return raw
+          .map((e) => e?.toString() ?? '')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .map(formatIngredientLineForDisplay)
+          .toList();
+    }
+    if (raw is String) {
+      return parseIngredients(raw).map(formatIngredientLineForDisplay).toList();
+    }
+    return [];
   }
 
   static List<String> parseInstructions(String raw) {

@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/email_not_verified_exception.dart';
@@ -7,10 +8,34 @@ import '../local/favorites_hive_store.dart';
 import '../models/api_dtos.dart';
 import '../../services/session_manager.dart';
 
-/// Web client OAuth 2.0 ID from Firebase (Project settings → Your apps → Web client).
-/// Lets [GoogleSignIn] return an idToken for [GoogleAuthProvider] on Android/iOS.
+/// Web OAuth client ID from Firebase (Project settings → Your apps → Web client).
+/// Passed as [GoogleSignIn.serverClientId] on Android/iOS so the plugin returns an
+/// id token. On **web**, Google sign-in uses [FirebaseAuth.signInWithPopup] instead
+/// of [google_sign_in], so OAuth redirect URIs stay on Firebase’s handler (avoids
+/// `redirect_uri_mismatch` when the app is served from a custom hosting domain).
 const String _kGoogleWebClientId =
     '516167677061-ig3llepi6f5jk5jg0ajmcma7ps54ino5.apps.googleusercontent.com';
+
+GoogleSignIn _mobileGoogleSignIn() {
+  return GoogleSignIn(
+    serverClientId: _kGoogleWebClientId,
+    scopes: const ['email', 'profile'],
+  );
+}
+
+Future<void> _signOutGoogleSignInPluginIfMobile() async {
+  if (kIsWeb) return;
+  try {
+    await _mobileGoogleSignIn().signOut();
+  } catch (_) {}
+}
+
+GoogleAuthProvider _webGoogleAuthProvider() {
+  final p = GoogleAuthProvider();
+  p.addScope('email');
+  p.addScope('profile');
+  return p;
+}
 
 /// Auth operations: Firebase sign-in/sign-up, then backend profile (GET get_user_profile).
 class AuthRepository {
@@ -116,10 +141,14 @@ class AuthRepository {
   /// Google Sign-In, then same profile hydration as [login].
   /// Returns `false` if the user closed the Google account picker without signing in.
   Future<bool> signInWithGoogle() async {
-    final googleSignIn = GoogleSignIn(
-      scopes: const ['email', 'profile'],
-      serverClientId: _kGoogleWebClientId,
-    );
+    if (kIsWeb) {
+      final userCred =
+          await _firebaseAuth.signInWithPopup(_webGoogleAuthProvider());
+      if (userCred.user == null) throw Exception('Login failed');
+      await _completeLoginForCurrentUser();
+      return true;
+    }
+    final googleSignIn = _mobileGoogleSignIn();
     final account = await googleSignIn.signIn();
     if (account == null) {
       return false;
@@ -191,27 +220,21 @@ class AuthRepository {
   Future<void> signOutFirebaseOnly() async {
     _profileFetchedForFirebaseUid = null;
     await _firebaseAuth.signOut();
-    try {
-      await GoogleSignIn(serverClientId: _kGoogleWebClientId).signOut();
-    } catch (_) {}
+    await _signOutGoogleSignInPluginIfMobile();
   }
 
   /// Sign out: Firebase Auth signOut on device + clear local session. No backend call.
   Future<void> signOut() async {
     _profileFetchedForFirebaseUid = null;
     await _firebaseAuth.signOut();
-    try {
-      await GoogleSignIn(serverClientId: _kGoogleWebClientId).signOut();
-    } catch (_) {}
+    await _signOutGoogleSignInPluginIfMobile();
     await _session.clearSession();
     await _favoritesHiveStore.clear();
   }
 
   Future<void> _clearLocalStateAfterAccountRemoval() async {
     _profileFetchedForFirebaseUid = null;
-    try {
-      await GoogleSignIn(serverClientId: _kGoogleWebClientId).signOut();
-    } catch (_) {}
+    await _signOutGoogleSignInPluginIfMobile();
     await _firebaseAuth.signOut();
     await _session.clearSession();
     await _favoritesHiveStore.clear();
@@ -244,10 +267,13 @@ class AuthRepository {
     if (user == null) {
       throw FirebaseAuthException(code: 'no-current-user', message: 'Not signed in.');
     }
-    final googleSignIn = GoogleSignIn(
-      scopes: const ['email', 'profile'],
-      serverClientId: _kGoogleWebClientId,
-    );
+    if (kIsWeb) {
+      await user.reauthenticateWithPopup(_webGoogleAuthProvider());
+      await user.delete();
+      await _clearLocalStateAfterAccountRemoval();
+      return true;
+    }
+    final googleSignIn = _mobileGoogleSignIn();
     final account = await googleSignIn.signIn();
     if (account == null) {
       return false;

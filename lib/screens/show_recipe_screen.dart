@@ -35,7 +35,9 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
   void initState() {
     super.initState();
     _isFavorite = widget.recipe.isFavorite;
-    _ingredientItems = RecipeParsing.parseIngredients(widget.recipe.ingredients);
+    _ingredientItems = widget.recipe.ingredients
+        .map(RecipeParsing.formatIngredientLineForDisplay)
+        .toList();
     _instructionItems = RecipeParsing.parseInstructions(widget.recipe.instructions);
   }
 
@@ -117,7 +119,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Values shown are for the whole dish (${widget.recipe.nutritionalValue.numberOfServings} servings total).',
+              'Values shown per Serving (${widget.recipe.nutritionalValue.numberOfServings} servings total).',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
@@ -166,7 +168,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
 
   Widget _buildIngredientsSection() {
     if (_ingredientItems.isEmpty) {
-      return Text(widget.recipe.ingredients);
+      return const SizedBox.shrink();
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,11 +191,17 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
 
   Widget _buildBulletLine(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('• '),
+          Padding(
+            padding: const EdgeInsets.only(right: 10, top: 2),
+            child: Text(
+              '•',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ),
           Expanded(
             child: Text(
               text,

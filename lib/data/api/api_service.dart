@@ -176,6 +176,103 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(body));
   }
 
+  /// POST generate-recipes-stream.
+  /// Emits each recipe as it arrives via SSE events.
+  Stream<Recipe> generateRecipeStream(
+    GenerateRecipeRequest request, {
+    String? idToken,
+  }) async* {
+    const metricPath = 'generate-recipes-stream';
+    final url = _url('generate-recipes-stream');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+
+    final ctx = await _resolveContext();
+    final sw = Stopwatch()..start();
+    final client = http.Client();
+    var statusCode = 0;
+    String? errorMessage;
+
+    try {
+      final req = http.Request('POST', Uri.parse(url));
+      req.headers.addAll(headers);
+      req.body = jsonEncode(request.toJson());
+
+      final streamed = await client.send(req);
+      statusCode = streamed.statusCode;
+
+      if (statusCode < 200 || statusCode >= 300) {
+        final body = await streamed.stream.bytesToString();
+        final decoded = _decodeBody(body, url);
+        throw ApiException(statusCode, _extractError(decoded));
+      }
+
+      String currentEvent = '';
+      final dataLines = <String>[];
+
+      dynamic parsePayload(List<String> lines) {
+        final payload = lines.join('\n').trim();
+        if (payload.isEmpty) return <String, dynamic>{};
+        return jsonDecode(payload);
+      }
+
+      await for (final rawLine
+          in streamed.stream.transform(utf8.decoder).transform(const LineSplitter())) {
+        final line = rawLine.trimRight();
+
+        if (line.isEmpty) {
+          final event = currentEvent.isEmpty ? 'message' : currentEvent;
+          final payload = parsePayload(dataLines);
+
+          if (event == 'recipe') {
+            if (payload is Map<String, dynamic>) {
+              yield Recipe.fromJson(payload);
+            }
+          } else if (event == 'error') {
+            throw ApiException(statusCode, _extractError(payload));
+          } else if (event == 'done') {
+            return;
+          }
+
+          currentEvent = '';
+          dataLines.clear();
+          continue;
+        }
+
+        if (line.startsWith(':')) continue;
+
+        if (line.startsWith('event:')) {
+          currentEvent = line.substring(6).trim();
+          continue;
+        }
+
+        if (line.startsWith('data:')) {
+          dataLines.add(line.substring(5).trimLeft());
+        }
+      }
+    } catch (e) {
+      errorMessage = e.toString();
+      rethrow;
+    } finally {
+      sw.stop();
+      onApiCompleted?.call(
+        ApiCallMetrics(
+          path: metricPath,
+          method: 'POST',
+          statusCode: statusCode,
+          durationMs: sw.elapsedMilliseconds,
+          actorId: ctx.actorId,
+          actorType: ctx.actorType,
+          errorMessage: errorMessage,
+        ),
+      );
+      client.close();
+    }
+  }
+
   /// GET fetch-favorites (auth: Firebase ID token).
   Future<List<Recipe>> fetchFavorites({String? idToken}) async {
     const metricPath = 'fetch-favorites';

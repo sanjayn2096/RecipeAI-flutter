@@ -28,6 +28,9 @@ class RecipeViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _isStreamingFlow = false;
+  bool get isStreamingFlow => _isStreamingFlow;
+
   /// Set when [fetchRecipes] fails; cleared on a new fetch start or success.
   String? _fetchError;
   String? get fetchError => _fetchError;
@@ -37,16 +40,29 @@ class RecipeViewModel extends ChangeNotifier {
 
   /// POST generate-recipe with structured session fields (server builds prompt).
   Future<void> fetchRecipes() async {
-    if (_kRecipeLogging) debugPrint('[RecipeViewModel] fetchRecipes() -> backend generate-recipe');
+    if (_kRecipeLogging) debugPrint('[RecipeViewModel] fetchRecipes() -> backend recipe generation flow');
     await _telemetry.logFeatureInteraction(
       featureId: FeatureIds.generateRecipe,
       action: 'submit',
     );
     _isLoading = true;
+    _isStreamingFlow = false;
     _fetchError = null;
+    _recipes = [];
     notifyListeners();
     try {
-      _recipes = await _recipeRepo.fetchRecipes();
+      final streamedRecipes = <Recipe>[];
+      _recipes = await _recipeRepo.fetchRecipes(
+        onFlowSelected: (isStreaming) {
+          _isStreamingFlow = isStreaming;
+          notifyListeners();
+        },
+        onRecipe: (recipe) {
+          streamedRecipes.add(recipe);
+          _recipes = List<Recipe>.from(streamedRecipes);
+          notifyListeners();
+        },
+      );
       _fetchError = null;
     } catch (e, st) {
       _recipes = [];

@@ -35,11 +35,9 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
   @override
   void initState() {
     super.initState();
-    _ingredients = RecipeParsing.parseIngredients(widget.recipe.ingredients);
-    final ingRaw = widget.recipe.ingredients.trim();
-    if (_ingredients.isEmpty && ingRaw.isNotEmpty) {
-      _ingredients = [ingRaw];
-    }
+    _ingredients = widget.recipe.ingredients
+        .map(RecipeParsing.formatIngredientLineForDisplay)
+        .toList();
 
     _instructions = RecipeParsing.parseInstructions(widget.recipe.instructions);
     final insRaw = widget.recipe.instructions.trim();
@@ -115,7 +113,7 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
                 style: Theme.of(ctx).textTheme.titleSmall,
               ),
               const SizedBox(height: 8),
-              _buildIngredientList(_ingredients, widget.recipe.ingredients),
+              _buildIngredientList(_ingredients),
               const SizedBox(height: 16),
               Text(
                 'Instructions',
@@ -136,8 +134,10 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
     );
   }
 
-  Widget _buildIngredientList(List<String> items, String fallback) {
-    if (items.isEmpty) return Text(fallback);
+  Widget _buildIngredientList(List<String> items) {
+    if (items.isEmpty) {
+      return const Text('No ingredients listed.');
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: items
@@ -147,8 +147,13 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('• '),
-                  Expanded(child: Text(item)),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10, top: 2),
+                    child: Text('•', style: Theme.of(context).textTheme.bodyLarge),
+                  ),
+                  Expanded(
+                    child: Text(item, style: Theme.of(context).textTheme.bodyLarge),
+                  ),
                 ],
               ),
             ),

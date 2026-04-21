@@ -1,3 +1,4 @@
+import '../../core/recipe_parsing.dart';
 import 'nutritional_value.dart';
 
 /// Recipe model.
@@ -20,7 +21,8 @@ class Recipe {
   final String recipeId;
   final String recipeName;
   final String image;
-  final String ingredients;
+  /// One entry per ingredient line from the API (array of strings).
+  final List<String> ingredients;
   final String instructions;
   final String cookingTime;
   final String cuisine;
@@ -36,9 +38,7 @@ class Recipe {
       recipeId: id is String ? id : (id?.toString() ?? ''),
       recipeName: json['recipeName'] as String? ?? '',
       image: rawImageUrl is String ? rawImageUrl : rawImageUrl?.toString() ?? '',
-      ingredients: rawIngredients is String
-          ? rawIngredients
-          : rawIngredients?.toString() ?? '',
+      ingredients: RecipeParsing.ingredientsFromJson(rawIngredients),
       instructions: rawInstructions is String
           ? rawInstructions
           : rawInstructions?.toString() ?? '',
@@ -100,7 +100,7 @@ class Recipe {
       recipeId,
       recipeName,
       image,
-      ingredients,
+      ingredients.join(' '),
       instructions,
       cookingTime,
       cuisine,

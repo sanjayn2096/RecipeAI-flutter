@@ -242,7 +242,11 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
       return ListenableBuilder(
         listenable: widget.recipeViewModel,
         builder: (_, __) {
-          if (widget.recipeViewModel.isLoading) {
+          final recipes = widget.recipeViewModel.recipes;
+          final isLoading = widget.recipeViewModel.isLoading == true;
+          final isStreaming = widget.recipeViewModel.isStreamingFlow == true;
+
+          if (isLoading && recipes.isEmpty) {
             return Scaffold(
               appBar: AppBar(
                 title: const Text(AppStrings.fetchRecipes),
@@ -261,13 +265,17 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(AppStrings.sendingTastyRecipes),
+                    Text(
+                      isStreaming
+                          ? 'Streaming recipes... first results should appear quickly'
+                          : AppStrings.sendingTastyRecipes,
+                    ),
                   ],
                 ),
               ),
             );
           }
-          final recipes = widget.recipeViewModel.recipes;
+
           if (recipes.isEmpty) {
             final err = widget.recipeViewModel.fetchError as String?;
             final isError = err != null && err.isNotEmpty;
@@ -338,57 +346,73 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
               ),
               actions: _embedShellMenuActions(),
             ),
-            body: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              itemCount: recipes.length,
-              itemBuilder: (_, i) {
-                final recipe = recipes[i];
-                return CartoonOutlinedCard(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
+            body: Column(
+              children: [
+                if (isLoading && isStreaming)
+                  const LinearProgressIndicator(minHeight: 2),
+                if (isLoading && isStreaming)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: Text(
+                      'Loading more recipes...',
+                      style: TextStyle(fontSize: 13),
                     ),
-                    title: Text(recipe.recipeName),
-                    subtitle: Text(recipe.cuisine),
-                    trailing: IconButton(
-                      tooltip: recipe.isFavorite
-                          ? 'Remove from favorites'
-                          : 'Add to favorites',
-                      icon: Icon(
-                        recipe.isFavorite
-                            ? Icons.favorite
-                            : Icons.favorite_border,
-                        color: recipe.isFavorite
-                            ? Colors.red
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      onPressed: () async {
-                        if (widget.sessionManager.isGuestMode()) {
-                          final goSignup =
-                              await showGuestFavoriteSignupDialog(context);
-                          if (!context.mounted) return;
-                          if (goSignup == true) {
-                            goToSignup(context);
-                          }
-                          return;
-                        }
-                        await widget.recipeViewModel.toggleFavorite(recipe);
-                      },
-                    ),
-                    onTap: () {
-                      context.push(
-                        '/show-recipe',
-                        extra: {
-                          'recipe': recipe,
-                          'recipeViewModel': widget.recipeViewModel,
-                          'groceryListViewModel': widget.groceryListViewModel,
-                        },
+                  ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    itemCount: recipes.length,
+                    itemBuilder: (_, i) {
+                      final recipe = recipes[i];
+                      return CartoonOutlinedCard(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          title: Text(recipe.recipeName),
+                          subtitle: Text(recipe.cuisine),
+                          trailing: IconButton(
+                            tooltip: recipe.isFavorite
+                                ? 'Remove from favorites'
+                                : 'Add to favorites',
+                            icon: Icon(
+                              recipe.isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              color: recipe.isFavorite
+                                  ? Colors.red
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            onPressed: () async {
+                              if (widget.sessionManager.isGuestMode()) {
+                                final goSignup =
+                                    await showGuestFavoriteSignupDialog(context);
+                                if (!context.mounted) return;
+                                if (goSignup == true) {
+                                  goToSignup(context);
+                                }
+                                return;
+                              }
+                              await widget.recipeViewModel.toggleFavorite(recipe);
+                            },
+                          ),
+                          onTap: () {
+                            context.push(
+                              '/show-recipe',
+                              extra: {
+                                'recipe': recipe,
+                                'recipeViewModel': widget.recipeViewModel,
+                                'groceryListViewModel': widget.groceryListViewModel,
+                              },
+                            );
+                          },
+                        ),
                       );
                     },
                   ),
-                );
-              },
+                ),
+              ],
             ),
           );
         },
