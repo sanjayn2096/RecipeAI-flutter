@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../core/app_strings.dart';
 import '../../core/firestore_paths.dart';
 import '../api/api_service.dart';
 import '../firestore/favorites_firestore_mapper.dart';
@@ -82,5 +83,46 @@ class UserRepository {
   Future<Recipe> fetchRecipeById(String recipeId) async {
     final token = await _firebaseAuth.currentUser?.getIdToken();
     return _api.getRecipe(recipeId, idToken: token);
+  }
+
+  /// PATCH user-lifestyle from local session prefs (no-op for guests / no token).
+  Future<void> syncLifestyleFromPrefs() async {
+    if (_session.isGuestMode()) return;
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) return;
+    try {
+      final usual = _session.getUsualCuisines();
+      final cuisine = _session.getCuisine() ?? '';
+      final merged = <String>{...usual};
+      final c = cuisine.trim();
+      if (c.isNotEmpty &&
+          c != 'No Cuisine Selected' &&
+          c != AppStrings.surpriseMe) {
+        merged.add(c);
+      }
+      await _api.patchUserLifestyle(
+        UpdateUserLifestyleRequest(
+          dietRestrictions: _session.getDietRestrictions(),
+          cookingPreference: _session.getCookingPreference(),
+          mood: _session.getMood(),
+          preferredCuisines: merged.toList(),
+        ),
+        idToken: token,
+      );
+    } catch (_) {}
+  }
+
+  /// POST suggest-prompts — empty when guest or signed out.
+  Future<List<PromptSuggestionItem>> fetchPromptSuggestions({
+    String? clientRequestId,
+  }) async {
+    if (_session.isGuestMode()) return [];
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) return [];
+    final resp = await _api.suggestPrompts(
+      idToken: token,
+      clientRequestId: clientRequestId,
+    );
+    return resp.suggestions;
   }
 }

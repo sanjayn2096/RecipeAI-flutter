@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../core/app_strings.dart';
 import '../tutorial/coach_tour.dart';
@@ -517,6 +518,13 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                   alignLabelWithHint: true,
                 ),
               ),
+              if (!widget.sessionManager.isGuestMode()) ...[
+                const SizedBox(height: 12),
+                _PromptSuggestionsStrip(
+                  homeViewModel: widget.homeViewModel,
+                  promptController: _customPreferenceController,
+                ),
+              ],
               const SizedBox(height: 24),
               FilledButton.icon(
                 key: widget.coachGetRecipesKey,
@@ -637,6 +645,186 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
   }
 }
 
+/// Fixed tile geometry so horizontal [ListView] children get a tight height budget (avoids overflow).
+const double _kPromptSuggestionTileWidth = 172;
+const double _kPromptSuggestionTileHeight = 104;
+
+class _PromptSuggestionsStrip extends StatelessWidget {
+  const _PromptSuggestionsStrip({
+    required this.homeViewModel,
+    required this.promptController,
+  });
+
+  final HomeViewModel homeViewModel;
+  final TextEditingController promptController;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: homeViewModel,
+      builder: (context, _) {
+        final scheme = Theme.of(context).colorScheme;
+        if (homeViewModel.promptSuggestionsLoading) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ideas for you',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: _kPromptSuggestionTileHeight,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    for (var i = 0; i < 4; i++)
+                      Padding(
+                        padding: EdgeInsets.only(right: i < 3 ? 10 : 0),
+                        child: Shimmer.fromColors(
+                          baseColor: scheme.surfaceContainerHighest,
+                          highlightColor: Color.lerp(
+                                scheme.surfaceContainerHighest,
+                                scheme.onSurface,
+                                0.12,
+                              ) ??
+                              scheme.surfaceContainerHigh,
+                          period: const Duration(milliseconds: 1500),
+                          child: Container(
+                            width: _kPromptSuggestionTileWidth,
+                            height: _kPromptSuggestionTileHeight,
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: scheme.outlineVariant
+                                    .withValues(alpha: 0.35),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+        final items = homeViewModel.promptSuggestions;
+        if (items.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Ideas for you',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: _kPromptSuggestionTileHeight,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final s = items[index];
+                  return _PromptSuggestionTile(
+                    text: s.text,
+                    subtitle: s.subtitle,
+                    colorScheme: scheme,
+                    onTap: () {
+                      promptController.text = s.text;
+                      promptController.selection = TextSelection.collapsed(
+                        offset: s.text.length,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PromptSuggestionTile extends StatelessWidget {
+  const _PromptSuggestionTile({
+    required this.text,
+    this.subtitle,
+    required this.colorScheme,
+    required this.onTap,
+  });
+
+  final String text;
+  final String? subtitle;
+  final ColorScheme colorScheme;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = colorScheme;
+    final base = scheme.surfaceContainerLowest;
+
+    return SizedBox(
+      width: _kPromptSuggestionTileWidth,
+      height: _kPromptSuggestionTileHeight,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: _kPromptSuggestionTileWidth,
+            height: _kPromptSuggestionTileHeight,
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: scheme.outlineVariant),
+              color: base,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    text,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                          color: scheme.onSurface,
+                        ),
+                  ),
+                ),
+                if (subtitle != null && subtitle!.trim().isNotEmpty)
+                  Text(
+                    subtitle!.trim(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.1,
+                        ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PantryPickerSheet extends StatefulWidget {
   const _PantryPickerSheet({
     required this.sessionManager,
@@ -736,11 +924,6 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
     final suggestionChipsOnly = suggestedQuickChips
         .where((item) => !_selected.contains(item))
         .toList();
-
-    final liveCuisines = widget.sessionManager.getUsualCuisines();
-    final suggestionCuisines = liveCuisines.isEmpty
-        ? const [PantryItems.cuisinePopular]
-        : liveCuisines;
 
     return SafeArea(
       child: Padding(

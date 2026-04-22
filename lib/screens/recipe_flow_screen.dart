@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +10,7 @@ import '../data/models/user_data.dart';
 import '../widgets/cartoon_outlined_card.dart';
 import '../widgets/guest_signup_prompt.dart';
 import '../view_models/grocery_list_view_model.dart';
+import '../view_models/recipe_view_model.dart';
 
 import 'prompt_screen.dart';
 
@@ -202,7 +205,9 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
         );
       }
       _clearCustomPreferenceForEmbeddedCreateFlow();
-      widget.recipeViewModel.fetchRecipes();
+      final recipeVm = widget.recipeViewModel as RecipeViewModel;
+      recipeVm.scheduleLifestyleSync();
+      recipeVm.fetchRecipes();
       setState(() => _currentRoute = 'recipeActivity');
     });
   }

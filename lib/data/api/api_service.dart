@@ -102,6 +102,61 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(map));
   }
 
+  /// PATCH user-lifestyle (Firebase ID token). Partial merge on Firestore user doc.
+  Future<Map<String, dynamic>> patchUserLifestyle(
+    UpdateUserLifestyleRequest request, {
+    String? idToken,
+  }) async {
+    const metricPath = 'user-lifestyle';
+    final url = _url('user-lifestyle');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('PATCH', metricPath, () async {
+      return http.patch(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(request.toJson()),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return map as Map<String, dynamic>;
+    }
+    throw ApiException(r.statusCode, _extractError(map));
+  }
+
+  /// POST suggest-prompts — personalized short prompts (auth).
+  Future<SuggestPromptsResponse> suggestPrompts({
+    String? idToken,
+    String? clientRequestId,
+  }) async {
+    const metricPath = 'suggest-prompts';
+    final url = _url('suggest-prompts');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final body = <String, dynamic>{
+      'requestedAt': DateTime.now().toUtc().toIso8601String(),
+      if (clientRequestId != null && clientRequestId.trim().isNotEmpty)
+        'clientRequestId': clientRequestId.trim(),
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+    });
+    final decoded = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return SuggestPromptsResponse.fromJson(decoded);
+    }
+    throw ApiException(r.statusCode, _extractError(decoded));
+  }
+
   Future<SessionCheckResponse> checkSession(SessionCheckRequest request) async {
     const metricPath = 'check-session';
     final url = _url('check-session');

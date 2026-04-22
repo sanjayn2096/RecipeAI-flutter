@@ -150,7 +150,7 @@ class GenerateRecipeResponse {
   factory GenerateRecipeResponse.fromJson(dynamic json) {
     if (json is List) {
       return GenerateRecipeResponse(
-        recipes: (json as List)
+        recipes: json
             .map((e) => Recipe.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
@@ -159,6 +159,63 @@ class GenerateRecipeResponse {
     final list = map['recipes'] as List<dynamic>? ?? map['recipe'] as List<dynamic>? ?? [];
     return GenerateRecipeResponse(
       recipes: list.map((e) => Recipe.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+  }
+}
+
+/// PATCH /user-lifestyle — omit fields you do not want to change.
+class UpdateUserLifestyleRequest {
+  UpdateUserLifestyleRequest({
+    this.dietRestrictions,
+    this.cookingPreference,
+    this.healthGoal,
+    this.mood,
+    this.preferredCuisines,
+  });
+
+  final String? dietRestrictions;
+  final String? cookingPreference;
+  final String? healthGoal;
+  final String? mood;
+  final List<String>? preferredCuisines;
+
+  Map<String, dynamic> toJson() {
+    final m = <String, dynamic>{};
+    if (dietRestrictions != null) m['dietRestrictions'] = dietRestrictions;
+    if (cookingPreference != null) m['cookingPreference'] = cookingPreference;
+    if (healthGoal != null) m['healthGoal'] = healthGoal;
+    if (mood != null) m['mood'] = mood;
+    if (preferredCuisines != null) m['preferredCuisines'] = preferredCuisines;
+    return m;
+  }
+}
+
+class PromptSuggestionItem {
+  PromptSuggestionItem({required this.text, this.subtitle});
+  final String text;
+  final String? subtitle;
+
+  factory PromptSuggestionItem.fromJson(Map<String, dynamic> json) {
+    return PromptSuggestionItem(
+      text: (json['text'] ?? '').toString(),
+      subtitle: json['subtitle'] as String?,
+    );
+  }
+}
+
+class SuggestPromptsResponse {
+  SuggestPromptsResponse({required this.suggestions});
+  final List<PromptSuggestionItem> suggestions;
+
+  factory SuggestPromptsResponse.fromJson(dynamic json) {
+    final map = json as Map<String, dynamic>;
+    final list = map['suggestions'] as List<dynamic>? ?? [];
+    return SuggestPromptsResponse(
+      suggestions: list
+          .whereType<Map<String, dynamic>>()
+          .map(PromptSuggestionItem.fromJson)
+          .where((s) => s.text.trim().isNotEmpty)
+          .toList(),
     );
   }
 }

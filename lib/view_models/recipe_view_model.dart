@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/recipe_fetch_error_message.dart';
@@ -78,6 +80,11 @@ class RecipeViewModel extends ChangeNotifier {
 
   /// Same as [fetchRecipes] — kept for call sites that name the “free text” flow explicitly.
   Future<void> fetchRecipesFromPrompt() => fetchRecipes();
+
+  /// Fire-and-forget PATCH user-lifestyle after questionnaire choices (signed-in only).
+  void scheduleLifestyleSync() {
+    unawaited(_userRepo.syncLifestyleFromPrefs());
+  }
 
   /// Clears recipes and last fetch error (e.g. after leaving Create Recipes tab on failure).
   void clearRecipeGenerationState() {

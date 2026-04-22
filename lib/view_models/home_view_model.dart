@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../data/models/api_dtos.dart';
 import '../data/models/recipe.dart';
 import '../data/models/session_profile.dart';
 import '../data/models/user_data.dart';
@@ -45,6 +46,12 @@ class HomeViewModel extends ChangeNotifier {
 
   bool _favoritesLoading = false;
   bool get favoritesLoading => _favoritesLoading;
+
+  List<PromptSuggestionItem> _promptSuggestions = const [];
+  List<PromptSuggestionItem> get promptSuggestions => _promptSuggestions;
+
+  bool _promptSuggestionsLoading = false;
+  bool get promptSuggestionsLoading => _promptSuggestionsLoading;
 
   @override
   void dispose() {
@@ -92,9 +99,46 @@ class HomeViewModel extends ChangeNotifier {
 
     if (_session.isGuestMode()) {
       _stopFavoritesFirestoreSync();
+      _promptSuggestions = const [];
+      _promptSuggestionsLoading = false;
     } else {
       _startFavoritesFirestoreSync();
+      unawaited(loadPromptSuggestions());
     }
+  }
+
+  /// Fresh POST suggest-prompts (e.g. each app open via [loadUserDetails]).
+  Future<void> loadPromptSuggestions() async {
+    if (_session.isGuestMode()) {
+      _promptSuggestions = const [];
+      _promptSuggestionsLoading = false;
+      notifyListeners();
+      return;
+    }
+    final uid = _userRepo.readSessionProfile().userId;
+    if (uid == null || uid.isEmpty) {
+      _promptSuggestions = const [];
+      _promptSuggestionsLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    _promptSuggestionsLoading = true;
+    notifyListeners();
+    try {
+      await _userRepo.syncLifestyleFromPrefs();
+      _promptSuggestions = await _userRepo.fetchPromptSuggestions(
+        clientRequestId:
+            'open_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch}',
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[HomeViewModel] loadPromptSuggestions: $e');
+      }
+      _promptSuggestions = const [];
+    }
+    _promptSuggestionsLoading = false;
+    notifyListeners();
   }
 
   /// Profile screen: read Email / First / Last name from storage (get_user_profile runs once at auth).
