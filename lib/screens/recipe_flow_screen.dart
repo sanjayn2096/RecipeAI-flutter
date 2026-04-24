@@ -274,6 +274,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                       isStreaming
                           ? 'Streaming recipes... first results should appear quickly'
                           : AppStrings.sendingTastyRecipes,
+                      style: const TextStyle(fontSize: 13),
                     ),
                   ],
                 ),
@@ -403,7 +404,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                             },
                           ),
                           onTap: () {
-                            context.push(
+                              context.push(
                               '/show-recipe',
                               extra: {
                                 'recipe': recipe,

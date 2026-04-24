@@ -102,19 +102,19 @@ class AppRouter {
         builder: (_, state) {
           final extra = state.extra;
           final isGuest = sessionManager.isGuestMode();
-          if (extra is Map<String, dynamic>) {
-            final recipe = extra['recipe'] as Recipe;
-            final vm = extra['recipeViewModel'] as dynamic;
-            return ShowRecipeScreen(
-              recipe: recipe,
-              recipeViewModel: vm,
-              groceryListViewModel: groceryListViewModel,
-              isGuest: isGuest,
-            );
+          // go_router [extra] is often `Map<String, Object?>`, not `Map<String, dynamic>`.
+          // Always pass [recipeViewModel] from this router so the image API can run when signed in
+          // (do not require callers to re-pass the VM in [extra]).
+          final Recipe recipe;
+          if (extra is Map) {
+            final raw = Map<dynamic, dynamic>.from(extra);
+            recipe = raw['recipe'] as Recipe;
+          } else {
+            recipe = extra as Recipe;
           }
-          final recipe = extra as Recipe;
           return ShowRecipeScreen(
             recipe: recipe,
+            recipeViewModel: recipeViewModel,
             groceryListViewModel: groceryListViewModel,
             isGuest: isGuest,
           );
@@ -126,9 +126,15 @@ class AppRouter {
           final extra = state.extra;
           final Recipe recipe;
           final GroceryListViewModel? groceryVm;
-          if (extra is Map<String, dynamic>) {
-            recipe = extra['recipe'] as Recipe;
-            groceryVm = extra['groceryListViewModel'] as GroceryListViewModel?;
+          dynamic cookRecipeVm = recipeViewModel;
+          if (extra is Map) {
+            final m = Map<dynamic, dynamic>.from(extra);
+            recipe = m['recipe'] as Recipe;
+            groceryVm = m['groceryListViewModel'] as GroceryListViewModel?;
+            final ev = m['recipeViewModel'];
+            if (ev != null) {
+              cookRecipeVm = ev;
+            }
           } else {
             recipe = extra as Recipe;
             groceryVm = null;
@@ -136,6 +142,7 @@ class AppRouter {
           return CookRecipeFlowScreen(
             recipe: recipe,
             groceryListViewModel: groceryVm ?? groceryListViewModel,
+            recipeViewModel: cookRecipeVm,
           );
         },
       ),

@@ -138,8 +138,12 @@ class ApiService {
       'Content-Type': 'application/json',
       if (idToken != null) 'Authorization': 'Bearer $idToken',
     };
+    final now = DateTime.now();
     final body = <String, dynamic>{
-      'requestedAt': DateTime.now().toUtc().toIso8601String(),
+      'requestedAt': now.toUtc().toIso8601String(),
+      // Server uses 1=Mon..7=Sun (same as DateTime.weekday) for meal-time hints.
+      'localHour': now.hour,
+      'localWeekday': now.weekday,
       if (clientRequestId != null && clientRequestId.trim().isNotEmpty)
         'clientRequestId': clientRequestId.trim(),
     };
@@ -153,6 +157,60 @@ class ApiService {
     final decoded = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
       return SuggestPromptsResponse.fromJson(decoded);
+    }
+    throw ApiException(r.statusCode, _extractError(decoded));
+  }
+
+  /// POST /generate-recipe-hero (Gemini + Storage; signed-in only).
+  Future<GenerateRecipeHeroResponse> generateRecipeHero(
+    GenerateRecipeHeroRequest request, {
+    String? idToken,
+  }) async {
+    const metricPath = 'generate-recipe-hero';
+    final url = _url('generate-recipe-hero');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(request.toJson()),
+      );
+    });
+    final decoded = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return GenerateRecipeHeroResponse.fromJson(
+        decoded as Map<String, dynamic>,
+      );
+    }
+    throw ApiException(r.statusCode, _extractError(decoded));
+  }
+
+  /// POST /generate-recipe-step-image (Gemini + Storage; signed-in only).
+  Future<GenerateRecipeStepImageResponse> generateRecipeStepImage(
+    GenerateRecipeStepImageRequest request, {
+    String? idToken,
+  }) async {
+    const metricPath = 'generate-recipe-step-image';
+    final url = _url('generate-recipe-step-image');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(request.toJson()),
+      );
+    });
+    final decoded = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return GenerateRecipeStepImageResponse.fromJson(
+        decoded as Map<String, dynamic>,
+      );
     }
     throw ApiException(r.statusCode, _extractError(decoded));
   }
@@ -415,7 +473,7 @@ class ApiService {
   static String _extractError(dynamic map) {
     if (map is! Map) return 'Request failed';
     final m = map;
-    for (final key in ['message', 'error', 'detail', 'msg', 'description']) {
+    for (final key in ['message', 'error', 'detail', 'details', 'msg', 'description']) {
       final v = m[key];
       if (v != null) {
         final s = v.toString().trim();
@@ -424,6 +482,13 @@ class ApiService {
     }
     return 'Request failed';
   }
+}
+
+class RecipeImagesAuthException implements Exception {
+  RecipeImagesAuthException(this.message);
+  final String message;
+  @override
+  String toString() => message;
 }
 
 class ApiException implements Exception {

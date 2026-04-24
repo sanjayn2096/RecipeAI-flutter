@@ -16,6 +16,7 @@ class Recipe {
     required this.cuisine,
     required this.nutritionalValue,
     this.isFavorite = false,
+    this.stepImageUrls = const [],
   });
 
   final String recipeId;
@@ -28,12 +29,15 @@ class Recipe {
   final String cuisine;
   final NutritionalValue nutritionalValue;
   final bool isFavorite;
+  /// Per-instruction image URLs (e.g. from AI generation), aligned with [RecipeParsing.parseInstructions].
+  final List<String> stepImageUrls;
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
-    final id = json['recipeId'];
+    final id = json['recipeId'] ?? json['id'];
     final rawIngredients = json['ingredients'];
     final rawInstructions = json['instructions'];
-    final rawImageUrl = json['imageUrl'];
+    final rawImageUrl = json['imageUrl'] ?? json['image'];
+    final rawStepUrls = json['stepImageUrls'];
     return Recipe(
       recipeId: id is String ? id : (id?.toString() ?? ''),
       recipeName: json['recipeName'] as String? ?? '',
@@ -48,6 +52,9 @@ class Recipe {
         (json['nutritionalValue'] as Map<String, dynamic>?) ?? {},
       ),
       isFavorite: json['isFavorite'] as bool? ?? false,
+      stepImageUrls: rawStepUrls is List
+          ? rawStepUrls.map((e) => e.toString()).toList()
+          : const [],
     );
   }
 
@@ -61,6 +68,7 @@ class Recipe {
         'cuisine': cuisine,
         'nutritionalValue': nutritionalValue.toJson(),
         'isFavorite': isFavorite,
+        'stepImageUrls': stepImageUrls,
       };
 
   /// POST save-favorites: backends/Firestore often expect `imageUrl`; only sending `image`
@@ -78,19 +86,26 @@ class Recipe {
       'cuisine': cuisine,
       'nutritionalValue': nutritionalValue.toJsonForSaveFavorite(),
       'isFavorite': isFavorite,
+      'stepImageUrls': stepImageUrls,
     };
   }
 
-  Recipe copyWith({bool? isFavorite}) => Recipe(
+  Recipe copyWith({
+    bool? isFavorite,
+    String? image,
+    List<String>? stepImageUrls,
+  }) =>
+      Recipe(
         recipeId: recipeId,
         recipeName: recipeName,
-        image: image,
+        image: image ?? this.image,
         ingredients: ingredients,
         instructions: instructions,
         cookingTime: cookingTime,
         cuisine: cuisine,
         nutritionalValue: nutritionalValue,
         isFavorite: isFavorite ?? this.isFavorite,
+        stepImageUrls: stepImageUrls ?? this.stepImageUrls,
       );
 
   /// Combined text for client-side search across all recipe fields.

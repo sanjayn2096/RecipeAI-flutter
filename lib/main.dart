@@ -28,6 +28,7 @@ import 'view_models/home_view_model.dart';
 import 'view_models/recipe_view_model.dart';
 import 'view_models/grocery_list_view_model.dart';
 import 'navigation/app_router.dart';
+import 'services/recipe_image_cache.dart';
 
 Future<void> _initCrashlytics() async {
   if (kIsWeb) {
@@ -128,10 +129,12 @@ void main() async {
       sessionManager: sessionManager,
       appTelemetry: appTelemetry,
     );
+    final recipeImageCache = RecipeImageCache(prefs);
     final recipeViewModel = RecipeViewModel(
       recipeRepository: recipeRepo,
       userRepository: userRepo,
       appTelemetry: appTelemetry,
+      recipeImageCache: recipeImageCache,
     );
 
     final groceryRepo = GroceryListRepository(hiveStore: groceryHiveStore);

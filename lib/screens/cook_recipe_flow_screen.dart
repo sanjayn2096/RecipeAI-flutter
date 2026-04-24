@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -5,6 +7,7 @@ import '../core/app_strings.dart';
 import '../core/recipe_parsing.dart';
 import '../data/models/recipe.dart';
 import '../view_models/grocery_list_view_model.dart';
+import '../view_models/recipe_view_model.dart';
 
 /// Full-screen cooking mode: gather ingredients → step-by-step → Fin.
 class CookRecipeFlowScreen extends StatefulWidget {
@@ -12,10 +15,14 @@ class CookRecipeFlowScreen extends StatefulWidget {
     super.key,
     required this.recipe,
     this.groceryListViewModel,
+    this.recipeViewModel,
   });
 
   final Recipe recipe;
   final GroceryListViewModel? groceryListViewModel;
+
+  /// Used to read cache and POST single step images (signed-in).
+  final dynamic recipeViewModel;
 
   @override
   State<CookRecipeFlowScreen> createState() => _CookRecipeFlowScreenState();
@@ -27,10 +34,20 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
 
   final Set<int> _checkedIngredientIndices = {};
   int _pageIndex = 0;
+  /// Per-step image URLs; filled from [Recipe] / cache, then on-demand.
+  late List<String> _stepDisplayUrls;
+  final Set<int> _stepLoadInFlight = {};
 
   int get _gatherPage => 0;
   int get _firstInstructionPage => 1;
   int get _finPage => 1 + _instructions.length;
+
+  int get _stepCount {
+    if (_instructions.isNotEmpty) {
+      return _instructions.length;
+    }
+    return widget.recipe.instructions.trim().isNotEmpty ? 1 : 0;
+  }
 
   @override
   void initState() {
@@ -44,6 +61,31 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
     if (_instructions.isEmpty && insRaw.isNotEmpty) {
       _instructions = [insRaw];
     }
+    final n = _stepCount;
+    _stepDisplayUrls = n > 0 ? List<String>.filled(n, '') : <String>[];
+    final fromRecipe = widget.recipe.stepImageUrls;
+    for (var i = 0; i < n && i < fromRecipe.length; i++) {
+      final t = fromRecipe[i].trim();
+      if (t.isNotEmpty) {
+        _stepDisplayUrls[i] = t;
+      }
+    }
+    unawaited(_mergeCachedStepUrls());
+  }
+
+  Future<void> _mergeCachedStepUrls() async {
+    final vm = widget.recipeViewModel;
+    if (vm is! RecipeViewModel) return;
+    final r = await vm.recipeWithCachedImages(widget.recipe);
+    if (!mounted) return;
+    if (r.stepImageUrls.isEmpty) return;
+    setState(() {
+      for (var i = 0; i < _stepDisplayUrls.length && i < r.stepImageUrls.length; i++) {
+        if (r.stepImageUrls[i].trim().isNotEmpty) {
+          _stepDisplayUrls[i] = r.stepImageUrls[i].trim();
+        }
+      }
+    });
   }
 
   void _goBackInFlow() {
@@ -81,6 +123,39 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
 
   void _nextFromGather() {
     setState(() => _pageIndex = _firstInstructionPage);
+    final vm = widget.recipeViewModel;
+    if (vm is RecipeViewModel) {
+      vm.prefetchNextStepIfNeeded(widget.recipe, 0);
+    }
+  }
+
+  void _requestStepIfNeeded(int safeIdx) {
+    if (safeIdx < 0 || safeIdx >= _stepDisplayUrls.length) return;
+    if (_stepDisplayUrls[safeIdx].trim().isNotEmpty) return;
+    if (_stepLoadInFlight.contains(safeIdx)) return;
+    final vm = widget.recipeViewModel;
+    if (vm is! RecipeViewModel) return;
+    _stepLoadInFlight.add(safeIdx);
+    unawaited(() async {
+      try {
+        final u = await vm.ensureStepImageUrl(
+          recipe: widget.recipe,
+          stepIndex: safeIdx,
+        );
+        if (!mounted) return;
+        setState(() {
+          _stepDisplayUrls[safeIdx] = u;
+          _stepLoadInFlight.remove(safeIdx);
+        });
+        vm.prefetchNextStepIfNeeded(widget.recipe, safeIdx);
+      } catch (_) {
+        if (mounted) {
+          setState(() => _stepLoadInFlight.remove(safeIdx));
+        } else {
+          _stepLoadInFlight.remove(safeIdx);
+        }
+      }
+    }());
   }
 
   void _nextFromInstruction() {
@@ -360,6 +435,29 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
     final theme = Theme.of(context);
     final isLastInstruction =
         _instructions.isEmpty || safeIdx >= _instructions.length - 1;
+    String? stepImageUrl;
+    if (safeIdx < _stepDisplayUrls.length) {
+      final u = _stepDisplayUrls[safeIdx].trim();
+      if (u.isNotEmpty &&
+          (u.toLowerCase().startsWith('http://') ||
+              u.toLowerCase().startsWith('https://'))) {
+        stepImageUrl = u;
+      }
+    }
+    final hasVm = widget.recipeViewModel is RecipeViewModel;
+    if (hasVm &&
+        stepImageUrl == null &&
+        safeIdx < _stepDisplayUrls.length &&
+        _stepDisplayUrls[safeIdx].trim().isEmpty &&
+        !_stepLoadInFlight.contains(safeIdx)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _requestStepIfNeeded(safeIdx);
+        }
+      });
+    }
+    final loading =
+        hasVm && stepImageUrl == null && _stepLoadInFlight.contains(safeIdx);
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -380,6 +478,31 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
                 color: theme.colorScheme.primary,
               ),
             ),
+          if (loading) ...[
+            const SizedBox(height: 12),
+            const AspectRatio(
+              aspectRatio: 1,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ] else if (stepImageUrl != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Image.network(
+                  stepImageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => ColoredBox(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    child: const Center(
+                      child: Icon(Icons.broken_image_outlined, size: 40),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Expanded(
             child: SingleChildScrollView(

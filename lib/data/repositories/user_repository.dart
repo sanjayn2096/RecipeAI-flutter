@@ -73,6 +73,21 @@ class UserRepository {
     );
   }
 
+  /// Merges recipe fields (including AI image URLs) into Firestore `recipes/{id}` without changing favorites.
+  Future<void> mergeRecipeDocument(Recipe recipe) async {
+    final userId = _session.getUserId();
+    if (userId == null) return;
+    final idToken = await _firebaseAuth.currentUser?.getIdToken();
+    await _api.saveFavoriteRecipes(
+      SaveFavoriteRecipesRequest(
+        recipes: recipe,
+        userId: userId,
+        mergeRecipeImages: true,
+      ),
+      idToken: idToken,
+    );
+  }
+
   /// GET fetch-favorites with Firebase ID token.
   Future<List<Recipe>> fetchFavorites() async {
     final token = await _firebaseAuth.currentUser?.getIdToken();

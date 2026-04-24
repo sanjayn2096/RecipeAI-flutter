@@ -38,12 +38,21 @@ class SignoutRequest {
 }
 
 class SaveFavoriteRecipesRequest {
-  SaveFavoriteRecipesRequest({required this.recipes, required this.userId});
+  SaveFavoriteRecipesRequest({
+    required this.recipes,
+    required this.userId,
+    this.mergeRecipeImages = false,
+  });
   final Recipe recipes;
   final String userId;
+
+  /// When true, POST /save-favorites only merges into `recipes/{recipeId}` (no favorite add/remove).
+  final bool mergeRecipeImages;
+
   Map<String, dynamic> toJson() => {
         'recipes': recipes.toJsonForSaveFavorite(),
         'userId': userId,
+        if (mergeRecipeImages) 'mergeRecipeImages': true,
       };
 }
 
@@ -93,6 +102,96 @@ class GenerateRecipeRequest {
       m['anonymousId'] = anonymousId!.trim();
     }
     return m;
+  }
+}
+
+/// Body for POST /generate-recipe-hero.
+class GenerateRecipeHeroRequest {
+  GenerateRecipeHeroRequest({
+    required this.recipeName,
+    this.cuisine,
+    this.clientRequestId,
+  });
+
+  final String recipeName;
+  final String? cuisine;
+  final String? clientRequestId;
+
+  Map<String, dynamic> toJson() {
+    final m = <String, dynamic>{'recipeName': recipeName.trim()};
+    final c = cuisine?.trim();
+    if (c != null && c.isNotEmpty) {
+      m['cuisine'] = c;
+    }
+    final id = clientRequestId?.trim();
+    if (id != null && id.isNotEmpty) {
+      m['clientRequestId'] = id;
+    }
+    return m;
+  }
+}
+
+/// Body for POST /generate-recipe-step-image.
+class GenerateRecipeStepImageRequest {
+  GenerateRecipeStepImageRequest({
+    required this.recipeName,
+    required this.stepText,
+    required this.stepIndex,
+    this.cuisine,
+    this.clientRequestId,
+  });
+
+  final String recipeName;
+  final String stepText;
+  final int stepIndex;
+  final String? cuisine;
+  final String? clientRequestId;
+
+  Map<String, dynamic> toJson() {
+    final m = <String, dynamic>{
+      'recipeName': recipeName.trim(),
+      'stepText': stepText.trim(),
+      'stepIndex': stepIndex,
+    };
+    final c = cuisine?.trim();
+    if (c != null && c.isNotEmpty) {
+      m['cuisine'] = c;
+    }
+    final id = clientRequestId?.trim();
+    if (id != null && id.isNotEmpty) {
+      m['clientRequestId'] = id;
+    }
+    return m;
+  }
+}
+
+class GenerateRecipeHeroResponse {
+  GenerateRecipeHeroResponse({required this.recipeImageUrl, this.clientRequestId});
+  final String recipeImageUrl;
+  final String? clientRequestId;
+  factory GenerateRecipeHeroResponse.fromJson(Map<String, dynamic> json) {
+    return GenerateRecipeHeroResponse(
+      recipeImageUrl: (json['recipeImageUrl'] ?? '').toString(),
+      clientRequestId: json['clientRequestId'] as String?,
+    );
+  }
+}
+
+class GenerateRecipeStepImageResponse {
+  GenerateRecipeStepImageResponse({
+    required this.stepIndex,
+    required this.imageUrl,
+    this.clientRequestId,
+  });
+  final int stepIndex;
+  final String imageUrl;
+  final String? clientRequestId;
+  factory GenerateRecipeStepImageResponse.fromJson(Map<String, dynamic> json) {
+    return GenerateRecipeStepImageResponse(
+      stepIndex: (json['stepIndex'] as num?)?.toInt() ?? 0,
+      imageUrl: (json['imageUrl'] ?? '').toString(),
+      clientRequestId: json['clientRequestId'] as String?,
+    );
   }
 }
 

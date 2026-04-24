@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/app_strings.dart';
+import '../core/feature_flags.dart';
 import '../core/recipe_parsing.dart';
 import '../data/models/recipe.dart';
 import '../view_models/grocery_list_view_model.dart';
+import '../view_models/recipe_view_model.dart';
 import '../widgets/guest_signup_prompt.dart';
 import '../widgets/recipe_image_box.dart';
 
@@ -28,6 +30,9 @@ class ShowRecipeScreen extends StatefulWidget {
 
 class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
   late bool _isFavorite;
+  late Recipe _displayRecipe;
+  /// Hydrate from Firestore / one-shot image generation (no UI affordance).
+  Future<void>? _imageGenFuture;
   late final List<String> _ingredientItems;
   late final List<String> _instructionItems;
 
@@ -35,10 +40,33 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
   void initState() {
     super.initState();
     _isFavorite = widget.recipe.isFavorite;
+    _displayRecipe = widget.recipe;
     _ingredientItems = widget.recipe.ingredients
         .map(RecipeParsing.formatIngredientLineForDisplay)
         .toList();
     _instructionItems = RecipeParsing.parseInstructions(widget.recipe.instructions);
+    if (!widget.isGuest &&
+        widget.recipeViewModel is RecipeViewModel &&
+        FeatureFlags.recipeImagesAutoGenerateOnOpen) {
+      _imageGenFuture = _ensureAiImagesOnce();
+    }
+  }
+
+  /// Local cache + hero and step 0 only (no other steps on this screen).
+  Future<void> _ensureAiImagesOnce() async {
+    final vm = widget.recipeViewModel;
+    if (vm is! RecipeViewModel) return;
+    final cached = await vm.recipeWithCachedImages(_displayRecipe);
+    if (mounted) {
+      setState(() => _displayRecipe = cached.copyWith(isFavorite: _isFavorite));
+    }
+    try {
+      final r = await vm.ensureHeroAndFirstStepImages(cached);
+      if (!mounted) return;
+      setState(() => _displayRecipe = r.copyWith(isFavorite: _isFavorite));
+    } catch (_) {
+      // Silent: no snackbars for background image pipeline.
+    }
   }
 
   Future<void> _toggleFavorite() async {
@@ -50,10 +78,18 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
       }
       return;
     }
+    final f = _imageGenFuture;
+    if (f != null) {
+      try {
+        await f;
+      } catch (_) {
+        // Still allow favoriting if generation failed.
+      }
+    }
     final vm = widget.recipeViewModel;
-    if (vm == null) return;
+    if (vm is! RecipeViewModel) return;
     final ok = await vm.toggleFavorite(
-      widget.recipe.copyWith(isFavorite: _isFavorite),
+      _displayRecipe.copyWith(isFavorite: _isFavorite),
     );
     if (!mounted) return;
     if (ok) {
@@ -102,7 +138,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            RecipeImageBox(imageUrl: widget.recipe.image),
+            RecipeImageBox(imageUrl: _displayRecipe.image),
             const SizedBox(height: 16),
             Text(
               widget.recipe.cookingTime,
@@ -132,8 +168,10 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
               onPressed: () => context.push(
                 '/cook-recipe',
                 extra: {
-                  'recipe': widget.recipe,
+                  'recipe': _displayRecipe,
                   'groceryListViewModel': groceryVm,
+                  if (widget.recipeViewModel is RecipeViewModel)
+                    'recipeViewModel': widget.recipeViewModel,
                 },
               ),
               icon: const Icon(Icons.restaurant_menu),

@@ -1,3 +1,5 @@
+import 'dart:math' show max, min;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -484,12 +486,17 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     final colorScheme = Theme.of(context).colorScheme;
     final selected = widget.sessionManager.getIngredients().toSet();
     final selectedSorted = List<String>.from(selected)..sort();
+    // Phone uses nearly full width; larger viewports grow up to a comfortable max (was fixed at 440).
+    const horizontalPad = 24.0;
+    const maxHomeContentWidth = 900.0;
+    final innerW = MediaQuery.sizeOf(context).width - 2 * horizontalPad;
+    final maxWidth = min(maxHomeContentWidth, max(0.0, innerW));
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: horizontalPad),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
+          constraints: BoxConstraints(maxWidth: maxWidth),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
