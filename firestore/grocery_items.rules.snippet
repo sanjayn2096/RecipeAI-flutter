@@ -1,8 +1,0 @@
-// Paste this `match` block inside your root
-//   match /databases/{database}/documents { ... }
-// Do not deploy this file alone as your full ruleset if you have other collections.
-
-match /users/{userId}/groceryItems/{itemId} {
-  allow read, create, update, delete: if request.auth != null
-      && request.auth.uid == userId;
-}
