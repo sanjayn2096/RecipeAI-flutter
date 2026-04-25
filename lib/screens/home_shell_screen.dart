@@ -759,16 +759,16 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 onSelect: _applyFilterPhrase,
               ),
               const SizedBox(height: 20),
-              _PromptSuggestionsStrip(
-                homeViewModel: widget.homeViewModel,
-                promptController: _customPreferenceController,
-              ),
-              const SizedBox(height: 20),
               _PantryHintBar(
                 coachAddPantryKey: widget.coachAddPantryKey,
                 colorScheme: colorScheme,
                 onInfo: _showPantryStaplesInfoDialog,
                 onAddPantry: _showPantryPickerBottomSheet,
+              ),
+              const SizedBox(height: 20),
+              _PromptSuggestionsStrip(
+                homeViewModel: widget.homeViewModel,
+                promptController: _customPreferenceController,
               ),
               const SizedBox(height: 20),
               if (selectedSorted.isNotEmpty) ...[
