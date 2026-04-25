@@ -38,9 +38,4 @@ class FeatureFlags {
     }
     return hash % 100;
   }
-
-  /// When false, the recipe screen does not hydrate from Firestore or call the image API in the background.
-  /// Example: `--dart-define=RECIPE_IMAGES_AUTO_GENERATE=false`
-  static const bool recipeImagesAutoGenerateOnOpen =
-      bool.fromEnvironment('RECIPE_IMAGES_AUTO_GENERATE', defaultValue: true);
 }

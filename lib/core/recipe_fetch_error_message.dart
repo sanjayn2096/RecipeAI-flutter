@@ -2,14 +2,10 @@ import 'dart:io';
 
 import 'package:http/http.dart' show ClientException;
 
-import '../data/api/api_service.dart'
-    show ApiException, RecipeImagesAuthException;
+import '../data/api/api_service.dart' show ApiException;
 
 /// User-facing copy when [generateRecipe] or parsing fails (no stack traces).
 String recipeFetchErrorMessage(Object error) {
-  if (error is RecipeImagesAuthException) {
-    return error.message;
-  }
   if (error is ApiException) {
     return _fromApiException(error);
   }

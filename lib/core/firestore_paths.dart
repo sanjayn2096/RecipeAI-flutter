@@ -1,11 +1,14 @@
-/// Firestore layout for favorites (adjust to match Firebase console).
+/// Firestore layout for saved recipes and legacy favorites.
 class FirestorePaths {
   FirestorePaths._();
 
   static const String usersCollection = 'users';
 
-  /// Subcollection under `users/{userId}/…`. Confirm name in console if needed.
-  static const String favoritesSubcollection = 'favorites';
+  /// Private "Saved" tab list.
+  static const String savedSubcollection = 'saved';
+
+  /// Legacy: before split, the personal list used this name. Still streamed for migration.
+  static const String legacyFavoritesSubcollection = 'favorites';
 
   /// Grocery list items for signed-in users.
   static const String grocerySubcollection = 'groceryItems';

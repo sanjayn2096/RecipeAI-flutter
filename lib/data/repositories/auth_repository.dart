@@ -4,7 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/email_not_verified_exception.dart';
 import '../api/api_service.dart';
-import '../local/favorites_hive_store.dart';
+import '../local/saved_recipes_hive_store.dart';
 import '../models/api_dtos.dart';
 import '../../services/session_manager.dart';
 
@@ -42,16 +42,16 @@ class AuthRepository {
   AuthRepository({
     required ApiService apiService,
     required SessionManager sessionManager,
-    required FavoritesHiveStore favoritesHiveStore,
+    required SavedRecipesHiveStore savedRecipesHiveStore,
     FirebaseAuth? firebaseAuth,
   })  : _api = apiService,
         _session = sessionManager,
-        _favoritesHiveStore = favoritesHiveStore,
+        _savedRecipesHiveStore = savedRecipesHiveStore,
         _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   final ApiService _api;
   final SessionManager _session;
-  final FavoritesHiveStore _favoritesHiveStore;
+  final SavedRecipesHiveStore _savedRecipesHiveStore;
   final FirebaseAuth _firebaseAuth;
 
   /// GET get_user_profile: at most once per signed-in Firebase user while the app is running
@@ -229,7 +229,7 @@ class AuthRepository {
     await _firebaseAuth.signOut();
     await _signOutGoogleSignInPluginIfMobile();
     await _session.clearSession();
-    await _favoritesHiveStore.clear();
+    await _savedRecipesHiveStore.clear();
   }
 
   Future<void> _clearLocalStateAfterAccountRemoval() async {
@@ -237,7 +237,7 @@ class AuthRepository {
     await _signOutGoogleSignInPluginIfMobile();
     await _firebaseAuth.signOut();
     await _session.clearSession();
-    await _favoritesHiveStore.clear();
+    await _savedRecipesHiveStore.clear();
   }
 
   /// Re-authenticates with email/password, deletes the Firebase user, then clears local session

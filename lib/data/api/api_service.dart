@@ -161,60 +161,6 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(decoded));
   }
 
-  /// POST /generate-recipe-hero (Gemini + Storage; signed-in only).
-  Future<GenerateRecipeHeroResponse> generateRecipeHero(
-    GenerateRecipeHeroRequest request, {
-    String? idToken,
-  }) async {
-    const metricPath = 'generate-recipe-hero';
-    final url = _url('generate-recipe-hero');
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-      if (idToken != null) 'Authorization': 'Bearer $idToken',
-    };
-    final r = await _execute('POST', metricPath, () async {
-      return http.post(
-        Uri.parse(url),
-        headers: headers,
-        body: jsonEncode(request.toJson()),
-      );
-    });
-    final decoded = _decodeBody(r.body, url);
-    if (r.statusCode >= 200 && r.statusCode < 300) {
-      return GenerateRecipeHeroResponse.fromJson(
-        decoded as Map<String, dynamic>,
-      );
-    }
-    throw ApiException(r.statusCode, _extractError(decoded));
-  }
-
-  /// POST /generate-recipe-step-image (Gemini + Storage; signed-in only).
-  Future<GenerateRecipeStepImageResponse> generateRecipeStepImage(
-    GenerateRecipeStepImageRequest request, {
-    String? idToken,
-  }) async {
-    const metricPath = 'generate-recipe-step-image';
-    final url = _url('generate-recipe-step-image');
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-      if (idToken != null) 'Authorization': 'Bearer $idToken',
-    };
-    final r = await _execute('POST', metricPath, () async {
-      return http.post(
-        Uri.parse(url),
-        headers: headers,
-        body: jsonEncode(request.toJson()),
-      );
-    });
-    final decoded = _decodeBody(r.body, url);
-    if (r.statusCode >= 200 && r.statusCode < 300) {
-      return GenerateRecipeStepImageResponse.fromJson(
-        decoded as Map<String, dynamic>,
-      );
-    }
-    throw ApiException(r.statusCode, _extractError(decoded));
-  }
-
   Future<SessionCheckResponse> checkSession(SessionCheckRequest request) async {
     const metricPath = 'check-session';
     final url = _url('check-session');
@@ -386,16 +332,67 @@ class ApiService {
     }
   }
 
-  /// GET fetch-favorites (auth: Firebase ID token).
-  Future<List<Recipe>> fetchFavorites({String? idToken}) async {
-    const metricPath = 'fetch-favorites';
-    final url = _url('fetch-favorites');
+  /// GET fetch-saved (auth). Legacy alias [fetchFavorites] hits the same merged list.
+  Future<List<Recipe>> fetchSavedRecipes({String? idToken}) async {
+    const metricPath = 'fetch-saved';
+    final url = _url('fetch-saved');
     final headers = <String, String>{
       'Content-Type': 'application/json',
       if (idToken != null) 'Authorization': 'Bearer $idToken',
     };
     final r = await _execute('GET', metricPath, () async {
       return http.get(Uri.parse(url), headers: headers);
+    });
+    final body = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return _parseRecipeList(body);
+    }
+    throw ApiException(r.statusCode, _extractError(body));
+  }
+
+  /// Backward compatible: same as [fetchSavedRecipes] (merges `saved` + legacy `favorites`).
+  Future<List<Recipe>> fetchFavorites({String? idToken}) =>
+      fetchSavedRecipes(idToken: idToken);
+
+  /// POST /toggle-public-favorite — public heart + [favoriteCount] (auth).
+  Future<void> togglePublicFavorite({
+    required String recipeId,
+    required bool favorited,
+    String? idToken,
+  }) async {
+    const metricPath = 'toggle-public-favorite';
+    final url = _url('toggle-public-favorite');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode({
+          'recipeId': recipeId,
+          'favorited': favorited,
+        }),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return;
+    }
+    throw ApiException(r.statusCode, _extractError(map));
+  }
+
+  /// GET /trending-recipes — no auth. Recipes with highest [favoriteCount].
+  Future<List<Recipe>> fetchTrendingRecipes({int limit = 20}) async {
+    const metricPath = 'trending-recipes';
+    final raw = limit.clamp(1, 50);
+    final url = _url('trending-recipes?limit=$raw');
+    final r = await _execute('GET', metricPath, () async {
+      return http.get(
+        Uri.parse(url),
+        headers: const {'Content-Type': 'application/json'},
+      );
     });
     final body = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
@@ -437,6 +434,7 @@ class ApiService {
     final map = json as Map<String, dynamic>;
     final list = map['favorite_recipes'] ??
         map['favorites'] ??
+        map['saved'] ??
         map['recipes'] ??
         map['data'];
     if (list is! List) return [];
@@ -482,13 +480,6 @@ class ApiService {
     }
     return 'Request failed';
   }
-}
-
-class RecipeImagesAuthException implements Exception {
-  RecipeImagesAuthException(this.message);
-  final String message;
-  @override
-  String toString() => message;
 }
 
 class ApiException implements Exception {

@@ -1,5 +1,4 @@
-import 'dart:async';
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,7 +6,6 @@ import '../core/app_strings.dart';
 import '../core/recipe_parsing.dart';
 import '../data/models/recipe.dart';
 import '../view_models/grocery_list_view_model.dart';
-import '../view_models/recipe_view_model.dart';
 
 /// Full-screen cooking mode: gather ingredients → step-by-step → Fin.
 class CookRecipeFlowScreen extends StatefulWidget {
@@ -15,14 +13,10 @@ class CookRecipeFlowScreen extends StatefulWidget {
     super.key,
     required this.recipe,
     this.groceryListViewModel,
-    this.recipeViewModel,
   });
 
   final Recipe recipe;
   final GroceryListViewModel? groceryListViewModel;
-
-  /// Used to read cache and POST single step images (signed-in).
-  final dynamic recipeViewModel;
 
   @override
   State<CookRecipeFlowScreen> createState() => _CookRecipeFlowScreenState();
@@ -34,9 +28,8 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
 
   final Set<int> _checkedIngredientIndices = {};
   int _pageIndex = 0;
-  /// Per-step image URLs; filled from [Recipe] / cache, then on-demand.
+  /// Per-step image URLs from [Recipe.stepImageUrls] only (no client fetch).
   late List<String> _stepDisplayUrls;
-  final Set<int> _stepLoadInFlight = {};
 
   int get _gatherPage => 0;
   int get _firstInstructionPage => 1;
@@ -70,22 +63,6 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
         _stepDisplayUrls[i] = t;
       }
     }
-    unawaited(_mergeCachedStepUrls());
-  }
-
-  Future<void> _mergeCachedStepUrls() async {
-    final vm = widget.recipeViewModel;
-    if (vm is! RecipeViewModel) return;
-    final r = await vm.recipeWithCachedImages(widget.recipe);
-    if (!mounted) return;
-    if (r.stepImageUrls.isEmpty) return;
-    setState(() {
-      for (var i = 0; i < _stepDisplayUrls.length && i < r.stepImageUrls.length; i++) {
-        if (r.stepImageUrls[i].trim().isNotEmpty) {
-          _stepDisplayUrls[i] = r.stepImageUrls[i].trim();
-        }
-      }
-    });
   }
 
   void _goBackInFlow() {
@@ -123,39 +100,11 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
 
   void _nextFromGather() {
     setState(() => _pageIndex = _firstInstructionPage);
-    final vm = widget.recipeViewModel;
-    if (vm is RecipeViewModel) {
-      vm.prefetchNextStepIfNeeded(widget.recipe, 0);
-    }
   }
 
-  void _requestStepIfNeeded(int safeIdx) {
-    if (safeIdx < 0 || safeIdx >= _stepDisplayUrls.length) return;
-    if (_stepDisplayUrls[safeIdx].trim().isNotEmpty) return;
-    if (_stepLoadInFlight.contains(safeIdx)) return;
-    final vm = widget.recipeViewModel;
-    if (vm is! RecipeViewModel) return;
-    _stepLoadInFlight.add(safeIdx);
-    unawaited(() async {
-      try {
-        final u = await vm.ensureStepImageUrl(
-          recipe: widget.recipe,
-          stepIndex: safeIdx,
-        );
-        if (!mounted) return;
-        setState(() {
-          _stepDisplayUrls[safeIdx] = u;
-          _stepLoadInFlight.remove(safeIdx);
-        });
-        vm.prefetchNextStepIfNeeded(widget.recipe, safeIdx);
-      } catch (_) {
-        if (mounted) {
-          setState(() => _stepLoadInFlight.remove(safeIdx));
-        } else {
-          _stepLoadInFlight.remove(safeIdx);
-        }
-      }
-    }());
+  static bool _isHttpUrl(String s) {
+    final t = s.trim().toLowerCase();
+    return t.startsWith('http://') || t.startsWith('https://');
   }
 
   void _nextFromInstruction() {
@@ -438,26 +387,14 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
     String? stepImageUrl;
     if (safeIdx < _stepDisplayUrls.length) {
       final u = _stepDisplayUrls[safeIdx].trim();
-      if (u.isNotEmpty &&
-          (u.toLowerCase().startsWith('http://') ||
-              u.toLowerCase().startsWith('https://'))) {
+      if (u.isNotEmpty && _isHttpUrl(u)) {
         stepImageUrl = u;
       }
     }
-    final hasVm = widget.recipeViewModel is RecipeViewModel;
-    if (hasVm &&
-        stepImageUrl == null &&
-        safeIdx < _stepDisplayUrls.length &&
-        _stepDisplayUrls[safeIdx].trim().isEmpty &&
-        !_stepLoadInFlight.contains(safeIdx)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _requestStepIfNeeded(safeIdx);
-        }
-      });
-    }
-    final loading =
-        hasVm && stepImageUrl == null && _stepLoadInFlight.contains(safeIdx);
+    // Keep a predictable square image box so controls stay visible and
+    // the full step image can be seen without heavy cropping.
+    final screen = MediaQuery.sizeOf(context);
+    final stepImageSize = (screen.width * 0.5).clamp(180.0, 260.0);
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -478,25 +415,24 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
                 color: theme.colorScheme.primary,
               ),
             ),
-          if (loading) ...[
+          if (stepImageUrl != null) ...[
             const SizedBox(height: 12),
-            const AspectRatio(
-              aspectRatio: 1,
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          ] else if (stepImageUrl != null) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Image.network(
-                  stepImageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => ColoredBox(
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: stepImageSize,
+                  height: stepImageSize,
+                  child: ColoredBox(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    child: const Center(
-                      child: Icon(Icons.broken_image_outlined, size: 40),
+                    child: CachedNetworkImage(
+                      imageUrl: stepImageUrl,
+                      progressIndicatorBuilder: (context, _, __) =>
+                          const Center(child: CircularProgressIndicator()),
+                      fit: BoxFit.contain,
+                      errorWidget: (_, __, ___) => const Center(
+                        child: Icon(Icons.broken_image_outlined, size: 40),
+                      ),
                     ),
                   ),
                 ),

@@ -9,6 +9,7 @@ import '../core/app_strings.dart';
 import '../data/models/user_data.dart';
 import '../widgets/cartoon_outlined_card.dart';
 import '../widgets/guest_signup_prompt.dart';
+import '../widgets/sous_chef_menu_button.dart';
 import '../view_models/grocery_list_view_model.dart';
 import '../view_models/recipe_view_model.dart';
 
@@ -49,10 +50,14 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
       return const <Widget>[];
     }
     return [
-      IconButton(
-        icon: const Icon(Icons.menu),
-        tooltip: AppStrings.appMenuTooltip,
-        onPressed: widget.onOpenAppMenu,
+      Padding(
+        padding: const EdgeInsets.only(right: 4),
+        child: Center(
+          child: SousChefMenuButton(
+            tooltip: AppStrings.appMenuTooltip,
+            onPressed: widget.onOpenAppMenu!,
+          ),
+        ),
       ),
     ];
   }
@@ -378,30 +383,78 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                           ),
                           title: Text(recipe.recipeName),
                           subtitle: Text(recipe.cuisine),
-                          trailing: IconButton(
-                            tooltip: recipe.isFavorite
-                                ? 'Remove from favorites'
-                                : 'Add to favorites',
-                            icon: Icon(
-                              recipe.isFavorite
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              color: recipe.isFavorite
-                                  ? Colors.red
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            onPressed: () async {
-                              if (widget.sessionManager.isGuestMode()) {
-                                final goSignup =
-                                    await showGuestFavoriteSignupDialog(context);
-                                if (!context.mounted) return;
-                                if (goSignup == true) {
-                                  goToSignup(context);
-                                }
-                                return;
-                              }
-                              await widget.recipeViewModel.toggleFavorite(recipe);
-                            },
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: recipe.isSaved
+                                    ? 'Remove from saved'
+                                    : 'Save to your list',
+                                icon: Icon(
+                                  recipe.isSaved
+                                      ? Icons.bookmark
+                                      : Icons.bookmark_border,
+                                  color: recipe.isSaved
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                ),
+                                onPressed: () async {
+                                  if (widget.sessionManager.isGuestMode()) {
+                                    final goSignup =
+                                        await showGuestFavoriteSignupDialog(
+                                            context);
+                                    if (!context.mounted) return;
+                                    if (goSignup == true) {
+                                      goToSignup(context);
+                                    }
+                                    return;
+                                  }
+                                  await widget.recipeViewModel
+                                      .toggleSaved(recipe);
+                                },
+                              ),
+                              IconButton(
+                                tooltip: recipe.isFavorited
+                                    ? 'Remove public favorite'
+                                    : 'Favorite (trending)',
+                                icon: Icon(
+                                  recipe.isFavorited
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: recipe.isFavorited
+                                      ? Colors.red
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                ),
+                                onPressed: () async {
+                                  if (widget.sessionManager.isGuestMode()) {
+                                    final goSignup =
+                                        await showGuestFavoriteSignupDialog(
+                                            context);
+                                    if (!context.mounted) return;
+                                    if (goSignup == true) {
+                                      goToSignup(context);
+                                    }
+                                    return;
+                                  }
+                                  if (recipe.recipeId.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Open the full recipe (saved) before favoriting',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  await widget.recipeViewModel
+                                      .togglePublicFavorite(recipe);
+                                },
+                              ),
+                            ],
                           ),
                           onTap: () {
                               context.push(

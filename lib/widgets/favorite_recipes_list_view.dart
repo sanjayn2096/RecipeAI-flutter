@@ -8,7 +8,7 @@ import '../view_models/grocery_list_view_model.dart';
 import 'cartoon_outlined_card.dart';
 import 'guest_signup_prompt.dart';
 
-/// Favorites list with swipe-left to remove (save-favorites with isFavorite: false).
+/// Saved list with swipe-left to remove (POST /save-favorites with isSaved: false).
 class FavoriteRecipesListView extends StatefulWidget {
   const FavoriteRecipesListView({
     super.key,
@@ -58,13 +58,13 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'No Favorites Yet',
+                    'Nothing saved yet',
                     style: Theme.of(context).textTheme.titleLarge,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Sign up to create and access your favorite recipes.',
+                    'Sign up to save recipes to your account and open them anytime.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -81,23 +81,23 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
             ),
           );
         }
-        if (widget.homeViewModel.favoritesLoading) {
+        if (widget.homeViewModel.savedLoading) {
           return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 CircularProgressIndicator(),
                 SizedBox(height: 16),
-                Text('Loading favorites…'),
+                Text('Loading saved recipes…'),
               ],
             ),
           );
         }
-        final favorites = widget.homeViewModel.apiFavorites;
-        if (favorites.isEmpty) {
-          return const Center(child: Text('No favorites yet'));
+        final saved = widget.homeViewModel.apiSaved;
+        if (saved.isEmpty) {
+          return const Center(child: Text('No saved recipes yet'));
         }
-        final filtered = favorites
+        final filtered = saved
             .where((r) => r.matchesSearchQuery(_searchController.text))
             .toList();
         return Column(
@@ -109,7 +109,7 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                 controller: _searchController,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.search),
-                  labelText: 'Search favorites',
+                  labelText: 'Search saved',
                   border: OutlineInputBorder(),
                 ),
                 onChanged: (_) => setState(() {}),
@@ -134,8 +134,8 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                       itemBuilder: (_, i) {
                         final recipe = filtered[i];
                         final dismissKey = recipe.recipeId.isNotEmpty
-                            ? 'favorite_${recipe.recipeId}'
-                            : 'favorite_h_${Object.hash(recipe.recipeName, recipe.cuisine, recipe.cookingTime, i)}';
+                            ? 'saved_${recipe.recipeId}'
+                            : 'saved_h_${Object.hash(recipe.recipeName, recipe.cuisine, recipe.cookingTime, i)}';
                         return Dismissible(
                           key: ValueKey(dismissKey),
                           direction: DismissDirection.endToStart,
@@ -143,9 +143,9 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                             final confirmed = await showDialog<bool>(
                               context: context,
                               builder: (dialogContext) => AlertDialog(
-                                title: const Text('Remove from favorites?'),
+                                title: const Text('Remove from saved?'),
                                 content: Text(
-                                  'Remove "${recipe.recipeName}" from your favorites?',
+                                  'Remove "${recipe.recipeName}" from your saved list?',
                                 ),
                                 actions: [
                                   TextButton(
@@ -182,13 +182,13 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                           ),
                           onDismissed: (_) {
                             widget.homeViewModel
-                                .removeFavoriteWithSwipe(recipe)
+                                .removeSavedWithSwipe(recipe)
                                 .then((ok) {
                               if (!ok && context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text(
-                                        'Could not remove from favorites'),
+                                        'Could not remove from saved'),
                                   ),
                                 );
                               }
@@ -202,7 +202,7 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                               ),
                               title: Text(recipe.recipeName),
                               subtitle: Text(recipe.cuisine),
-                              onTap: () => _openFavoriteRecipe(
+                              onTap: () => _openSavedRecipe(
                                 context,
                                 homeViewModel: widget.homeViewModel,
                                 listRecipe: recipe,
@@ -222,7 +222,7 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
   }
 }
 
-Future<void> _openFavoriteRecipe(
+Future<void> _openSavedRecipe(
   BuildContext context, {
   required HomeViewModel homeViewModel,
   required Recipe listRecipe,
@@ -264,8 +264,8 @@ Future<void> _openFavoriteRecipe(
 
   try {
     final full =
-        await homeViewModel.fetchFavoriteRecipeDetail(listRecipe.recipeId);
-    final toShow = full.copyWith(isFavorite: true);
+        await homeViewModel.fetchSavedRecipeDetail(listRecipe.recipeId);
+    final toShow = full.copyWith(isSaved: true);
     if (!context.mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
     context.push(
@@ -279,16 +279,12 @@ Future<void> _openFavoriteRecipe(
   } on ApiException catch (e) {
     if (context.mounted) {
       Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     }
-  } catch (_) {
+  } catch (e) {
     if (context.mounted) {
       Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not load recipe')),
-      );
     }
   }
 }

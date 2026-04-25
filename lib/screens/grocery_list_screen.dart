@@ -77,7 +77,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
               children: [
                 Material(
                   elevation: 0,
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   child: Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

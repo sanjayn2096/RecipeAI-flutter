@@ -261,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Browse recipes without an account, Signup To Save favorites.',
+                'Browse recipes without an account. Sign up to save recipes.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),

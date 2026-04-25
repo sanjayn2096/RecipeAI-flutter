@@ -79,6 +79,7 @@ class SousChefInlineTitle extends StatelessWidget {
     final style = theme.textTheme.titleLarge?.copyWith(
       fontWeight: FontWeight.w700,
       letterSpacing: -0.3,
+      color: theme.colorScheme.onSurface,
     );
     // One inline line so the mark and title share the same vertical metrics (avoids Row cross-axis drift).
     return Text.rich(

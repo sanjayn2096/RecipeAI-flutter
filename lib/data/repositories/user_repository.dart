@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -5,53 +7,84 @@ import '../../core/app_strings.dart';
 import '../../core/firestore_paths.dart';
 import '../api/api_service.dart';
 import '../firestore/favorites_firestore_mapper.dart';
-import '../local/favorites_hive_store.dart';
+import '../local/saved_recipes_hive_store.dart';
 import '../models/recipe.dart';
 import '../models/api_dtos.dart';
 import '../models/session_profile.dart';
 import '../../services/session_manager.dart';
 
-/// User data and favorites. Fix: ViewModels use repository instead of API directly.
+/// User data, saved recipes, and public favorites.
 class UserRepository {
   UserRepository({
     required ApiService apiService,
     required SessionManager sessionManager,
-    required FavoritesHiveStore favoritesHiveStore,
+    required SavedRecipesHiveStore savedRecipesHiveStore,
     FirebaseAuth? firebaseAuth,
     FirebaseFirestore? firestore,
   })  : _api = apiService,
         _session = sessionManager,
-        _favoritesHiveStore = favoritesHiveStore,
+        _savedRecipesHiveStore = savedRecipesHiveStore,
         _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance;
 
   final ApiService _api;
   final SessionManager _session;
-  final FavoritesHiveStore _favoritesHiveStore;
+  final SavedRecipesHiveStore _savedRecipesHiveStore;
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
 
-  /// `users/{userId}/{favoritesSubcollection}` — live updates when Firestore changes.
-  Stream<List<Recipe>> watchFavoritesFromFirestore(String userId) {
-    return _firestore
+  /// `saved` + legacy `favorites` subcollections (merged, live).
+  Stream<List<Recipe>> watchSavedFromFirestore(String userId) {
+    final user = _firestore
         .collection(FirestorePaths.usersCollection)
-        .doc(userId)
-        .collection(FirestorePaths.favoritesSubcollection)
-        .snapshots()
-        .map(FavoritesFirestoreMapper.recipesFromQuerySnapshot);
+        .doc(userId);
+    final saved = user.collection(FirestorePaths.savedSubcollection);
+    final legacy = user.collection(FirestorePaths.legacyFavoritesSubcollection);
+
+    final controller = StreamController<List<Recipe>>.broadcast();
+    QuerySnapshot<Map<String, dynamic>>? s;
+    QuerySnapshot<Map<String, dynamic>>? l;
+
+    void push() {
+      controller.add(
+        FavoritesFirestoreMapper.mergeSavedAndLegacy(s, l),
+      );
+    }
+
+    final sub1 = saved.snapshots().listen(
+      (v) {
+        s = v;
+        push();
+      },
+      onError: controller.addError,
+    );
+    final sub2 = legacy.snapshots().listen(
+      (v) {
+        l = v;
+        push();
+      },
+      onError: controller.addError,
+    );
+
+    controller.onCancel = () {
+      sub1.cancel();
+      sub2.cancel();
+    };
+
+    return controller.stream;
   }
 
   /// Synchronous read from opened Hive box (called from UI isolate after startup).
-  List<Recipe>? readCachedFavoritesSync() =>
-      _favoritesHiveStore.readForUserSync(_session.getUserId());
+  List<Recipe>? readCachedSavedSync() =>
+      _savedRecipesHiveStore.readForUserSync(_session.getUserId());
 
-  Future<void> writeCachedFavorites(List<Recipe> recipes) async {
+  Future<void> writeCachedSaved(List<Recipe> recipes) async {
     final id = _session.getUserId();
     if (id == null || id.isEmpty) return;
-    await _favoritesHiveStore.write(id, recipes);
+    await _savedRecipesHiveStore.write(id, recipes);
   }
 
-  Future<void> clearFavoritesCache() => _favoritesHiveStore.clear();
+  Future<void> clearSavedCache() => _savedRecipesHiveStore.clear();
 
   /// Fields last saved from GET get_user_profile (also updated on login / session restore).
   SessionProfile readSessionProfile() {
@@ -63,7 +96,8 @@ class UserRepository {
     );
   }
 
-  Future<void> saveFavoriteRecipe(Recipe recipe) async {
+  /// POST /save-favorites — updates private Saved list and optional `recipes` doc.
+  Future<void> saveSavedRecipe(Recipe recipe) async {
     final userId = _session.getUserId();
     if (userId == null) return;
     final idToken = await _firebaseAuth.currentUser?.getIdToken();
@@ -73,7 +107,7 @@ class UserRepository {
     );
   }
 
-  /// Merges recipe fields (including AI image URLs) into Firestore `recipes/{id}` without changing favorites.
+  /// Merges recipe fields (including AI image URLs) into Firestore `recipes/{id}` without changing save/favorite.
   Future<void> mergeRecipeDocument(Recipe recipe) async {
     final userId = _session.getUserId();
     if (userId == null) return;
@@ -88,16 +122,31 @@ class UserRepository {
     );
   }
 
-  /// GET fetch-favorites with Firebase ID token.
-  Future<List<Recipe>> fetchFavorites() async {
+  /// POST /toggle-public-favorite.
+  Future<void> togglePublicFavorite(Recipe recipe, {required bool favorited}) async {
     final token = await _firebaseAuth.currentUser?.getIdToken();
-    return _api.fetchFavorites(idToken: token);
+    if (token == null) return;
+    await _api.togglePublicFavorite(
+      recipeId: recipe.recipeId,
+      favorited: favorited,
+      idToken: token,
+    );
+  }
+
+  /// GET fetch-saved (merges with legacy `favorites` on the server).
+  Future<List<Recipe>> fetchSavedRecipes() async {
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    return _api.fetchSavedRecipes(idToken: token);
   }
 
   /// GET get-recipe/:recipeId with Firebase ID token.
   Future<Recipe> fetchRecipeById(String recipeId) async {
     final token = await _firebaseAuth.currentUser?.getIdToken();
     return _api.getRecipe(recipeId, idToken: token);
+  }
+
+  Future<List<Recipe>> fetchTrendingRecipes({int limit = 20}) {
+    return _api.fetchTrendingRecipes(limit: limit);
   }
 
   /// PATCH user-lifestyle from local session prefs (no-op for guests / no token).

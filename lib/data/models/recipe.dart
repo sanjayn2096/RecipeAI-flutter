@@ -3,8 +3,8 @@ import 'nutritional_value.dart';
 
 /// Recipe model.
 ///
-/// [recipeId] — unique string per recipe.
-/// [image] — populated from API `imageUrl`.
+/// [isSaved] — user's private "Saved" list.
+/// [isFavorited] — public heart (used for [favoriteCount] on the server).
 class Recipe {
   const Recipe({
     required this.recipeId,
@@ -15,7 +15,9 @@ class Recipe {
     required this.cookingTime,
     required this.cuisine,
     required this.nutritionalValue,
-    this.isFavorite = false,
+    this.isSaved = false,
+    this.isFavorited = false,
+    this.favoriteCount = 0,
     this.stepImageUrls = const [],
   });
 
@@ -28,9 +30,15 @@ class Recipe {
   final String cookingTime;
   final String cuisine;
   final NutritionalValue nutritionalValue;
-  final bool isFavorite;
+  final bool isSaved;
+  final bool isFavorited;
+  /// Server-side aggregate; may be 0 if unknown.
+  final int favoriteCount;
   /// Per-instruction image URLs (e.g. from AI generation), aligned with [RecipeParsing.parseInstructions].
   final List<String> stepImageUrls;
+
+  /// Backward-compatible alias: previously a single "favorite" meant "saved" only.
+  bool get isFavorite => isSaved;
 
   factory Recipe.fromJson(Map<String, dynamic> json) {
     final id = json['recipeId'] ?? json['id'];
@@ -38,6 +46,16 @@ class Recipe {
     final rawInstructions = json['instructions'];
     final rawImageUrl = json['imageUrl'] ?? json['image'];
     final rawStepUrls = json['stepImageUrls'];
+    final saved = json['isSaved'] as bool? ??
+        json['isFavorite'] as bool? ??
+        false;
+    final favorited = json['isFavorited'] as bool? ?? false;
+    final fc = json['favoriteCount'];
+    final count = fc is int
+        ? fc
+        : fc is num
+            ? fc.toInt()
+            : int.tryParse('$fc') ?? 0;
     return Recipe(
       recipeId: id is String ? id : (id?.toString() ?? ''),
       recipeName: json['recipeName'] as String? ?? '',
@@ -51,7 +69,9 @@ class Recipe {
       nutritionalValue: NutritionalValue.fromJson(
         (json['nutritionalValue'] as Map<String, dynamic>?) ?? {},
       ),
-      isFavorite: json['isFavorite'] as bool? ?? false,
+      isSaved: saved,
+      isFavorited: favorited,
+      favoriteCount: count,
       stepImageUrls: rawStepUrls is List
           ? rawStepUrls.map((e) => e.toString()).toList()
           : const [],
@@ -67,12 +87,14 @@ class Recipe {
         'cookingTime': cookingTime,
         'cuisine': cuisine,
         'nutritionalValue': nutritionalValue.toJson(),
-        'isFavorite': isFavorite,
+        'isSaved': isSaved,
+        'isFavorite': isSaved,
+        'isFavorited': isFavorited,
+        'favoriteCount': favoriteCount,
         'stepImageUrls': stepImageUrls,
       };
 
-  /// POST save-favorites: backends/Firestore often expect `imageUrl`; only sending `image`
-  /// leaves `imageUrl` as JavaScript `undefined` and Firestore throws.
+  /// POST save-favorites: backends expect `isSaved` / `isFavorite` and `imageUrl` alias.
   Map<String, dynamic> toJsonForSaveFavorite() {
     final safeImage = image.trim();
     return {
@@ -85,13 +107,16 @@ class Recipe {
       'cookingTime': cookingTime,
       'cuisine': cuisine,
       'nutritionalValue': nutritionalValue.toJsonForSaveFavorite(),
-      'isFavorite': isFavorite,
+      'isSaved': isSaved,
+      'isFavorite': isSaved,
       'stepImageUrls': stepImageUrls,
     };
   }
 
   Recipe copyWith({
-    bool? isFavorite,
+    bool? isSaved,
+    bool? isFavorited,
+    int? favoriteCount,
     String? image,
     List<String>? stepImageUrls,
   }) =>
@@ -104,7 +129,9 @@ class Recipe {
         cookingTime: cookingTime,
         cuisine: cuisine,
         nutritionalValue: nutritionalValue,
-        isFavorite: isFavorite ?? this.isFavorite,
+        isSaved: isSaved ?? this.isSaved,
+        isFavorited: isFavorited ?? this.isFavorited,
+        favoriteCount: favoriteCount ?? this.favoriteCount,
         stepImageUrls: stepImageUrls ?? this.stepImageUrls,
       );
 

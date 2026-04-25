@@ -5,15 +5,15 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants.dart';
 import '../models/recipe.dart';
 
-/// Persists fetch-favorites as one JSON blob per device (scoped by [userId] in the payload).
-class FavoritesHiveStore {
-  FavoritesHiveStore(this._box);
+/// Persists GET fetch-saved / fetch-favorites JSON (`userId` + `recipes`) locally.
+class SavedRecipesHiveStore {
+  SavedRecipesHiveStore(this._box);
 
   final Box<String> _box;
 
   static const String _payloadKey = 'payload';
 
-  /// Null: no cache or wrong user / corrupt. Empty list: cached “no favorites”.
+  /// Null: no cache or wrong user / corrupt. Empty list: cached "no saved recipes".
   List<Recipe>? readForUserSync(String? currentUserId) {
     if (currentUserId == null || currentUserId.isEmpty) return null;
     final raw = _box.get(_payloadKey);
@@ -44,6 +44,6 @@ class FavoritesHiveStore {
   }
 
   static Future<Box<String>> openBox() {
-    return Hive.openBox<String>(AppConstants.hiveFavoritesBox);
+    return Hive.openBox<String>(AppConstants.hiveSavedRecipesBox);
   }
 }

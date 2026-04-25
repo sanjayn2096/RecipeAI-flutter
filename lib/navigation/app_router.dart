@@ -11,6 +11,7 @@ import '../screens/show_recipe_screen.dart';
 import '../screens/cook_recipe_flow_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/favorites_screen.dart';
+import '../screens/trending_recipes_screen.dart';
 import '../screens/tutorial_screen.dart';
 import '../screens/grocery_list_screen.dart';
 import '../data/models/recipe.dart';
@@ -103,8 +104,6 @@ class AppRouter {
           final extra = state.extra;
           final isGuest = sessionManager.isGuestMode();
           // go_router [extra] is often `Map<String, Object?>`, not `Map<String, dynamic>`.
-          // Always pass [recipeViewModel] from this router so the image API can run when signed in
-          // (do not require callers to re-pass the VM in [extra]).
           final Recipe recipe;
           if (extra is Map) {
             final raw = Map<dynamic, dynamic>.from(extra);
@@ -126,15 +125,10 @@ class AppRouter {
           final extra = state.extra;
           final Recipe recipe;
           final GroceryListViewModel? groceryVm;
-          dynamic cookRecipeVm = recipeViewModel;
           if (extra is Map) {
             final m = Map<dynamic, dynamic>.from(extra);
             recipe = m['recipe'] as Recipe;
             groceryVm = m['groceryListViewModel'] as GroceryListViewModel?;
-            final ev = m['recipeViewModel'];
-            if (ev != null) {
-              cookRecipeVm = ev;
-            }
           } else {
             recipe = extra as Recipe;
             groceryVm = null;
@@ -142,7 +136,6 @@ class AppRouter {
           return CookRecipeFlowScreen(
             recipe: recipe,
             groceryListViewModel: groceryVm ?? groceryListViewModel,
-            recipeViewModel: cookRecipeVm,
           );
         },
       ),
@@ -174,6 +167,19 @@ class AppRouter {
           sessionManager: sessionManager,
           onBack: () => context.pop(),
         ),
+      ),
+      GoRoute(
+        path: '/trending',
+        builder: (context, __) => TrendingRecipesScreen(
+          homeViewModel: homeViewModel,
+          recipeViewModel: recipeViewModel,
+          groceryListViewModel: groceryListViewModel,
+          onBack: () => context.pop(),
+        ),
+      ),
+      GoRoute(
+        path: '/saved',
+        redirect: (context, state) => '/favorites',
       ),
       GoRoute(
         path: '/tutorial',

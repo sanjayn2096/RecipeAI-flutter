@@ -1,6 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-/// Recipe image: [Image.network] when [imageUrl] is http(s), else local placeholder.
+/// Recipe image: disk-backed network cache for http(s) URLs, else local placeholder.
 class RecipeImageBox extends StatelessWidget {
   const RecipeImageBox({
     super.key,
@@ -52,25 +53,22 @@ class RecipeImageBox extends StatelessWidget {
       return SizedBox(
         width: widthPx,
         height: height,
-        child: Image.network(
-          url,
+        child: CachedNetworkImage(
+          imageUrl: url,
           width: widthPx,
           height: height,
           fit: fit,
           alignment: Alignment.center,
-          loadingBuilder: (context, imageChild, progress) {
-            if (progress == null) return imageChild;
-            return ColoredBox(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: CircularProgressIndicator(),
-                ),
+          progressIndicatorBuilder: (context, _, __) => ColoredBox(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(),
               ),
-            );
-          },
-          errorBuilder: (_, __, ___) => _placeholderChild(widthPx),
+            ),
+          ),
+          errorWidget: (_, __, ___) => _placeholderChild(widthPx),
         ),
       );
     }

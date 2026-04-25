@@ -31,7 +31,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void initState() {
     super.initState();
     if (!widget.sessionManager.isGuestMode()) {
-      widget.homeViewModel.loadFavoritesFromApi();
+      widget.homeViewModel.loadSavedFromApi();
     }
   }
 
@@ -42,7 +42,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       builder: (_, __) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text("User's Favorites"),
+            title: const Text('Saved'),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: widget.onBack,

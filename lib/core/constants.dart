@@ -31,8 +31,8 @@ class AppConstants {
   /// Successful guest generate-recipe calls counted for [prefsGuestGenDayKey].
   static const String prefsGuestGenCount = 'guestGenCount';
 
-  /// Hive box for cached GET fetch-favorites JSON (`userId` + `recipes`).
-  static const String hiveFavoritesBox = 'favorites_cache';
+  /// Hive box for cached GET fetch-saved / fetch-favorites JSON (`userId` + `recipes`).
+  static const String hiveSavedRecipesBox = 'saved_recipes_cache';
 
   /// Hive box for grocery list when there is no signed-in Firebase user (guest / signed out).
   static const String hiveGroceryBox = 'grocery_list_local';

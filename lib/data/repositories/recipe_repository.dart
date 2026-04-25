@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../core/app_strings.dart';
 import '../../core/constants.dart';
 import '../../core/feature_flags.dart';
-import '../api/api_service.dart' show ApiService, RecipeImagesAuthException;
+import '../api/api_service.dart' show ApiService;
 import '../models/api_dtos.dart';
 import '../models/recipe.dart';
 import '../../services/session_manager.dart';
@@ -103,32 +103,4 @@ class RecipeRepository {
         onRecipe: onRecipe,
         onFlowSelected: onFlowSelected,
       );
-
-  /// POST /generate-recipe-hero (Gemini + Storage; requires Firebase auth).
-  Future<GenerateRecipeHeroResponse> generateRecipeHero(
-    GenerateRecipeHeroRequest request,
-  ) async {
-    if (_api == null) {
-      throw StateError('Recipe image generation is not configured');
-    }
-    final idToken = await _firebaseAuth.currentUser?.getIdToken();
-    if (idToken == null) {
-      throw RecipeImagesAuthException('Sign in to generate recipe images.');
-    }
-    return _api!.generateRecipeHero(request, idToken: idToken);
-  }
-
-  /// POST /generate-recipe-step-image (Gemini + Storage; requires Firebase auth).
-  Future<GenerateRecipeStepImageResponse> generateRecipeStepImage(
-    GenerateRecipeStepImageRequest request,
-  ) async {
-    if (_api == null) {
-      throw StateError('Recipe image generation is not configured');
-    }
-    final idToken = await _firebaseAuth.currentUser?.getIdToken();
-    if (idToken == null) {
-      throw RecipeImagesAuthException('Sign in to generate recipe images.');
-    }
-    return _api!.generateRecipeStepImage(request, idToken: idToken);
-  }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/app_strings.dart';
-import '../core/feature_flags.dart';
 import '../core/recipe_parsing.dart';
 import '../data/models/recipe.dart';
 import '../view_models/grocery_list_view_model.dart';
@@ -29,47 +28,25 @@ class ShowRecipeScreen extends StatefulWidget {
 }
 
 class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
-  late bool _isFavorite;
+  late bool _isSaved;
+  late bool _isFavorited;
   late Recipe _displayRecipe;
-  /// Hydrate from Firestore / one-shot image generation (no UI affordance).
-  Future<void>? _imageGenFuture;
   late final List<String> _ingredientItems;
   late final List<String> _instructionItems;
 
   @override
   void initState() {
     super.initState();
-    _isFavorite = widget.recipe.isFavorite;
+    _isSaved = widget.recipe.isSaved;
+    _isFavorited = widget.recipe.isFavorited;
     _displayRecipe = widget.recipe;
     _ingredientItems = widget.recipe.ingredients
         .map(RecipeParsing.formatIngredientLineForDisplay)
         .toList();
     _instructionItems = RecipeParsing.parseInstructions(widget.recipe.instructions);
-    if (!widget.isGuest &&
-        widget.recipeViewModel is RecipeViewModel &&
-        FeatureFlags.recipeImagesAutoGenerateOnOpen) {
-      _imageGenFuture = _ensureAiImagesOnce();
-    }
   }
 
-  /// Local cache + hero and step 0 only (no other steps on this screen).
-  Future<void> _ensureAiImagesOnce() async {
-    final vm = widget.recipeViewModel;
-    if (vm is! RecipeViewModel) return;
-    final cached = await vm.recipeWithCachedImages(_displayRecipe);
-    if (mounted) {
-      setState(() => _displayRecipe = cached.copyWith(isFavorite: _isFavorite));
-    }
-    try {
-      final r = await vm.ensureHeroAndFirstStepImages(cached);
-      if (!mounted) return;
-      setState(() => _displayRecipe = r.copyWith(isFavorite: _isFavorite));
-    } catch (_) {
-      // Silent: no snackbars for background image pipeline.
-    }
-  }
-
-  Future<void> _toggleFavorite() async {
+  Future<void> _toggleSaved() async {
     if (widget.isGuest) {
       final goSignup = await showGuestFavoriteSignupDialog(context);
       if (!mounted) return;
@@ -78,32 +55,81 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
       }
       return;
     }
-    final f = _imageGenFuture;
-    if (f != null) {
-      try {
-        await f;
-      } catch (_) {
-        // Still allow favoriting if generation failed.
-      }
-    }
     final vm = widget.recipeViewModel;
     if (vm is! RecipeViewModel) return;
-    final ok = await vm.toggleFavorite(
-      _displayRecipe.copyWith(isFavorite: _isFavorite),
+    final ok = await vm.toggleSaved(
+      _displayRecipe.copyWith(isSaved: _isSaved),
     );
     if (!mounted) return;
     if (ok) {
-      setState(() => _isFavorite = !_isFavorite);
+      setState(() {
+        _isSaved = !_isSaved;
+        _displayRecipe = _displayRecipe.copyWith(isSaved: _isSaved);
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isFavorite ? 'Added to favorites' : 'Removed from favorites',
+            _isSaved ? 'Saved to your list' : 'Removed from saved',
           ),
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update favorites')),
+        const SnackBar(content: Text('Could not update saved list')),
+      );
+    }
+  }
+
+  Future<void> _togglePublicFavorite() async {
+    if (widget.isGuest) {
+      final goSignup = await showGuestFavoriteSignupDialog(context);
+      if (!mounted) return;
+      if (goSignup == true) {
+        goToSignup(context);
+      }
+      return;
+    }
+    final vm = widget.recipeViewModel;
+    if (vm is! RecipeViewModel) return;
+    if (_displayRecipe.recipeId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Save this recipe first so it can be favorited'),
+        ),
+      );
+      return;
+    }
+    final ok = await vm.togglePublicFavorite(
+      _displayRecipe.copyWith(isFavorited: _isFavorited),
+    );
+    if (!mounted) return;
+    if (ok) {
+      final wasFav = _isFavorited;
+      setState(() {
+        _isFavorited = !wasFav;
+        var n = _displayRecipe.favoriteCount;
+        if (!wasFav) {
+          n = n + 1;
+        } else {
+          n = n > 0 ? n - 1 : 0;
+        }
+        _displayRecipe = _displayRecipe.copyWith(
+          isFavorited: _isFavorited,
+          favoriteCount: n,
+        );
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isFavorited
+                ? 'Thanks — this helps others discover the recipe'
+                : 'Removed your public favorite',
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update favorite')),
       );
     }
   }
@@ -111,6 +137,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
   @override
   Widget build(BuildContext context) {
     final groceryVm = widget.groceryListViewModel;
+    final heroSize = (MediaQuery.sizeOf(context).width * 0.7).clamp(220.0, 320.0);
 
     return Scaffold(
       appBar: AppBar(
@@ -120,17 +147,30 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
           onPressed: () => context.pop(),
         ),
         actions: [
-          if (widget.recipeViewModel != null)
+          if (widget.recipeViewModel != null) ...[
             IconButton(
-              tooltip: _isFavorite ? 'Remove from favorites' : 'Add to favorites',
+              tooltip: _isSaved ? 'Remove from saved' : 'Save to your list',
               icon: Icon(
-                _isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: _isFavorite
+                _isSaved ? Icons.bookmark : Icons.bookmark_border,
+                color: _isSaved
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              onPressed: _toggleSaved,
+            ),
+            IconButton(
+              tooltip: _isFavorited
+                  ? 'Remove public favorite'
+                  : 'Favorite (helps trending)',
+              icon: Icon(
+                _isFavorited ? Icons.favorite : Icons.favorite_border,
+                color: _isFavorited
                     ? Colors.red
                     : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-              onPressed: _toggleFavorite,
+              onPressed: _togglePublicFavorite,
             ),
+          ],
         ],
       ),
       body: SingleChildScrollView(
@@ -138,7 +178,14 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            RecipeImageBox(imageUrl: _displayRecipe.image),
+            Center(
+              child: RecipeImageBox(
+                imageUrl: _displayRecipe.image,
+                width: heroSize,
+                height: heroSize,
+                fit: BoxFit.contain,
+              ),
+            ),
             const SizedBox(height: 16),
             Text(
               widget.recipe.cookingTime,
@@ -170,8 +217,6 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
                 extra: {
                   'recipe': _displayRecipe,
                   'groceryListViewModel': groceryVm,
-                  if (widget.recipeViewModel is RecipeViewModel)
-                    'recipeViewModel': widget.recipeViewModel,
                 },
               ),
               icon: const Icon(Icons.restaurant_menu),

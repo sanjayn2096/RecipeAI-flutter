@@ -16,7 +16,7 @@ import 'core/telemetry/api_call_context.dart';
 import 'core/telemetry/app_telemetry.dart';
 import 'core/theme.dart';
 import 'data/api/api_service.dart';
-import 'data/local/favorites_hive_store.dart';
+import 'data/local/saved_recipes_hive_store.dart';
 import 'data/local/grocery_hive_store.dart';
 import 'data/repositories/grocery_list_repository.dart';
 import 'data/repositories/auth_repository.dart';
@@ -28,7 +28,6 @@ import 'view_models/home_view_model.dart';
 import 'view_models/recipe_view_model.dart';
 import 'view_models/grocery_list_view_model.dart';
 import 'navigation/app_router.dart';
-import 'services/recipe_image_cache.dart';
 
 Future<void> _initCrashlytics() async {
   if (kIsWeb) {
@@ -72,8 +71,8 @@ void main() async {
 
   try {
     await Hive.initFlutter();
-    final favoritesBox = await FavoritesHiveStore.openBox();
-    final favoritesHiveStore = FavoritesHiveStore(favoritesBox);
+    final savedRecipesBox = await SavedRecipesHiveStore.openBox();
+    final savedRecipesHiveStore = SavedRecipesHiveStore(savedRecipesBox);
     final groceryBox = await GroceryHiveStore.openBox();
     final groceryHiveStore = GroceryHiveStore(groceryBox);
 
@@ -103,12 +102,12 @@ void main() async {
     final authRepo = AuthRepository(
       apiService: apiService,
       sessionManager: sessionManager,
-      favoritesHiveStore: favoritesHiveStore,
+      savedRecipesHiveStore: savedRecipesHiveStore,
     );
     final userRepo = UserRepository(
       apiService: apiService,
       sessionManager: sessionManager,
-      favoritesHiveStore: favoritesHiveStore,
+      savedRecipesHiveStore: savedRecipesHiveStore,
       firebaseAuth: FirebaseAuth.instance,
       firestore: FirebaseFirestore.instance,
     );
@@ -129,12 +128,10 @@ void main() async {
       sessionManager: sessionManager,
       appTelemetry: appTelemetry,
     );
-    final recipeImageCache = RecipeImageCache(prefs);
     final recipeViewModel = RecipeViewModel(
       recipeRepository: recipeRepo,
       userRepository: userRepo,
       appTelemetry: appTelemetry,
-      recipeImageCache: recipeImageCache,
     );
 
     final groceryRepo = GroceryListRepository(hiveStore: groceryHiveStore);

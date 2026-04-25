@@ -28,7 +28,7 @@ class HomeViewModel extends ChangeNotifier {
   final SessionManager _session;
   final AppTelemetry _telemetry;
 
-  StreamSubscription<List<Recipe>>? _favoritesFirestoreSub;
+  StreamSubscription<List<Recipe>>? _savedFirestoreSub;
 
   UserData? _userData;
   UserData? get userData => _userData;
@@ -40,12 +40,16 @@ class HomeViewModel extends ChangeNotifier {
   bool? _isSignedOut;
   bool? get isSignedOut => _isSignedOut;
 
-  /// Favorites: Firestore stream + Hive; HTTP only when cache is missing.
-  List<Recipe> _apiFavorites = [];
-  List<Recipe> get apiFavorites => _apiFavorites;
+  /// Saved: Firestore stream (merged `saved` + legacy `favorites`) + Hive; HTTP when cache is missing.
+  List<Recipe> _apiSaved = [];
+  List<Recipe> get apiSaved => _apiSaved;
+  @Deprecated('Use apiSaved')
+  List<Recipe> get apiFavorites => _apiSaved;
 
-  bool _favoritesLoading = false;
-  bool get favoritesLoading => _favoritesLoading;
+  bool _savedLoading = false;
+  bool get savedLoading => _savedLoading;
+  @Deprecated('Use savedLoading')
+  bool get favoritesLoading => _savedLoading;
 
   List<PromptSuggestionItem> _promptSuggestions = const [];
   List<PromptSuggestionItem> get promptSuggestions => _promptSuggestions;
@@ -55,31 +59,31 @@ class HomeViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _favoritesFirestoreSub?.cancel();
+    _savedFirestoreSub?.cancel();
     super.dispose();
   }
 
-  void _stopFavoritesFirestoreSync() {
-    _favoritesFirestoreSub?.cancel();
-    _favoritesFirestoreSub = null;
+  void _stopSavedFirestoreSync() {
+    _savedFirestoreSub?.cancel();
+    _savedFirestoreSub = null;
   }
 
-  void _startFavoritesFirestoreSync() {
+  void _startSavedFirestoreSync() {
     if (_session.isGuestMode()) return;
     final uid = _userRepo.readSessionProfile().userId;
     if (uid == null || uid.isEmpty) return;
 
-    _favoritesFirestoreSub?.cancel();
-    _favoritesFirestoreSub =
-        _userRepo.watchFavoritesFromFirestore(uid).listen(
+    _savedFirestoreSub?.cancel();
+    _savedFirestoreSub =
+        _userRepo.watchSavedFromFirestore(uid).listen(
       (list) async {
-        _apiFavorites = dedupeFavoritesByRecipeId(list);
-        await _userRepo.writeCachedFavorites(_apiFavorites);
+        _apiSaved = dedupeSavedByRecipeId(list);
+        await _userRepo.writeCachedSaved(_apiSaved);
         notifyListeners();
       },
       onError: (Object e, StackTrace _) {
         if (kDebugMode) {
-          debugPrint('[HomeViewModel] Firestore favorites stream error: $e');
+          debugPrint('[HomeViewModel] Firestore saved stream error: $e');
         }
       },
     );
@@ -98,11 +102,11 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
 
     if (_session.isGuestMode()) {
-      _stopFavoritesFirestoreSync();
+      _stopSavedFirestoreSync();
       _promptSuggestions = const [];
       _promptSuggestionsLoading = false;
     } else {
-      _startFavoritesFirestoreSync();
+      _startSavedFirestoreSync();
       unawaited(loadPromptSuggestions());
     }
   }
@@ -149,7 +153,7 @@ class HomeViewModel extends ChangeNotifier {
 
   /// Firestore/arrayRemove often fails to match stored objects (shape differs), so the server
   /// can end up with duplicate entries for the same [recipeId]. Keep one row per id for UI.
-  static List<Recipe> dedupeFavoritesByRecipeId(List<Recipe> list) {
+  static List<Recipe> dedupeSavedByRecipeId(List<Recipe> list) {
     final seen = <String>{};
     final out = <Recipe>[];
     for (final r in list) {
@@ -163,66 +167,88 @@ class HomeViewModel extends ChangeNotifier {
     return out;
   }
 
-  /// Favorites tab: read Hive when present; otherwise GET fetch-favorites once.
-  Future<void> loadFavoritesFromApi({bool showLoading = true}) async {
+  /// Saved tab: read Hive when present; otherwise GET fetch-saved once.
+  Future<void> loadSavedFromApi({bool showLoading = true}) async {
     final profile = _userRepo.readSessionProfile();
     final userId = profile.userId;
 
     if (showLoading && userId != null && userId.isNotEmpty) {
-      final cached = _userRepo.readCachedFavoritesSync();
+      final cached = _userRepo.readCachedSavedSync();
       if (cached != null) {
-        _apiFavorites = dedupeFavoritesByRecipeId(cached);
-        _favoritesLoading = false;
+        _apiSaved = dedupeSavedByRecipeId(cached);
+        _savedLoading = false;
         notifyListeners();
         return;
       }
     }
 
     if (showLoading) {
-      _favoritesLoading = true;
+      _savedLoading = true;
       notifyListeners();
     }
 
     try {
       await _telemetry.logFeatureInteraction(
-        featureId: FeatureIds.fetchFavorites,
+        featureId: FeatureIds.fetchSaved,
         action: 'load',
       );
-      final raw = await _userRepo.fetchFavorites();
-      _apiFavorites = dedupeFavoritesByRecipeId(raw);
+      final raw = await _userRepo.fetchSavedRecipes();
+      _apiSaved = dedupeSavedByRecipeId(raw);
       if (userId != null && userId.isNotEmpty) {
-        await _userRepo.writeCachedFavorites(_apiFavorites);
+        await _userRepo.writeCachedSaved(_apiSaved);
       }
     } catch (_) {
-      if (_apiFavorites.isEmpty) {
-        _apiFavorites = [];
+      if (_apiSaved.isEmpty) {
+        _apiSaved = [];
       }
     }
 
     if (showLoading) {
-      _favoritesLoading = false;
+      _savedLoading = false;
     }
     notifyListeners();
   }
 
-  Future<void> _recoverFavoritesFromNetwork() async {
+  /// @nodoc
+  @Deprecated('Use loadSavedFromApi')
+  Future<void> loadFavoritesFromApi({bool showLoading = true}) =>
+      loadSavedFromApi(showLoading: showLoading);
+
+  Future<void> _recoverSavedFromNetwork() async {
     try {
-      final raw = await _userRepo.fetchFavorites();
-      _apiFavorites = dedupeFavoritesByRecipeId(raw);
+      final raw = await _userRepo.fetchSavedRecipes();
+      _apiSaved = dedupeSavedByRecipeId(raw);
       final uid = _userRepo.readSessionProfile().userId;
       if (uid != null && uid.isNotEmpty) {
-        await _userRepo.writeCachedFavorites(_apiFavorites);
+        await _userRepo.writeCachedSaved(_apiSaved);
       }
       notifyListeners();
     } catch (_) {}
   }
 
-  /// GET get-recipe/:recipeId — full recipe doc for a favorited item.
-  Future<Recipe> fetchFavoriteRecipeDetail(String recipeId) async {
+  /// GET get-recipe/:recipeId — full recipe doc for a saved item.
+  Future<Recipe> fetchSavedRecipeDetail(String recipeId) async {
     return _userRepo.fetchRecipeById(recipeId);
   }
 
-  static bool _matchesFavoriteForRemoval(Recipe r, Recipe dismissed) {
+  /// GET /trending-recipes (for discovery; no auth).
+  Future<List<Recipe>> loadTrendingRecipes() async {
+    try {
+      await _telemetry.logFeatureInteraction(featureId: FeatureIds.openTrending);
+      return _userRepo.fetchTrendingRecipes(limit: 30);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[HomeViewModel] loadTrendingRecipes: $e');
+      }
+      return [];
+    }
+  }
+
+  @Deprecated('Use fetchSavedRecipeDetail')
+  Future<Recipe> fetchFavoriteRecipeDetail(String recipeId) =>
+      fetchSavedRecipeDetail(recipeId);
+
+  static bool _matchesSavedForRemoval(Recipe r, Recipe dismissed) {
     if (dismissed.recipeId.isNotEmpty) {
       return r.recipeId == dismissed.recipeId;
     }
@@ -230,23 +256,27 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   /// Swipe-to-remove: optimistic UI, POST save-favorites; Firestore stream refreshes list.
-  Future<bool> removeFavoriteWithSwipe(Recipe recipe) async {
-    _apiFavorites = _apiFavorites
-        .where((r) => !_matchesFavoriteForRemoval(r, recipe))
+  Future<bool> removeSavedWithSwipe(Recipe recipe) async {
+    _apiSaved = _apiSaved
+        .where((r) => !_matchesSavedForRemoval(r, recipe))
         .toList();
     notifyListeners();
     try {
-      await _telemetry.logFeatureInteraction(featureId: FeatureIds.removeFavorite);
-      await _userRepo.saveFavoriteRecipe(recipe.copyWith(isFavorite: false));
+      await _telemetry.logFeatureInteraction(featureId: FeatureIds.removeSaved);
+      await _userRepo.saveSavedRecipe(recipe.copyWith(isSaved: false));
       return true;
     } catch (_) {
-      await _recoverFavoritesFromNetwork();
+      await _recoverSavedFromNetwork();
       return false;
     }
   }
 
+  @Deprecated('Use removeSavedWithSwipe')
+  Future<bool> removeFavoriteWithSwipe(Recipe recipe) =>
+      removeSavedWithSwipe(recipe);
+
   Future<void> signOut() async {
-    _stopFavoritesFirestoreSync();
+    _stopSavedFirestoreSync();
     try {
       await _telemetry.logFeatureInteraction(featureId: FeatureIds.signOut);
       await _authRepo.signOut();
@@ -261,24 +291,24 @@ class HomeViewModel extends ChangeNotifier {
   bool get deleteAccountUsesGoogleReauth => _authRepo.currentUserHasGoogleProvider;
 
   /// Permanently deletes the Firebase account after password confirmation.
-  /// Clears local session and favorites; navigate to login from the caller ([signOut] uses [isSignedOut] instead).
+  /// Clears local session and cache; navigate to login from the caller ([signOut] uses [isSignedOut] instead).
   Future<void> deleteAccountWithPassword(String password) async {
-    _stopFavoritesFirestoreSync();
+    _stopSavedFirestoreSync();
     await _authRepo.deleteAccountWithPassword(password);
     _sessionProfile = const SessionProfile();
     _userData = null;
-    _apiFavorites = [];
+    _apiSaved = [];
     notifyListeners();
   }
 
   /// Google reauth delete. Returns `false` if the user cancelled the Google sheet.
   Future<bool> deleteAccountWithGoogleReauth() async {
-    _stopFavoritesFirestoreSync();
+    _stopSavedFirestoreSync();
     final ok = await _authRepo.deleteAccountWithGoogleReauth();
     if (!ok) return false;
     _sessionProfile = const SessionProfile();
     _userData = null;
-    _apiFavorites = [];
+    _apiSaved = [];
     notifyListeners();
     return true;
   }
