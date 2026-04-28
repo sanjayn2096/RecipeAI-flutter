@@ -690,8 +690,8 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     );
   }
 
-  Future<void> _onGetRecipesPressed() async {
-    final freeText = _customPreferenceController.text.trim();
+  Future<void> _startRecipeFlow({String? promptOverride}) async {
+    final freeText = (promptOverride ?? _customPreferenceController.text).trim();
     final hasIngredients = widget.sessionManager.getIngredients().isNotEmpty;
     if (freeText.isEmpty && !hasIngredients) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -720,6 +720,11 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
       if (freeText.isNotEmpty) 'initialPrompt': freeText,
     });
   }
+
+  Future<void> _onGetRecipesPressed() => _startRecipeFlow();
+
+  Future<void> _onIdeaSelected(String prompt) =>
+      _startRecipeFlow(promptOverride: prompt);
 
   @override
   Widget build(BuildContext context) {
@@ -765,13 +770,8 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 onInfo: _showPantryStaplesInfoDialog,
                 onAddPantry: _showPantryPickerBottomSheet,
               ),
-              const SizedBox(height: 20),
-              _PromptSuggestionsStrip(
-                homeViewModel: widget.homeViewModel,
-                promptController: _customPreferenceController,
-              ),
-              const SizedBox(height: 20),
               if (selectedSorted.isNotEmpty) ...[
+                const SizedBox(height: 16),
                 Text(
                   'In your pantry',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -795,8 +795,12 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 20),
               ],
+              const SizedBox(height: 20),
+              _PromptSuggestionsStrip(
+                homeViewModel: widget.homeViewModel,
+                onSelect: _onIdeaSelected,
+              ),
               const SizedBox(height: 24),
             ],
           ),
@@ -1182,11 +1186,11 @@ const double _kIdeaCardHeight = 214;
 class _PromptSuggestionsStrip extends StatelessWidget {
   const _PromptSuggestionsStrip({
     required this.homeViewModel,
-    required this.promptController,
+    required this.onSelect,
   });
 
   final HomeViewModel homeViewModel;
-  final TextEditingController promptController;
+  final ValueChanged<String> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -1249,12 +1253,7 @@ class _PromptSuggestionsStrip extends StatelessWidget {
                     subtitle: s.subtitle,
                     timeLabel: '15 min',
                     colorScheme: scheme,
-                    onTap: () {
-                      promptController.text = s.text;
-                      promptController.selection = TextSelection.collapsed(
-                        offset: s.text.length,
-                      );
-                    },
+                    onTap: () => onSelect(s.text),
                   );
                 },
               ),
@@ -1403,24 +1402,6 @@ class _PromptSuggestionTile extends StatelessWidget {
                                   fontWeight: FontWeight.w700,
                                   color: scheme.onPrimary,
                                 ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 6,
-                        top: 6,
-                        child: Material(
-                          color: scheme.surface,
-                          shape: const CircleBorder(),
-                          elevation: 1,
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: () {},
-                            child: Icon(
-                              Icons.bookmark_border,
-                              size: 18,
-                              color: scheme.onSurface.withValues(alpha: 0.55),
-                            ),
                           ),
                         ),
                       ),
