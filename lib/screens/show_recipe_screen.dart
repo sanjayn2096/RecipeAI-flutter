@@ -43,7 +43,8 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
     _ingredientItems = widget.recipe.ingredients
         .map(RecipeParsing.formatIngredientLineForDisplay)
         .toList();
-    _instructionItems = RecipeParsing.parseInstructions(widget.recipe.instructions);
+    _instructionItems =
+        RecipeParsing.parseInstructions(widget.recipe.instructions);
   }
 
   Future<void> _toggleSaved() async {
@@ -137,7 +138,8 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
   @override
   Widget build(BuildContext context) {
     final groceryVm = widget.groceryListViewModel;
-    final heroSize = (MediaQuery.sizeOf(context).width * 0.7).clamp(220.0, 320.0);
+    final screenW = MediaQuery.sizeOf(context).width;
+    final heroHeight = screenW * 9 / 16;
 
     return Scaffold(
       appBar: AppBar(
@@ -174,75 +176,82 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: RecipeImageBox(
-                imageUrl: _displayRecipe.image,
-                width: heroSize,
-                height: heroSize,
-                fit: BoxFit.contain,
+            RecipeImageBox(
+              imageUrl: _displayRecipe.image,
+              width: double.infinity,
+              height: heroHeight,
+              fit: BoxFit.cover,
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(12),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              widget.recipe.cookingTime,
-              style: Theme.of(
-                context,
-              ).textTheme.labelLarge?.copyWith(fontSize: 15),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppStrings.nutritionalValueOfDish,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontSize: 19),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Values shown per serving.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 13,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.recipe.cookingTime,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.copyWith(fontSize: 15),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    AppStrings.nutritionalValueOfDish,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(fontSize: 19),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Values shown per serving.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildNutritionSection(),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => context.push(
+                      '/cook-recipe',
+                      extra: {
+                        'recipe': _displayRecipe,
+                        'groceryListViewModel': groceryVm,
+                      },
+                    ),
+                    icon: const Icon(Icons.restaurant_menu),
+                    label: const Text("Let's get cooking"),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Ingredients',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(fontSize: 19),
+                  ),
+                  const SizedBox(height: 4),
+                  _buildIngredientsSection(),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppStrings.recipeInstructions,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(fontSize: 19),
+                  ),
+                  const SizedBox(height: 4),
+                  _buildInstructionsSection(),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            _buildNutritionSection(),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () => context.push(
-                '/cook-recipe',
-                extra: {
-                  'recipe': _displayRecipe,
-                  'groceryListViewModel': groceryVm,
-                },
-              ),
-              icon: const Icon(Icons.restaurant_menu),
-              label: const Text("Let's get cooking"),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Ingredients',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontSize: 19),
-            ),
-            const SizedBox(height: 4),
-            _buildIngredientsSection(),
-            const SizedBox(height: 16),
-            Text(
-              AppStrings.recipeInstructions,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontSize: 19),
-            ),
-            const SizedBox(height: 4),
-            _buildInstructionsSection(),
           ],
         ),
       ),
@@ -425,9 +434,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
     final theme = Theme.of(context);
     final n = numberOfServings < 1 ? 1 : numberOfServings;
     final accent = theme.colorScheme.primary;
-    final smallBowl = compact
-        ? 18.0
-        : (expandVertically ? 26.0 : 22.0);
+    final smallBowl = compact ? 18.0 : (expandVertically ? 26.0 : 22.0);
     final largeBowl = compact ? 26.0 : (expandVertically ? 40.0 : 30.0);
     final vPad = compact ? 8.0 : 12.0;
     final hPad = compact ? 10.0 : 12.0;
@@ -472,7 +479,8 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        color:
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(12),
       ),
       child: content,
@@ -489,7 +497,8 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        color:
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -566,7 +575,8 @@ class _WideNutritionWithSideState extends State<_WideNutritionWithSide> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final leftW = (constraints.maxWidth - gap - sideW).clamp(48.0, double.infinity);
+        final leftW =
+            (constraints.maxWidth - gap - sideW).clamp(48.0, double.infinity);
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

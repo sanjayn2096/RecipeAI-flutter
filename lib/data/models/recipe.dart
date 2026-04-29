@@ -19,6 +19,9 @@ class Recipe {
     this.isFavorited = false,
     this.favoriteCount = 0,
     this.stepImageUrls = const [],
+    /// From model output when present — [null] means older saved recipes without these keys.
+    this.vegetarianFriendly,
+    this.glutenFriendly,
   });
 
   final String recipeId;
@@ -36,6 +39,12 @@ class Recipe {
   final int favoriteCount;
   /// Per-instruction image URLs (e.g. from AI generation), aligned with [RecipeParsing.parseInstructions].
   final List<String> stepImageUrls;
+
+  /// Model-estimated: no meat, fish, or shellfish in the dish.
+  final bool? vegetarianFriendly;
+
+  /// Model-estimated: no wheat, barley, rye, or obvious gluten in the dish.
+  final bool? glutenFriendly;
 
   /// Backward-compatible alias: previously a single "favorite" meant "saved" only.
   bool get isFavorite => isSaved;
@@ -56,6 +65,18 @@ class Recipe {
         : fc is num
             ? fc.toInt()
             : int.tryParse('$fc') ?? 0;
+    final vf = json['vegetarianFriendly'] ?? json['vegetarian_friendly'];
+    final gf = json['glutenFriendly'] ?? json['gluten_friendly'];
+    bool? asBool(dynamic v) {
+      if (v is bool) return v;
+      if (v is String) {
+        final t = v.trim().toLowerCase();
+        if (t == 'true') return true;
+        if (t == 'false') return false;
+      }
+      return null;
+    }
+
     return Recipe(
       recipeId: id is String ? id : (id?.toString() ?? ''),
       recipeName: json['recipeName'] as String? ?? '',
@@ -75,6 +96,8 @@ class Recipe {
       stepImageUrls: rawStepUrls is List
           ? rawStepUrls.map((e) => e.toString()).toList()
           : const [],
+      vegetarianFriendly: asBool(vf),
+      glutenFriendly: asBool(gf),
     );
   }
 
@@ -92,6 +115,8 @@ class Recipe {
         'isFavorited': isFavorited,
         'favoriteCount': favoriteCount,
         'stepImageUrls': stepImageUrls,
+        if (vegetarianFriendly != null) 'vegetarianFriendly': vegetarianFriendly,
+        if (glutenFriendly != null) 'glutenFriendly': glutenFriendly,
       };
 
   /// POST save-favorites: backends expect `isSaved` / `isFavorite` and `imageUrl` alias.
@@ -110,6 +135,8 @@ class Recipe {
       'isSaved': isSaved,
       'isFavorite': isSaved,
       'stepImageUrls': stepImageUrls,
+      if (vegetarianFriendly != null) 'vegetarianFriendly': vegetarianFriendly,
+      if (glutenFriendly != null) 'glutenFriendly': glutenFriendly,
     };
   }
 
@@ -119,6 +146,8 @@ class Recipe {
     int? favoriteCount,
     String? image,
     List<String>? stepImageUrls,
+    bool? vegetarianFriendly,
+    bool? glutenFriendly,
   }) =>
       Recipe(
         recipeId: recipeId,
@@ -133,6 +162,8 @@ class Recipe {
         isFavorited: isFavorited ?? this.isFavorited,
         favoriteCount: favoriteCount ?? this.favoriteCount,
         stepImageUrls: stepImageUrls ?? this.stepImageUrls,
+        vegetarianFriendly: vegetarianFriendly ?? this.vegetarianFriendly,
+        glutenFriendly: glutenFriendly ?? this.glutenFriendly,
       );
 
   /// Combined text for client-side search across all recipe fields.
@@ -152,6 +183,9 @@ class Recipe {
       n.fat,
       n.vitamins,
       n.numberOfServings.toString(),
+      if (vegetarianFriendly != null)
+        vegetarianFriendly! ? 'vegetarian' : '',
+      if (glutenFriendly != null) glutenFriendly! ? 'gluten free' : '',
     ].join(' ');
   }
 

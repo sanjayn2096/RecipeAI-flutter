@@ -104,6 +104,69 @@ class SessionManager {
   String? getCookingPreference() => getPreference(AppConstants.prefsCookingPreference) ?? 'No Cooking Preferences';
   String? getDietRestrictions() => getPreference(AppConstants.prefsDietRestrictions) ?? 'No Diet Restrictions';
 
+  List<String> getDietProfiles() {
+    final list = _prefs?.getStringList(_prefix + AppConstants.prefsDietProfiles);
+    return list ?? const [];
+  }
+
+  Future<void> saveDietProfiles(List<String> values) async {
+    await (await _p).setStringList(
+      _prefix + AppConstants.prefsDietProfiles,
+      List<String>.from(values),
+    );
+  }
+
+  List<String> getAllergensAvoid() {
+    final list = _prefs?.getStringList(_prefix + AppConstants.prefsAllergensAvoid);
+    return list ?? const [];
+  }
+
+  Future<void> saveAllergensAvoid(List<String> values) async {
+    await (await _p).setStringList(
+      _prefix + AppConstants.prefsAllergensAvoid,
+      List<String>.from(values),
+    );
+  }
+
+  String? getAllergyNotes() => getPreference(AppConstants.prefsAllergyNotes);
+
+  Future<void> saveAllergyNotes(String? value) async {
+    final p = await _p;
+    const key = _prefix + AppConstants.prefsAllergyNotes;
+    if (value == null || value.trim().isEmpty) {
+      await p.remove(key);
+    } else {
+      await p.setString(key, value.trim());
+    }
+  }
+
+  /// Hydrates lifestyle fields from GET get_user_profile after sign-in.
+  /// Pass `null` for list fields when the API omitted them so local prefs are not wiped.
+  /// Set [applyAllergyNotes] when the user document includes `allergyNotes` (even if empty).
+  Future<void> persistLifestyleFromBackend({
+    List<String>? dietProfiles,
+    List<String>? allergensAvoid,
+    String? allergyNotes,
+    bool applyAllergyNotes = false,
+  }) async {
+    final p = await _p;
+    if (dietProfiles != null) {
+      await p.setStringList(
+        _prefix + AppConstants.prefsDietProfiles,
+        List<String>.from(dietProfiles),
+      );
+    }
+    if (allergensAvoid != null) {
+      await p.setStringList(
+        _prefix + AppConstants.prefsAllergensAvoid,
+        List<String>.from(allergensAvoid),
+      );
+    }
+    if (applyAllergyNotes) {
+      await saveAllergyNotes(allergyNotes);
+    }
+  }
+
   /// Chosen pantry / ingredient labels sent to POST generate-recipe.
   List<String> getIngredients() {
     final list = _prefs?.getStringList(_prefix + AppConstants.prefsIngredients);

@@ -151,6 +151,28 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  List<String> get persistedDietProfiles =>
+      List<String>.from(_session.getDietProfiles());
+
+  List<String> get persistedAllergensAvoid =>
+      List<String>.from(_session.getAllergensAvoid());
+
+  String? get persistedAllergyNotes => _session.getAllergyNotes();
+
+  /// Saves diet/allergens to device and PATCHes `/user-lifestyle` when signed in.
+  Future<void> saveLifestyleProfile({
+    required List<String> dietProfiles,
+    required List<String> allergensAvoid,
+    String? allergyNotes,
+  }) async {
+    await _userRepo.saveLifestylePreferences(
+      dietProfiles: dietProfiles,
+      allergensAvoid: allergensAvoid,
+      allergyNotes: allergyNotes,
+    );
+    notifyListeners();
+  }
+
   /// Firestore/arrayRemove often fails to match stored objects (shape differs), so the server
   /// can end up with duplicate entries for the same [recipeId]. Keep one row per id for UI.
   static List<Recipe> dedupeSavedByRecipeId(List<Recipe> list) {

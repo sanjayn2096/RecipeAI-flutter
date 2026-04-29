@@ -6,6 +6,7 @@ import '../data/models/recipe.dart';
 import '../view_models/home_view_model.dart';
 import '../view_models/grocery_list_view_model.dart';
 import '../widgets/cartoon_outlined_card.dart';
+import '../widgets/recipe_list_row.dart';
 
 /// Most-favorited recipes (public [favoriteCount] from the server).
 class TrendingRecipesScreen extends StatefulWidget {
@@ -146,14 +147,18 @@ class _TrendingRecipesScreenState extends State<TrendingRecipesScreen> {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: CartoonOutlinedCard(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                    title: Text(r.recipeName),
-                    subtitle: Text('${r.cuisine} · ${r.favoriteCount} favorites'),
-                    leading: const Icon(Icons.trending_up, color: Colors.orange),
+                  child: RecipeListRow(
+                    recipe: r,
+                    metaExtra: '${r.favoriteCount} favorites',
+                    trailingActions: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4, top: 4),
+                        child: Icon(
+                          Icons.trending_up,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ],
                     onTap: () => _openRecipe(r),
                   ),
                 ),

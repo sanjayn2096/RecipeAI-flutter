@@ -7,6 +7,15 @@ class AppStrings {
   static const String ok = 'OK';
   static const String back = 'Back';
   static const String refresh = 'Refresh';
+  /// Shown below recipe list actions (replace batch with new AI suggestions).
+  static const String getDifferentRecipes = 'Different recipes';
+  /// Guest hint: repeated generation uses the daily free allotment.
+  static const String guestQuotaEachGenerationCounts =
+      'Guests get two recipe generations per UTC day. Each new batch counts as one—including when loading different suggestions—until you sign up.';
+  static const String recipePreferencesOptionalHint =
+      'Optional: what should change this time (e.g. quicker, vegetarian, bolder flavor)?';
+  static const String generateNewRecipeBatch = 'Generate new batch';
+  static const String keepAndAddRecipes = 'Keep these and load more below';
   static const String fetchRecipes = 'Fetching Recipes...';
   static const String fetchMoreRecipes = 'Fetch More Recipes';
   static const String editPreferences = 'Edit Preferences';

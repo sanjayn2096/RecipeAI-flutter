@@ -6,9 +6,13 @@ import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 
 import '../core/app_strings.dart';
+import '../core/constants.dart';
 import '../data/models/user_data.dart';
+import '../services/session_manager.dart';
 import '../widgets/cartoon_outlined_card.dart';
 import '../widgets/guest_signup_prompt.dart';
+import '../widgets/recipe_list_row.dart';
+import '../widgets/recipe_search_context_banner.dart';
 import '../widgets/sous_chef_menu_button.dart';
 import '../view_models/grocery_list_view_model.dart';
 import '../view_models/recipe_view_model.dart';
@@ -42,8 +46,12 @@ class RecipeFlowScreen extends StatefulWidget {
   State<RecipeFlowScreen> createState() => _RecipeFlowScreenState();
 }
 
+typedef _FetchMoreRecipesResult = ({bool append, String? refinement});
+
 class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
   String _currentRoute = 'mood';
+  final TextEditingController _fetchMorePreferenceController =
+      TextEditingController();
 
   List<Widget> _embedShellMenuActions() {
     if (!widget.embedInTab || widget.onOpenAppMenu == null) {
@@ -227,6 +235,22 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
     });
   }
 
+  void _hydrateQuestionnaireSelectionsFromSession() {
+    final sm = widget.sessionManager as SessionManager;
+    _selectedMood = sm.getPreference(AppConstants.prefsMood);
+    _selectedDiet = sm.getPreference(AppConstants.prefsDietRestrictions);
+    _selectedCuisine = sm.getPreference(AppConstants.prefsCuisine);
+    _selectedCooking =
+        sm.getPreference(AppConstants.prefsCookingPreference);
+  }
+
+  void _editSearchSettingsFromResultsList() {
+    setState(() {
+      _hydrateQuestionnaireSelectionsFromSession();
+      _currentRoute = 'mood';
+    });
+  }
+
   void _goToPreviousQuestionnaireStep() {
     final prev = AppStrings.previousRoute(_currentRoute);
     if (prev != null) {
@@ -244,6 +268,32 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
       };
     }
     return null;
+  }
+
+  @override
+  void dispose() {
+    _fetchMorePreferenceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _showFetchMoreRecipesSheet() async {
+    if (!await _ensureGuestCanGenerate()) return;
+    if (!mounted) return;
+    _fetchMorePreferenceController.clear();
+    final result = await showModalBottomSheet<_FetchMoreRecipesResult>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => _FetchMoreRecipesSheet(
+        preferenceController: _fetchMorePreferenceController,
+      ),
+    );
+    if (result == null || !mounted) return;
+    final recipeVm = widget.recipeViewModel as RecipeViewModel;
+    await recipeVm.fetchMoreRecipes(
+      append: result.append,
+      refinementNote: result.refinement,
+    );
   }
 
   @override
@@ -346,6 +396,9 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
               ),
             );
           }
+          final batchRefreshOverlay =
+              isLoading && recipes.isNotEmpty && !isStreaming;
+
           return Scaffold(
             appBar: AppBar(
               title: const Text('Recipes'),
@@ -357,120 +410,177 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
               ),
               actions: _embedShellMenuActions(),
             ),
-            body: Column(
-              children: [
-                if (isLoading && isStreaming)
-                  const LinearProgressIndicator(minHeight: 2),
-                if (isLoading && isStreaming)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
-                    child: Text(
-                      'Loading more recipes...',
-                      style: TextStyle(fontSize: 13),
+            bottomNavigationBar: SafeArea(
+              minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.sessionManager.isGuestMode()) ...[
+                    Text(
+                      AppStrings.guestQuotaEachGenerationCounts,
+                      style:
+                          Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                      textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 8),
+                  ],
+                  FilledButton.icon(
+                    icon: const Icon(Icons.restaurant_menu),
+                    label: const Text(AppStrings.getDifferentRecipes),
+                    onPressed: isLoading
+                        ? null
+                        : _showFetchMoreRecipesSheet,
                   ),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    itemCount: recipes.length,
-                    itemBuilder: (_, i) {
-                      final recipe = recipes[i];
-                      return CartoonOutlinedCard(
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          title: Text(recipe.recipeName),
-                          subtitle: Text(recipe.cuisine),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                tooltip: recipe.isSaved
-                                    ? 'Remove from saved'
-                                    : 'Save to your list',
-                                icon: Icon(
-                                  recipe.isSaved
-                                      ? Icons.bookmark
-                                      : Icons.bookmark_border,
-                                  color: recipe.isSaved
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                ),
-                                onPressed: () async {
-                                  if (widget.sessionManager.isGuestMode()) {
-                                    final goSignup =
-                                        await showGuestFavoriteSignupDialog(
-                                            context);
-                                    if (!context.mounted) return;
-                                    if (goSignup == true) {
-                                      goToSignup(context);
-                                    }
-                                    return;
-                                  }
-                                  await widget.recipeViewModel
-                                      .toggleSaved(recipe);
+                ],
+              ),
+            ),
+            body: Stack(
+              children: [
+                Column(
+                  children: [
+                    if (isLoading && isStreaming)
+                      const LinearProgressIndicator(minHeight: 2),
+                    if (isLoading && isStreaming)
+                      Padding(
+                        padding:
+                            const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                        child: Text(
+                          'Loading more recipes...',
+                          style:
+                              Theme.of(context).textTheme.bodySmall ??
+                              const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    RecipeSearchContextBanner(
+                      sessionManager: widget.sessionManager as SessionManager,
+                      onChangeSearchSettings:
+                          _editSearchSettingsFromResultsList,
+                    ),
+                    Expanded(
+                      child: AbsorbPointer(
+                        absorbing: batchRefreshOverlay,
+                        child: ListView.builder(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 10),
+                          itemCount: recipes.length,
+                          itemBuilder: (_, i) {
+                            final recipe = recipes[i];
+                            return CartoonOutlinedCard(
+                              child: RecipeListRow(
+                                recipe: recipe,
+                                trailingActions: [
+                                  IconButton(
+                                    tooltip: recipe.isSaved
+                                        ? 'Remove from saved'
+                                        : 'Save to your list',
+                                    icon: Icon(
+                                      recipe.isSaved
+                                          ? Icons.bookmark
+                                          : Icons.bookmark_border,
+                                      color: recipe.isSaved
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .primary
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                    ),
+                                    onPressed: () async {
+                                      if ((widget.sessionManager
+                                              as SessionManager)
+                                          .isGuestMode()) {
+                                        final goSignup =
+                                            await showGuestFavoriteSignupDialog(
+                                                context);
+                                        if (!context.mounted) return;
+                                        if (goSignup == true) {
+                                          goToSignup(context);
+                                        }
+                                        return;
+                                      }
+                                      await widget.recipeViewModel
+                                          .toggleSaved(recipe);
+                                    },
+                                  ),
+                                  IconButton(
+                                    tooltip: recipe.isFavorited
+                                        ? 'Remove public favorite'
+                                        : 'Favorite (trending)',
+                                    icon: Icon(
+                                      recipe.isFavorited
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      color: recipe.isFavorited
+                                          ? Colors.red
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                    ),
+                                    onPressed: () async {
+                                      if ((widget.sessionManager
+                                              as SessionManager)
+                                          .isGuestMode()) {
+                                        final goSignup =
+                                            await showGuestFavoriteSignupDialog(
+                                                context);
+                                        if (!context.mounted) return;
+                                        if (goSignup == true) {
+                                          goToSignup(context);
+                                        }
+                                        return;
+                                      }
+                                      if (recipe.recipeId.isEmpty) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Open the full recipe (saved) before favoriting',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      await widget.recipeViewModel
+                                          .togglePublicFavorite(recipe);
+                                    },
+                                  ),
+                                ],
+                                onTap: () {
+                                  context.push(
+                                    '/show-recipe',
+                                    extra: {
+                                      'recipe': recipe,
+                                      'recipeViewModel':
+                                          widget.recipeViewModel,
+                                      'groceryListViewModel':
+                                          widget.groceryListViewModel,
+                                    },
+                                  );
                                 },
                               ),
-                              IconButton(
-                                tooltip: recipe.isFavorited
-                                    ? 'Remove public favorite'
-                                    : 'Favorite (trending)',
-                                icon: Icon(
-                                  recipe.isFavorited
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  color: recipe.isFavorited
-                                      ? Colors.red
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                ),
-                                onPressed: () async {
-                                  if (widget.sessionManager.isGuestMode()) {
-                                    final goSignup =
-                                        await showGuestFavoriteSignupDialog(
-                                            context);
-                                    if (!context.mounted) return;
-                                    if (goSignup == true) {
-                                      goToSignup(context);
-                                    }
-                                    return;
-                                  }
-                                  if (recipe.recipeId.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Open the full recipe (saved) before favoriting',
-                                        ),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  await widget.recipeViewModel
-                                      .togglePublicFavorite(recipe);
-                                },
-                              ),
-                            ],
-                          ),
-                          onTap: () {
-                              context.push(
-                              '/show-recipe',
-                              extra: {
-                                'recipe': recipe,
-                                'recipeViewModel': widget.recipeViewModel,
-                                'groceryListViewModel': widget.groceryListViewModel,
-                              },
                             );
                           },
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
+                if (batchRefreshOverlay)
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color:
+                          Theme.of(context).colorScheme.scrim.withValues(
+                                alpha: 0.32,
+                              ),
+                      child: const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                  ),
               ],
             ),
           );
@@ -486,6 +596,161 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
       onNext: _next,
       onBack: _promptOnBack,
       appBarActions: _embedShellMenuActions(),
+    );
+  }
+}
+
+class _FetchMoreRecipesSheet extends StatefulWidget {
+  const _FetchMoreRecipesSheet({
+    required this.preferenceController,
+  });
+
+  final TextEditingController preferenceController;
+
+  @override
+  State<_FetchMoreRecipesSheet> createState() =>
+      _FetchMoreRecipesSheetState();
+}
+
+class _FetchMoreRecipesSheetState extends State<_FetchMoreRecipesSheet> {
+  void _onTextChanged() => setState(() {});
+
+  @override
+  void initState() {
+    super.initState();
+    widget.preferenceController.addListener(_onTextChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.preferenceController.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  void _submitReplace() {
+    FocusScope.of(context).unfocus();
+    final t = widget.preferenceController.text.trim();
+    Navigator.pop(
+      context,
+      (append: false, refinement: t.isEmpty ? null : t),
+    );
+  }
+
+  void _submitAppend() {
+    FocusScope.of(context).unfocus();
+    final t = widget.preferenceController.text.trim();
+    Navigator.pop(
+      context,
+      (append: true, refinement: t.isEmpty ? null : t),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    final onSurface = scheme.onSurface;
+
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 8,
+          bottom: safeBottom + keyboardInset + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              AppStrings.fetchMoreRecipes,
+              style: Theme.of(context).textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: ColoredBox(
+                color: scheme.surfaceContainerHigh,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: widget.preferenceController,
+                          autofocus: false,
+                          minLines: 1,
+                          maxLines: 5,
+                          textInputAction: TextInputAction.newline,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: onSurface,
+                              ),
+                          cursorColor: onSurface,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            border: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            hintText: AppStrings.recipePreferencesOptionalHint,
+                            hintStyle: TextStyle(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            contentPadding:
+                                const EdgeInsets.fromLTRB(12, 12, 8, 12),
+                          ),
+                        ),
+                      ),
+                      Material(
+                        color: scheme.primary,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _submitReplace,
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Icon(
+                              Icons.arrow_forward,
+                              color: scheme.onPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: _submitAppend,
+              child: Text(AppStrings.keepAndAddRecipes),
+            ),
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: () {
+                FocusScope.of(context).unfocus();
+                Navigator.pop(context);
+              },
+              child: const Text('Dismiss'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

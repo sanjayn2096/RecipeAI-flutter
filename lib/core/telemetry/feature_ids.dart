@@ -1,6 +1,7 @@
 /// Stable names for [AppTelemetry.logFeatureInteraction] (low cardinality).
 abstract final class FeatureIds {
   static const generateRecipe = 'generate_recipe';
+  static const generateRecipeFollowUp = 'generate_recipe_follow_up';
   static const toggleFavorite = 'toggle_favorite';
   static const toggleSave = 'toggle_save';
   static const togglePublicFavorite = 'toggle_public_favorite';

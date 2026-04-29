@@ -235,6 +235,42 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(body));
   }
 
+  /// POST resolve-recipe-hero.
+  /// Returns corpus image URL, or empty URL when placeholder should be shown.
+  Future<ResolveRecipeHeroResponse> resolveRecipeHero({
+    required String recipeName,
+    String? cuisine,
+    String? idToken,
+    String? clientRequestId,
+    double? threshold,
+  }) async {
+    const metricPath = 'resolve-recipe-hero';
+    final url = _url('resolve-recipe-hero');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final body = <String, dynamic>{
+      'recipeName': recipeName,
+      if (cuisine != null && cuisine.trim().isNotEmpty) 'cuisine': cuisine.trim(),
+      if (clientRequestId != null && clientRequestId.trim().isNotEmpty)
+        'clientRequestId': clientRequestId.trim(),
+      if (threshold != null) 'threshold': threshold.clamp(0.0, 1.0),
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return ResolveRecipeHeroResponse.fromJson(map as Map<String, dynamic>);
+    }
+    throw ApiException(r.statusCode, _extractError(map));
+  }
+
   /// POST generate-recipes-stream.
   /// Emits each recipe as it arrives via SSE events.
   Stream<Recipe> generateRecipeStream(
@@ -488,4 +524,26 @@ class ApiException implements Exception {
   final String message;
   @override
   String toString() => 'ApiException($statusCode): $message';
+}
+
+class ResolveRecipeHeroResponse {
+  const ResolveRecipeHeroResponse({
+    required this.recipeImageUrl,
+    required this.source,
+    this.bestScore = 0,
+  });
+
+  final String recipeImageUrl;
+  final String source;
+  final double bestScore;
+
+  factory ResolveRecipeHeroResponse.fromJson(Map<String, dynamic> json) {
+    final scoreRaw = json['bestScore'];
+    final double score = scoreRaw is num ? scoreRaw.toDouble() : 0.0;
+    return ResolveRecipeHeroResponse(
+      recipeImageUrl: (json['recipeImageUrl'] ?? '').toString(),
+      source: (json['source'] ?? 'placeholder').toString(),
+      bestScore: score,
+    );
+  }
 }

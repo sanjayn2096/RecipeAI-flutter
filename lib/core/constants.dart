@@ -14,6 +14,10 @@ class AppConstants {
   static const String prefsCuisine = 'cuisinePreferences';
   static const String prefsCookingPreference = 'cookingPreferences';
   static const String prefsDietRestrictions = 'dietRestrictions';
+  /// Selected diet labels (multi-select; also sent as `dietProfiles` to the API).
+  static const String prefsDietProfiles = 'dietProfiles';
+  static const String prefsAllergensAvoid = 'allergensAvoid';
+  static const String prefsAllergyNotes = 'allergyNotes';
   static const String prefsCustomPreference = 'customPreference';
   /// Pantry / chosen ingredient labels (persisted as string list).
   static const String prefsIngredients = 'ingredients';

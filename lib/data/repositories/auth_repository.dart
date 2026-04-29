@@ -94,6 +94,12 @@ class AuthRepository {
       firstName: profile.firstName,
       lastName: profile.lastName,
     );
+    await _session.persistLifestyleFromBackend(
+      dietProfiles: profile.dietProfiles,
+      allergensAvoid: profile.allergensAvoid,
+      allergyNotes: profile.allergyNotes,
+      applyAllergyNotes: profile.hasAllergyNotesField,
+    );
   }
 
   /// Returns true if user is already signed in, email verified, and backend profile loaded.

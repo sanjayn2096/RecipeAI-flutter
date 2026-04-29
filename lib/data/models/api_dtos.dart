@@ -76,7 +76,13 @@ class GenerateRecipeRequest {
     required this.cuisine,
     required this.cookingPreference,
     required this.recipeMode,
+    this.dietProfiles = const [],
+    this.allergensAvoid = const [],
+    this.allergyNotes,
     this.anonymousId,
+    this.excludeRecipeNames = const [],
+    this.userRefinementNote,
+    this.generationAttempt,
   });
 
   final List<String> ingredients;
@@ -86,7 +92,17 @@ class GenerateRecipeRequest {
   final String cuisine;
   final String cookingPreference;
   final RecipeGenerationMode recipeMode;
+  /// Structured diet tags (e.g. Vegan, Keto); server merges with signed-in profile when empty.
+  final List<String> dietProfiles;
+  final List<String> allergensAvoid;
+  final String? allergyNotes;
   final String? anonymousId;
+  /// Titles already shown; server instructs model not to trivially repeat them.
+  final List<String> excludeRecipeNames;
+  /// Optional hint for refresh / “more recipes” prompts.
+  final String? userRefinementNote;
+  /// 1 = first batch from this flow; 2+ = follow-ups (temperature/prompt branching on server).
+  final int? generationAttempt;
 
   Map<String, dynamic> toJson() {
     final m = <String, dynamic>{
@@ -97,9 +113,25 @@ class GenerateRecipeRequest {
       'cuisine': cuisine,
       'cookingPreference': cookingPreference,
       'recipeMode': recipeMode.wireName,
+      'dietProfiles': dietProfiles,
+      'allergensAvoid': allergensAvoid,
     };
+    final notes = allergyNotes?.trim();
+    if (notes != null && notes.isNotEmpty) {
+      m['allergyNotes'] = notes;
+    }
     if (anonymousId != null && anonymousId!.trim().isNotEmpty) {
       m['anonymousId'] = anonymousId!.trim();
+    }
+    if (excludeRecipeNames.isNotEmpty) {
+      m['excludeRecipeNames'] = excludeRecipeNames;
+    }
+    final ref = userRefinementNote?.trim();
+    if (ref != null && ref.isNotEmpty) {
+      m['userRefinementNote'] = ref;
+    }
+    if (generationAttempt != null) {
+      m['generationAttempt'] = generationAttempt!;
     }
     return m;
   }
@@ -176,6 +208,9 @@ class GenerateRecipeResponse {
 class UpdateUserLifestyleRequest {
   UpdateUserLifestyleRequest({
     this.dietRestrictions,
+    this.dietProfiles,
+    this.allergensAvoid,
+    this.allergyNotes,
     this.cookingPreference,
     this.healthGoal,
     this.mood,
@@ -183,6 +218,9 @@ class UpdateUserLifestyleRequest {
   });
 
   final String? dietRestrictions;
+  final List<String>? dietProfiles;
+  final List<String>? allergensAvoid;
+  final String? allergyNotes;
   final String? cookingPreference;
   final String? healthGoal;
   final String? mood;
@@ -191,6 +229,9 @@ class UpdateUserLifestyleRequest {
   Map<String, dynamic> toJson() {
     final m = <String, dynamic>{};
     if (dietRestrictions != null) m['dietRestrictions'] = dietRestrictions;
+    if (dietProfiles != null) m['dietProfiles'] = dietProfiles;
+    if (allergensAvoid != null) m['allergensAvoid'] = allergensAvoid;
+    if (allergyNotes != null) m['allergyNotes'] = allergyNotes;
     if (cookingPreference != null) m['cookingPreference'] = cookingPreference;
     if (healthGoal != null) m['healthGoal'] = healthGoal;
     if (mood != null) m['mood'] = mood;
@@ -231,11 +272,35 @@ class SuggestPromptsResponse {
 
 /// Response from GET get_user_profile (used after Firebase sign-in).
 class UserProfileResponse {
-  UserProfileResponse({required this.userId, this.email, this.firstName, this.lastName});
+  UserProfileResponse({
+    required this.userId,
+    this.email,
+    this.firstName,
+    this.lastName,
+    this.dietProfiles,
+    this.allergensAvoid,
+    this.allergyNotes,
+    this.hasAllergyNotesField = false,
+  });
   final String userId;
   final String? email;
   final String? firstName;
   final String? lastName;
+  /// Present when GET user document includes structured fields (`null` = omit key — do not wipe local prefs).
+  final List<String>? dietProfiles;
+  final List<String>? allergensAvoid;
+  final String? allergyNotes;
+  final bool hasAllergyNotesField;
+
+  static List<String> _stringList(dynamic v) {
+    if (v is! List) return const [];
+    return v
+        .map((e) => e?.toString() ?? '')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
   factory UserProfileResponse.fromJson(Map<String, dynamic> json) {
     final uid = json['userId'] ?? json['user_id'];
     String? pickStr(String a, String b) {
@@ -245,11 +310,25 @@ class UserProfileResponse {
       return v.toString();
     }
 
+    final bool hasAllergyNotesField = json.containsKey('allergyNotes');
+    String? allergyNotes;
+    if (hasAllergyNotesField) {
+      final raw = json['allergyNotes'];
+      allergyNotes = raw == null ? '' : raw.toString().trim();
+    }
+
     return UserProfileResponse(
       userId: uid is String ? uid : uid?.toString() ?? '',
       email: json['email'] as String?,
       firstName: pickStr('firstName', 'first_name'),
       lastName: pickStr('lastName', 'last_name'),
+      dietProfiles:
+          json.containsKey('dietProfiles') ? _stringList(json['dietProfiles']) : null,
+      allergensAvoid: json.containsKey('allergensAvoid')
+          ? _stringList(json['allergensAvoid'])
+          : null,
+      allergyNotes: allergyNotes,
+      hasAllergyNotesField: hasAllergyNotesField,
     );
   }
 }

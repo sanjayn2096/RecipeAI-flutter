@@ -11,6 +11,22 @@ import '../data/repositories/user_repository.dart';
 
 bool _kRecipeLogging = kDebugMode;
 
+List<Recipe> _dedupeRecipesByNormalizedTitle(List<Recipe> items) {
+  final seen = <String>{};
+  final out = <Recipe>[];
+  for (final r in items) {
+    final k = r.recipeName.trim().toLowerCase();
+    if (k.isEmpty) {
+      out.add(r);
+      continue;
+    }
+    if (seen.contains(k)) continue;
+    seen.add(k);
+    out.add(r);
+  }
+  return out;
+}
+
 class RecipeViewModel extends ChangeNotifier {
   RecipeViewModel({
     required RecipeRepository recipeRepository,
@@ -39,6 +55,9 @@ class RecipeViewModel extends ChangeNotifier {
   bool _isBeingEdited = false;
   bool get isBeingEdited => _isBeingEdited;
 
+  /// Counts finished generation batches so follow-ups ([fetchMoreRecipes]) get `generationAttempt >= 2`.
+  int _successfulGenerationAttempts = 0;
+
   /// POST generate-recipe with structured session fields (server builds prompt).
   Future<void> fetchRecipes() async {
     if (_kRecipeLogging) {
@@ -48,6 +67,7 @@ class RecipeViewModel extends ChangeNotifier {
       featureId: FeatureIds.generateRecipe,
       action: 'submit',
     );
+    _successfulGenerationAttempts = 0;
     _isLoading = true;
     _isStreamingFlow = false;
     _fetchError = null;
@@ -56,6 +76,7 @@ class RecipeViewModel extends ChangeNotifier {
     try {
       final streamedRecipes = <Recipe>[];
       _recipes = await _recipeRepo.fetchRecipes(
+        generationAttempt: 1,
         onFlowSelected: (isStreaming) {
           _isStreamingFlow = isStreaming;
           notifyListeners();
@@ -67,6 +88,7 @@ class RecipeViewModel extends ChangeNotifier {
         },
       );
       _fetchError = null;
+      _successfulGenerationAttempts = 1;
     } catch (e, st) {
       _recipes = [];
       _fetchError = recipeFetchErrorMessage(e);
@@ -81,6 +103,77 @@ class RecipeViewModel extends ChangeNotifier {
 
   Future<void> fetchRecipesFromPrompt() => fetchRecipes();
 
+  /// Loads another batch against the same session preferences — replaces or appends depending on [append].
+  /// Keeps showing the previous list until the new response replaces it (streaming) or swaps in one shot (batch).
+  Future<void> fetchMoreRecipes({
+    bool append = false,
+    String? refinementNote,
+  }) async {
+    if (_recipes.isEmpty) return;
+    if (_kRecipeLogging) {
+      debugPrint(
+        '[RecipeViewModel] fetchMoreRecipes append=$append refinement=${refinementNote ?? ""}',
+      );
+    }
+    await _telemetry.logFeatureInteraction(
+      featureId: FeatureIds.generateRecipeFollowUp,
+      action: append ? 'append_batch' : 'replace_batch',
+    );
+
+    final prior = List<Recipe>.from(_recipes);
+    final excludeNames =
+        prior.map((r) => r.recipeName.trim()).where((s) => s.isNotEmpty).toList();
+    final nextAttempt = _successfulGenerationAttempts + 1;
+
+    _isLoading = true;
+    _fetchError = null;
+    notifyListeners();
+
+    bool streamFlow = false;
+    final streamed = <Recipe>[];
+
+    try {
+      final fetched = await _recipeRepo.fetchRecipes(
+        excludeRecipeNames: excludeNames,
+        userRefinementNote: refinementNote,
+        generationAttempt: nextAttempt,
+        onFlowSelected: (isStreaming) {
+          streamFlow = isStreaming;
+          _isStreamingFlow = isStreaming;
+          notifyListeners();
+        },
+        onRecipe: (recipe) {
+          streamed.add(recipe);
+          final next = append
+              ? _dedupeRecipesByNormalizedTitle([
+                  ...prior,
+                  ...streamed,
+                ])
+              : List<Recipe>.from(streamed);
+          _recipes = next;
+          notifyListeners();
+        },
+      );
+
+      if (!streamFlow) {
+        _recipes = append
+            ? _dedupeRecipesByNormalizedTitle([...prior, ...fetched])
+            : fetched;
+      }
+      _successfulGenerationAttempts = nextAttempt;
+      _fetchError = null;
+    } catch (e, st) {
+      _recipes = prior;
+      _fetchError = recipeFetchErrorMessage(e);
+      if (_kRecipeLogging) {
+        debugPrint('[RecipeViewModel] fetchMoreRecipes failed: $e');
+        debugPrint('$st');
+      }
+    }
+    _isLoading = false;
+    notifyListeners();
+  }
+
   void scheduleLifestyleSync() {
     unawaited(_userRepo.syncLifestyleFromPrefs());
   }
@@ -88,6 +181,7 @@ class RecipeViewModel extends ChangeNotifier {
   void clearRecipeGenerationState() {
     _fetchError = null;
     _recipes = [];
+    _successfulGenerationAttempts = 0;
     notifyListeners();
   }
 

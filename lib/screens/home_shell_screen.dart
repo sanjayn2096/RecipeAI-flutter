@@ -1,4 +1,4 @@
-import 'dart:math' show max, min;
+import 'dart:math' show max, min, pi, sin;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -25,11 +25,16 @@ import 'recipe_flow_screen.dart';
 const Color _kPantrySelectedGreen = Color(0xFF2E7D32);
 
 final List<PromptSuggestionItem> _kDemoPromptIdeas = <PromptSuggestionItem>[
-  PromptSuggestionItem(text: 'Quick Indian Fish Curry', subtitle: 'Spicy • Easy'),
-  PromptSuggestionItem(text: 'Creamy Mushroom Risotto', subtitle: 'Comfort • Medium'),
-  PromptSuggestionItem(text: 'Greek Grilled Chicken', subtitle: 'High protein • Fast'),
-  PromptSuggestionItem(text: 'Tofu Vegetable Stir Fry', subtitle: 'Vegan • Quick'),
-  PromptSuggestionItem(text: 'Butter Chicken & Naan', subtitle: 'Classic • Rich'),
+  PromptSuggestionItem(
+      text: 'Quick Indian Fish Curry', subtitle: 'Spicy • Easy'),
+  PromptSuggestionItem(
+      text: 'Creamy Mushroom Risotto', subtitle: 'Comfort • Medium'),
+  PromptSuggestionItem(
+      text: 'Greek Grilled Chicken', subtitle: 'High protein • Fast'),
+  PromptSuggestionItem(
+      text: 'Tofu Vegetable Stir Fry', subtitle: 'Vegan • Quick'),
+  PromptSuggestionItem(
+      text: 'Butter Chicken & Naan', subtitle: 'Classic • Rich'),
 ];
 
 /// App bar: shared surface, [SousChefMenuButton], mark + "Sous Chef", profile initial + menu.
@@ -119,7 +124,8 @@ class _SousHomeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
 String _firstNameLetterFromProfile(UserData? user, SessionProfile session) {
   final fromUser = (user?.firstName ?? '').trim();
-  final name = fromUser.isNotEmpty ? fromUser : session.firstNameForDisplay.trim();
+  final name =
+      fromUser.isNotEmpty ? fromUser : session.firstNameForDisplay.trim();
   if (name.isEmpty) return '?';
   return name.substring(0, 1).toUpperCase();
 }
@@ -454,28 +460,28 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                   onDestinationSelected: _onTabTapped,
                   labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                   destinations: const [
-                      NavigationDestination(
-                        icon: Icon(Icons.home_outlined),
-                        selectedIcon: Icon(Icons.home),
-                        label: 'Home',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.restaurant_outlined),
-                        selectedIcon: Icon(Icons.restaurant),
-                        label: 'Create Recipes',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.shopping_cart_outlined),
-                        selectedIcon: Icon(Icons.shopping_cart),
-                        label: 'Grocery',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.bookmark_outline),
-                        selectedIcon: Icon(Icons.bookmark),
-                        label: 'Saved',
-                      ),
-                    ],
-                  ),
+                    NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home),
+                      label: 'Home',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.restaurant_outlined),
+                      selectedIcon: Icon(Icons.restaurant),
+                      label: 'Create Recipes',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.shopping_cart_outlined),
+                      selectedIcon: Icon(Icons.shopping_cart),
+                      label: 'Grocery',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.bookmark_outline),
+                      selectedIcon: Icon(Icons.bookmark),
+                      label: 'Saved',
+                    ),
+                  ],
+                ),
               ),
             ),
             ListenableBuilder(
@@ -691,7 +697,8 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
   }
 
   Future<void> _startRecipeFlow({String? promptOverride}) async {
-    final freeText = (promptOverride ?? _customPreferenceController.text).trim();
+    final freeText =
+        (promptOverride ?? _customPreferenceController.text).trim();
     final hasIngredients = widget.sessionManager.getIngredients().isNotEmpty;
     if (freeText.isEmpty && !hasIngredients) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -704,8 +711,8 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
       return;
     }
     if (widget.sessionManager.isGuestMode()) {
-      final exceeded = await widget.sessionManager
-          .isGuestRecipeQuotaExceededForToday();
+      final exceeded =
+          await widget.sessionManager.isGuestRecipeQuotaExceededForToday();
       if (!mounted) return;
       if (exceeded) {
         final goSignup = await showGuestRecipeLimitReachedDialog(context);
@@ -829,24 +836,24 @@ class _HomeHeroRow extends StatelessWidget {
         Text(
           '$greetingLine 👋',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontFamily: 'serif',
-                fontWeight: FontWeight.w800,
-                fontSize: 28,
-                height: 1.1,
-                color: onSurface,
-                shadows: [
-                  Shadow(color: halo, blurRadius: 10),
-                  Shadow(color: halo, blurRadius: 3),
-                ],
-              ),
+            fontFamily: 'serif',
+            fontWeight: FontWeight.w800,
+            fontSize: 28,
+            height: 1.1,
+            color: onSurface,
+            shadows: [
+              Shadow(color: halo, blurRadius: 10),
+              Shadow(color: halo, blurRadius: 3),
+            ],
+          ),
         ),
         const SizedBox(height: 6),
         Text(
           '${AppStrings.letsCookSomethingNice} 💛',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: onSurface,
-                shadows: [Shadow(color: halo, blurRadius: 8)],
-              ),
+            color: onSurface,
+            shadows: [Shadow(color: halo, blurRadius: 8)],
+          ),
         ),
       ],
     );
@@ -868,7 +875,15 @@ class _HomeSearchField extends StatefulWidget {
   State<_HomeSearchField> createState() => _HomeSearchFieldState();
 }
 
-class _HomeSearchFieldState extends State<_HomeSearchField> {
+class _HomeSearchFieldState extends State<_HomeSearchField>
+    with SingleTickerProviderStateMixin {
+  static const Duration _borderGlowPeriod = Duration(seconds: 4);
+
+  late final AnimationController _borderGlowCtrl = AnimationController(
+    vsync: this,
+    duration: _borderGlowPeriod,
+  )..repeat();
+
   @override
   void initState() {
     super.initState();
@@ -886,6 +901,7 @@ class _HomeSearchFieldState extends State<_HomeSearchField> {
 
   @override
   void dispose() {
+    _borderGlowCtrl.dispose();
     widget.controller.removeListener(_onText);
     super.dispose();
   }
@@ -910,100 +926,114 @@ class _HomeSearchFieldState extends State<_HomeSearchField> {
               ),
         ),
         const SizedBox(height: 8),
-        Container(
-          key: widget.coachGetRecipesKey,
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: Theme.of(context).brightness == Brightness.dark
-                      ? 0.45
-                      : 0.08,
+        AnimatedBuilder(
+          animation: _borderGlowCtrl,
+          builder: (context, _) {
+            final dark = Theme.of(context).brightness == Brightness.dark;
+            final pulse = sin(_borderGlowCtrl.value * 2 * pi) * 0.5 + 0.5;
+            final auraAlpha =
+                dark ? (0.12 + pulse * 0.18) : (0.10 + pulse * 0.16);
+            return Container(
+              key: widget.coachGetRecipesKey,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: SweepGradient(
+                  colors: [
+                    scheme.primary.withValues(alpha: 0.82),
+                    scheme.tertiary.withValues(alpha: 0.78),
+                    scheme.secondary.withValues(alpha: 0.68),
+                    scheme.primary.withValues(alpha: 0.82),
+                  ],
+                  stops: const [0.0, 0.38, 0.74, 1.0],
+                  transform: GradientRotation(_borderGlowCtrl.value * 2 * pi),
                 ),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
-            border: Theme.of(context).brightness == Brightness.dark
-                ? Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4))
-                : null,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Row(
-                children: [
-                  const SizedBox(width: 6),
-                  Material(
-                    color: scheme.primary,
-                    borderRadius: BorderRadius.circular(10),
-                    child: SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: Icon(
-                        Icons.auto_awesome,
-                        size: 22,
-                        color: scheme.onPrimary,
-                      ),
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: scheme.primary.withValues(alpha: auraAlpha),
+                    blurRadius: 14 + pulse * 10,
+                    spreadRadius: pulse * 0.5,
+                    offset: const Offset(0, 4),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: widget.controller,
-                      minLines: 1,
-                      maxLines: 3,
-                      onChanged: (_) => setState(() {}),
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: onSurface,
-                          ),
-                      cursorColor: onSurface,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        hintText: hasText
-                            ? null
-                            : 'e.g. something light, pasta, curry',
-                        hintStyle: TextStyle(
-                          color: scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        contentPadding: const EdgeInsets.fromLTRB(
-                          4,
-                          12,
-                          8,
-                          12,
-                        ),
-                      ),
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: dark ? 0.45 : 0.08,
                     ),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
                   ),
-                  Material(
-                    color: scheme.primary,
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => widget.onGo(),
-                      child: SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: Icon(
-                          Icons.arrow_forward,
-                          color: scheme.onPrimary,
-                        ),
-                      ),
+                  if (dark)
+                    BoxShadow(
+                      color: scheme.outlineVariant.withValues(alpha: 0.15),
+                      blurRadius: 0,
+                      spreadRadius: 1,
+                      offset: Offset.zero,
                     ),
-                  ),
-                  const SizedBox(width: 4),
                 ],
               ),
-            ),
-          ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: ColoredBox(
+                  color: scheme.surfaceContainerHigh,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: widget.controller,
+                            minLines: 1,
+                            maxLines: 3,
+                            onChanged: (_) => setState(() {}),
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: onSurface,
+                                    ),
+                            cursorColor: onSurface,
+                            decoration: InputDecoration(
+                              isDense: true,
+                              border: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              hintText: hasText
+                                  ? null
+                                  : 'e.g. something light, pasta, curry',
+                              hintStyle: TextStyle(
+                                color: scheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              contentPadding:
+                                  const EdgeInsets.fromLTRB(4, 12, 8, 12),
+                            ),
+                          ),
+                        ),
+                        Material(
+                          color: scheme.primary,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () => widget.onGo(),
+                            child: SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Icon(
+                                Icons.arrow_forward,
+                                color: scheme.onPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
@@ -1017,8 +1047,7 @@ class _HomeFilterChips extends StatelessWidget {
 
   final _FilterTap onSelect;
 
-  static const List<({String label, IconData icon, String phrase})> _options =
-      [
+  static const List<({String label, IconData icon, String phrase})> _options = [
     (
       label: 'Quick & Easy',
       icon: Icons.flash_on,
@@ -1143,7 +1172,8 @@ class _PantryHintBar extends StatelessWidget {
                             child: InkWell(
                               onTap: onInfo,
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 2),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 2),
                                 child: Icon(
                                   Icons.info_outline,
                                   size: 16,
@@ -1539,13 +1569,11 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
         !_containsCaseInsensitive(_selected, query);
 
     final colorScheme = Theme.of(context).colorScheme;
-    final usualCuisines =
-        widget.sessionManager.getUsualCuisines().toSet();
+    final usualCuisines = widget.sessionManager.getUsualCuisines().toSet();
     final suggestedQuickChips =
         PantryItems.suggestedForCuisines(usualCuisines.toList(), limit: 24);
-    final suggestionChipsOnly = suggestedQuickChips
-        .where((item) => !_selected.contains(item))
-        .toList();
+    final suggestionChipsOnly =
+        suggestedQuickChips.where((item) => !_selected.contains(item)).toList();
 
     return SafeArea(
       child: Padding(
@@ -1670,17 +1698,19 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                       child: ExpansionTile(
                         title: Text(
                           AppStrings.pantrySuggestionsTitle,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
                         ),
                         subtitle: Text(
                           usualCuisines.isEmpty
                               ? AppStrings.suggestionsTapToChooseCuisines
                               : usualCuisines.join(', '),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
                         ),
                         maintainState: true,
                         children: [
@@ -1701,13 +1731,13 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                                       .textTheme
                                       .bodySmall
                                       ?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 8),
                                 for (final cuisine
-                                in _cuisineOptionsForUsualCuisines)
+                                    in _cuisineOptionsForUsualCuisines)
                                   CheckboxListTile(
                                     dense: true,
                                     value: usualCuisines.contains(cuisine),

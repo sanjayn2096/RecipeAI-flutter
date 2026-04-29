@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Hamburger control matching the Home app bar: solid [ColorScheme.primary] tile + [onPrimary] icon.
+/// Opens the shell app drawer via a standard Material 3 [IconButton] (bar foreground).
 class SousChefMenuButton extends StatelessWidget {
   const SousChefMenuButton({
     super.key,
@@ -14,22 +14,15 @@ class SousChefMenuButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final child = Material(
-      color: scheme.primary,
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onPressed,
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(Icons.menu, color: scheme.onPrimary, size: 22),
-        ),
+    final message = tooltip;
+    return IconButton(
+      onPressed: onPressed,
+      icon: const Icon(Icons.menu),
+      tooltip: (message != null && message.isNotEmpty) ? message : null,
+      iconSize: 22,
+      style: IconButton.styleFrom(
+        foregroundColor: scheme.onSurfaceVariant,
       ),
     );
-    if (tooltip == null || tooltip!.isEmpty) {
-      return child;
-    }
-    return Tooltip(message: tooltip!, child: child);
   }
 }

@@ -29,6 +29,9 @@ class RecipeRepository {
   Future<List<Recipe>> fetchRecipesFromBackend({
     void Function(Recipe recipe)? onRecipe,
     void Function(bool isStreaming)? onFlowSelected,
+    List<String> excludeRecipeNames = const [],
+    String? userRefinementNote,
+    int generationAttempt = 1,
   }) async {
     if (_api == null) {
       if (kDebugMode) debugPrint('[RecipeRepository] fetchRecipesFromBackend: no ApiService, returning empty');
@@ -52,6 +55,18 @@ class RecipeRepository {
       recipeMode = RecipeGenerationMode.preferences;
     }
 
+    var dietProfiles = List<String>.from(_session.getDietProfiles());
+    if (dietProfiles.isEmpty) {
+      final dr = _session.getDietRestrictions();
+      if (dr != null &&
+          dr.isNotEmpty &&
+          dr != 'No Diet Restrictions' &&
+          dr != AppStrings.noRestrictions) {
+        dietProfiles = [dr];
+      }
+    }
+
+    final refinement = userRefinementNote?.trim();
     final req = GenerateRecipeRequest(
       ingredients: List<String>.from(_session.getIngredients()),
       customPreference: customPreference,
@@ -62,7 +77,14 @@ class RecipeRepository {
       cookingPreference:
           _session.getCookingPreference() ?? 'No Cooking Preferences',
       recipeMode: recipeMode,
+      dietProfiles: dietProfiles,
+      allergensAvoid: List<String>.from(_session.getAllergensAvoid()),
+      allergyNotes: _session.getAllergyNotes(),
       anonymousId: anonymousId,
+      excludeRecipeNames: List<String>.from(excludeRecipeNames),
+      userRefinementNote:
+          refinement != null && refinement.isNotEmpty ? refinement : null,
+      generationAttempt: generationAttempt < 2 ? null : generationAttempt,
     );
 
     final useStreaming = FeatureFlags.useStreamingRecipeGeneration(actorId);
@@ -78,8 +100,9 @@ class RecipeRepository {
     if (useStreaming) {
       final streamed = <Recipe>[];
       await for (final recipe in _api!.generateRecipeStream(req, idToken: idToken)) {
-        streamed.add(recipe);
-        onRecipe?.call(recipe);
+        final enriched = await _resolveHeroImage(recipe, idToken: idToken);
+        streamed.add(enriched);
+        onRecipe?.call(enriched);
       }
       if (user == null) {
         await _session.recordGuestRecipeGenerationSuccess();
@@ -88,19 +111,46 @@ class RecipeRepository {
     }
 
     final res = await _api!.generateRecipe(req, idToken: idToken);
+    final enriched = await Future.wait(
+      res.recipes.map((r) => _resolveHeroImage(r, idToken: idToken)),
+    );
     if (user == null) {
       await _session.recordGuestRecipeGenerationSuccess();
     }
-    return res.recipes;
+    return enriched;
   }
 
   /// Same as [fetchRecipesFromBackend] — all recipe lists come from the backend.
   Future<List<Recipe>> fetchRecipes({
     void Function(Recipe recipe)? onRecipe,
     void Function(bool isStreaming)? onFlowSelected,
+    List<String> excludeRecipeNames = const [],
+    String? userRefinementNote,
+    int generationAttempt = 1,
   }) =>
       fetchRecipesFromBackend(
         onRecipe: onRecipe,
         onFlowSelected: onFlowSelected,
+        excludeRecipeNames: excludeRecipeNames,
+        userRefinementNote: userRefinementNote,
+        generationAttempt: generationAttempt,
       );
+
+  Future<Recipe> _resolveHeroImage(Recipe recipe, {String? idToken}) async {
+    final existing = recipe.image.trim();
+    if (existing.startsWith('http://') || existing.startsWith('https://')) {
+      return recipe;
+    }
+    if (_api == null) return recipe;
+    try {
+      final resp = await _api!.resolveRecipeHero(
+        recipeName: recipe.recipeName,
+        cuisine: recipe.cuisine,
+        idToken: idToken,
+      );
+      return recipe.copyWith(image: resp.recipeImageUrl.trim());
+    } catch (_) {
+      return recipe;
+    }
+  }
 }

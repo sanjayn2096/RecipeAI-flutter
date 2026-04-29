@@ -6,6 +6,7 @@ import '../data/models/recipe.dart';
 import '../view_models/home_view_model.dart';
 import '../view_models/grocery_list_view_model.dart';
 import 'cartoon_outlined_card.dart';
+import 'recipe_list_row.dart';
 import 'guest_signup_prompt.dart';
 
 /// Saved list with swipe-left to remove (POST /save-favorites with isSaved: false).
@@ -195,19 +196,16 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                             });
                           },
                           child: CartoonOutlinedCard(
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 10,
-                              ),
-                              title: Text(recipe.recipeName),
-                              subtitle: Text(recipe.cuisine),
+                            child: RecipeListRow(
+                              recipe: recipe,
+                              trailingActions: const [],
                               onTap: () => _openSavedRecipe(
                                 context,
                                 homeViewModel: widget.homeViewModel,
                                 listRecipe: recipe,
                                 recipeViewModel: widget.recipeViewModel,
-                                groceryListViewModel: widget.groceryListViewModel,
+                                groceryListViewModel:
+                                    widget.groceryListViewModel,
                               ),
                             ),
                           ),

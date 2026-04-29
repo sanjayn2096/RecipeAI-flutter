@@ -149,6 +149,28 @@ class UserRepository {
     return _api.fetchTrendingRecipes(limit: limit);
   }
 
+  /// Persists structured diet/allergens to session and PATCHes Firestore when signed in.
+  Future<void> saveLifestylePreferences({
+    required List<String> dietProfiles,
+    required List<String> allergensAvoid,
+    String? allergyNotes,
+  }) async {
+    await _session.saveDietProfiles(dietProfiles);
+    await _session.saveAllergensAvoid(allergensAvoid);
+    await _session.saveAllergyNotes(allergyNotes);
+    if (_session.isGuestMode()) return;
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) return;
+    await _api.patchUserLifestyle(
+      UpdateUserLifestyleRequest(
+        dietProfiles: dietProfiles,
+        allergensAvoid: allergensAvoid,
+        allergyNotes: allergyNotes,
+      ),
+      idToken: token,
+    );
+  }
+
   /// PATCH user-lifestyle from local session prefs (no-op for guests / no token).
   Future<void> syncLifestyleFromPrefs() async {
     if (_session.isGuestMode()) return;
@@ -167,6 +189,9 @@ class UserRepository {
       await _api.patchUserLifestyle(
         UpdateUserLifestyleRequest(
           dietRestrictions: _session.getDietRestrictions(),
+          dietProfiles: _session.getDietProfiles(),
+          allergensAvoid: _session.getAllergensAvoid(),
+          allergyNotes: _session.getAllergyNotes(),
           cookingPreference: _session.getCookingPreference(),
           mood: _session.getMood(),
           preferredCuisines: merged.toList(),
