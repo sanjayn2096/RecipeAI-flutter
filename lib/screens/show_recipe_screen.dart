@@ -7,6 +7,7 @@ import '../data/models/recipe.dart';
 import '../view_models/grocery_list_view_model.dart';
 import '../view_models/recipe_view_model.dart';
 import '../widgets/guest_signup_prompt.dart';
+import '../widgets/ingredient_icon.dart';
 import '../widgets/recipe_image_box.dart';
 
 class ShowRecipeScreen extends StatefulWidget {
@@ -288,10 +289,11 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(right: 10, top: 2),
-            child: Text(
-              '•',
-              style: Theme.of(context).textTheme.bodyLarge,
+            padding: const EdgeInsets.only(right: 10, top: 1),
+            child: IngredientIcon(
+              ingredientName: text,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           Expanded(

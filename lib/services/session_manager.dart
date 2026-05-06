@@ -99,7 +99,75 @@ class SessionManager {
     _prefs?.setString(_prefix + key, value);
   }
 
+  /// Legacy mood field — prefer [getLifestyleMood] / [getCreateFlowMood] by flow.
   String? getMood() => getPreference(AppConstants.prefsMood) ?? 'lucky';
+
+  /// Global lifestyle default for Home generation and PATCH sync (falls back to legacy [prefsMood] once).
+  String getLifestyleMood() =>
+      getPreference(AppConstants.prefsLifestyleMood) ??
+      getPreference(AppConstants.prefsMood) ??
+      'lucky';
+
+  String getLifestyleCuisine() =>
+      getPreference(AppConstants.prefsLifestyleCuisine) ??
+      getPreference(AppConstants.prefsCuisine) ??
+      'No Cuisine Selected';
+
+  String getLifestyleCookingPreference() =>
+      getPreference(AppConstants.prefsLifestyleCookingPreference) ??
+      getPreference(AppConstants.prefsCookingPreference) ??
+      'No Cooking Preferences';
+
+  String getLifestyleDietRestrictions() =>
+      getPreference(AppConstants.prefsLifestyleDietRestrictions) ??
+      getPreference(AppConstants.prefsDietRestrictions) ??
+      'No Diet Restrictions';
+
+  void saveLifestyleMoodSync(String value) =>
+      savePreferenceSync(AppConstants.prefsLifestyleMood, value);
+
+  void saveLifestyleCuisineSync(String value) =>
+      savePreferenceSync(AppConstants.prefsLifestyleCuisine, value);
+
+  void saveLifestyleCookingPreferenceSync(String value) =>
+      savePreferenceSync(AppConstants.prefsLifestyleCookingPreference, value);
+
+  void saveLifestyleDietRestrictionsSync(String value) =>
+      savePreferenceSync(AppConstants.prefsLifestyleDietRestrictions, value);
+
+  /// Create Recipes questionnaire only (falls back to legacy keys until user re-saves).
+  String getCreateFlowMood() =>
+      getPreference(AppConstants.prefsCreateFlowMood) ??
+      getPreference(AppConstants.prefsMood) ??
+      'lucky';
+
+  String getCreateFlowCuisine() =>
+      getPreference(AppConstants.prefsCreateFlowCuisine) ??
+      getPreference(AppConstants.prefsCuisine) ??
+      'No Cuisine Selected';
+
+  String getCreateFlowCookingPreference() =>
+      getPreference(AppConstants.prefsCreateFlowCookingPreference) ??
+      getPreference(AppConstants.prefsCookingPreference) ??
+      'No Cooking Preferences';
+
+  String getCreateFlowDietRestrictions() =>
+      getPreference(AppConstants.prefsCreateFlowDietRestrictions) ??
+      getPreference(AppConstants.prefsDietRestrictions) ??
+      'No Diet Restrictions';
+
+  void saveCreateFlowMoodSync(String value) =>
+      savePreferenceSync(AppConstants.prefsCreateFlowMood, value);
+
+  void saveCreateFlowCuisineSync(String value) =>
+      savePreferenceSync(AppConstants.prefsCreateFlowCuisine, value);
+
+  void saveCreateFlowCookingPreferenceSync(String value) =>
+      savePreferenceSync(AppConstants.prefsCreateFlowCookingPreference, value);
+
+  void saveCreateFlowDietRestrictionsSync(String value) =>
+      savePreferenceSync(AppConstants.prefsCreateFlowDietRestrictions, value);
+
   String? getCuisine() => getPreference(AppConstants.prefsCuisine) ?? 'No Cuisine Selected';
   String? getCookingPreference() => getPreference(AppConstants.prefsCookingPreference) ?? 'No Cooking Preferences';
   String? getDietRestrictions() => getPreference(AppConstants.prefsDietRestrictions) ?? 'No Diet Restrictions';

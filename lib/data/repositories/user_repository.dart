@@ -178,7 +178,7 @@ class UserRepository {
     if (token == null) return;
     try {
       final usual = _session.getUsualCuisines();
-      final cuisine = _session.getCuisine() ?? '';
+      final cuisine = _session.getLifestyleCuisine();
       final merged = <String>{...usual};
       final c = cuisine.trim();
       if (c.isNotEmpty &&
@@ -188,12 +188,12 @@ class UserRepository {
       }
       await _api.patchUserLifestyle(
         UpdateUserLifestyleRequest(
-          dietRestrictions: _session.getDietRestrictions(),
+          dietRestrictions: _session.getLifestyleDietRestrictions(),
           dietProfiles: _session.getDietProfiles(),
           allergensAvoid: _session.getAllergensAvoid(),
           allergyNotes: _session.getAllergyNotes(),
-          cookingPreference: _session.getCookingPreference(),
-          mood: _session.getMood(),
+          cookingPreference: _session.getLifestyleCookingPreference(),
+          mood: _session.getLifestyleMood(),
           preferredCuisines: merged.toList(),
         ),
         idToken: token,

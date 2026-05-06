@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../core/app_strings.dart';
 import '../../core/constants.dart';
 import '../../core/feature_flags.dart';
+import '../../core/recipe_generation_entry_point.dart';
 import '../api/api_service.dart' show ApiService;
 import '../models/api_dtos.dart';
 import '../models/recipe.dart';
@@ -32,6 +33,8 @@ class RecipeRepository {
     List<String> excludeRecipeNames = const [],
     String? userRefinementNote,
     int generationAttempt = 1,
+    RecipeGenerationEntryPoint generationSource =
+        RecipeGenerationEntryPoint.createRecipes,
   }) async {
     if (_api == null) {
       if (kDebugMode) debugPrint('[RecipeRepository] fetchRecipesFromBackend: no ApiService, returning empty');
@@ -45,7 +48,21 @@ class RecipeRepository {
     final actorId = user?.uid ?? anonymousId ?? 'unknown';
     final customPreference =
         _session.getPreference(AppConstants.prefsCustomPreference) ?? '';
-    final mood = _session.getMood() ?? 'lucky';
+
+    final bool fromHome = generationSource == RecipeGenerationEntryPoint.home;
+    final mood = fromHome
+        ? _session.getLifestyleMood()
+        : _session.getCreateFlowMood();
+    final dietLine = fromHome
+        ? _session.getLifestyleDietRestrictions()
+        : _session.getCreateFlowDietRestrictions();
+    final cuisine = fromHome
+        ? _resolvedCuisineForHomeGeneration()
+        : _session.getCreateFlowCuisine();
+    final cooking = fromHome
+        ? _session.getLifestyleCookingPreference()
+        : _session.getCreateFlowCookingPreference();
+
     final RecipeGenerationMode recipeMode;
     if (customPreference.trim().isNotEmpty) {
       recipeMode = RecipeGenerationMode.custom;
@@ -57,9 +74,8 @@ class RecipeRepository {
 
     var dietProfiles = List<String>.from(_session.getDietProfiles());
     if (dietProfiles.isEmpty) {
-      final dr = _session.getDietRestrictions();
-      if (dr != null &&
-          dr.isNotEmpty &&
+      final dr = dietLine;
+      if (dr.isNotEmpty &&
           dr != 'No Diet Restrictions' &&
           dr != AppStrings.noRestrictions) {
         dietProfiles = [dr];
@@ -71,11 +87,9 @@ class RecipeRepository {
       ingredients: List<String>.from(_session.getIngredients()),
       customPreference: customPreference,
       mood: mood,
-      dietRestrictions:
-          _session.getDietRestrictions() ?? 'No Diet Restrictions',
-      cuisine: _session.getCuisine() ?? 'No Cuisine Selected',
-      cookingPreference:
-          _session.getCookingPreference() ?? 'No Cooking Preferences',
+      dietRestrictions: dietLine,
+      cuisine: cuisine,
+      cookingPreference: cooking,
       recipeMode: recipeMode,
       dietProfiles: dietProfiles,
       allergensAvoid: List<String>.from(_session.getAllergensAvoid()),
@@ -127,6 +141,8 @@ class RecipeRepository {
     List<String> excludeRecipeNames = const [],
     String? userRefinementNote,
     int generationAttempt = 1,
+    RecipeGenerationEntryPoint generationSource =
+        RecipeGenerationEntryPoint.createRecipes,
   }) =>
       fetchRecipesFromBackend(
         onRecipe: onRecipe,
@@ -134,7 +150,52 @@ class RecipeRepository {
         excludeRecipeNames: excludeRecipeNames,
         userRefinementNote: userRefinementNote,
         generationAttempt: generationAttempt,
+        generationSource: generationSource,
       );
+
+  /// Stable preferred cuisines (`usualCuisines`) beat legacy single-field lifestyle cuisine.
+  String _resolvedCuisineForHomeGeneration() {
+    final usual = _session
+        .getUsualCuisines()
+        .map((e) => e.trim())
+        .where(
+          (e) =>
+              e.isNotEmpty &&
+              e != AppStrings.surpriseMe,
+        )
+        .toList();
+    if (usual.isNotEmpty) {
+      return usual.join(', ');
+    }
+    final single = (_session.getLifestyleCuisine()).trim();
+    if (single.isNotEmpty &&
+        single != 'No Cuisine Selected' &&
+        single != AppStrings.surpriseMe) {
+      return single;
+    }
+    return 'No Cuisine Selected';
+  }
+
+  /// POST /import-recipe — extract one structured recipe server-side (auth).
+  Future<Recipe> importRecipe({
+    required String mode,
+    String? url,
+    String? plainText,
+  }) async {
+    final api = _api;
+    if (api == null) throw StateError(AppStrings.importRecipeSignInRequired);
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw StateError(AppStrings.importRecipeSignInRequired);
+    final token = await user.getIdToken();
+    var raw = await api.importRecipe(
+      mode: mode,
+      url: url,
+      plainText: plainText,
+      idToken: token,
+    );
+    raw = await _resolveHeroImage(raw, idToken: token);
+    return raw;
+  }
 
   Future<Recipe> _resolveHeroImage(Recipe recipe, {String? idToken}) async {
     final existing = recipe.image.trim();

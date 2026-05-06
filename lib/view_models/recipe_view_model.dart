@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/recipe_fetch_error_message.dart';
+import '../core/recipe_generation_entry_point.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../core/telemetry/feature_ids.dart';
 import '../data/models/recipe.dart';
@@ -58,8 +59,14 @@ class RecipeViewModel extends ChangeNotifier {
   /// Counts finished generation batches so follow-ups ([fetchMoreRecipes]) get `generationAttempt >= 2`.
   int _successfulGenerationAttempts = 0;
 
+  RecipeGenerationEntryPoint? _lastBatchEntryPoint;
+  RecipeGenerationEntryPoint? get lastGenerationEntryPoint => _lastBatchEntryPoint;
+
   /// POST generate-recipe with structured session fields (server builds prompt).
-  Future<void> fetchRecipes() async {
+  Future<void> fetchRecipes({
+    RecipeGenerationEntryPoint entryPoint =
+        RecipeGenerationEntryPoint.createRecipes,
+  }) async {
     if (_kRecipeLogging) {
       debugPrint('[RecipeViewModel] fetchRecipes() -> backend recipe generation flow');
     }
@@ -68,6 +75,7 @@ class RecipeViewModel extends ChangeNotifier {
       action: 'submit',
     );
     _successfulGenerationAttempts = 0;
+    _lastBatchEntryPoint = null;
     _isLoading = true;
     _isStreamingFlow = false;
     _fetchError = null;
@@ -77,6 +85,7 @@ class RecipeViewModel extends ChangeNotifier {
       final streamedRecipes = <Recipe>[];
       _recipes = await _recipeRepo.fetchRecipes(
         generationAttempt: 1,
+        generationSource: entryPoint,
         onFlowSelected: (isStreaming) {
           _isStreamingFlow = isStreaming;
           notifyListeners();
@@ -89,6 +98,7 @@ class RecipeViewModel extends ChangeNotifier {
       );
       _fetchError = null;
       _successfulGenerationAttempts = 1;
+      _lastBatchEntryPoint = entryPoint;
     } catch (e, st) {
       _recipes = [];
       _fetchError = recipeFetchErrorMessage(e);
@@ -101,7 +111,11 @@ class RecipeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchRecipesFromPrompt() => fetchRecipes();
+  Future<void> fetchRecipesFromPrompt({
+    RecipeGenerationEntryPoint entryPoint =
+        RecipeGenerationEntryPoint.createRecipes,
+  }) =>
+      fetchRecipes(entryPoint: entryPoint);
 
   /// Loads another batch against the same session preferences — replaces or appends depending on [append].
   /// Keeps showing the previous list until the new response replaces it (streaming) or swaps in one shot (batch).
@@ -124,6 +138,8 @@ class RecipeViewModel extends ChangeNotifier {
     final excludeNames =
         prior.map((r) => r.recipeName.trim()).where((s) => s.isNotEmpty).toList();
     final nextAttempt = _successfulGenerationAttempts + 1;
+    final source = _lastBatchEntryPoint ??
+        RecipeGenerationEntryPoint.createRecipes;
 
     _isLoading = true;
     _fetchError = null;
@@ -137,6 +153,7 @@ class RecipeViewModel extends ChangeNotifier {
         excludeRecipeNames: excludeNames,
         userRefinementNote: refinementNote,
         generationAttempt: nextAttempt,
+        generationSource: source,
         onFlowSelected: (isStreaming) {
           streamFlow = isStreaming;
           _isStreamingFlow = isStreaming;
@@ -182,6 +199,7 @@ class RecipeViewModel extends ChangeNotifier {
     _fetchError = null;
     _recipes = [];
     _successfulGenerationAttempts = 0;
+    _lastBatchEntryPoint = null;
     notifyListeners();
   }
 
@@ -194,6 +212,23 @@ class RecipeViewModel extends ChangeNotifier {
     final id = updated.recipeId;
     _recipes = _recipes.map((r) => r.recipeId == id ? updated : r).toList();
     notifyListeners();
+  }
+
+  /// POST `/import-recipe` — extracts one structured recipe ([mode]: url | text | image).
+  Future<Recipe> importRecipe({
+    required String mode,
+    String? url,
+    String? plainText,
+  }) async {
+    await _telemetry.logFeatureInteraction(
+      featureId: FeatureIds.importRecipe,
+      action: mode,
+    );
+    return _recipeRepo.importRecipe(
+      mode: mode,
+      url: url,
+      plainText: plainText,
+    );
   }
 
   /// Toggles private Saved (bookmark) on the backend and updates [recipes].

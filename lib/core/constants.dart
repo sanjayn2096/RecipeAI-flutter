@@ -14,6 +14,22 @@ class AppConstants {
   static const String prefsCuisine = 'cuisinePreferences';
   static const String prefsCookingPreference = 'cookingPreferences';
   static const String prefsDietRestrictions = 'dietRestrictions';
+
+  /// Create Recipes questionnaire only — never used for Home generation.
+  static const String prefsCreateFlowMood = 'createFlow_mood';
+  static const String prefsCreateFlowDietRestrictions =
+      'createFlow_dietRestrictions';
+  static const String prefsCreateFlowCuisine = 'createFlow_cuisinePreferences';
+  static const String prefsCreateFlowCookingPreference =
+      'createFlow_cookingPreferences';
+
+  /// Global lifestyle (Home generation + profile merge / Change search settings when batch from Home).
+  static const String prefsLifestyleMood = 'lifestyle_mood';
+  static const String prefsLifestyleDietRestrictions =
+      'lifestyle_dietRestrictions';
+  static const String prefsLifestyleCuisine = 'lifestyle_cuisine';
+  static const String prefsLifestyleCookingPreference =
+      'lifestyle_cookingPreference';
   /// Selected diet labels (multi-select; also sent as `dietProfiles` to the API).
   static const String prefsDietProfiles = 'dietProfiles';
   static const String prefsAllergensAvoid = 'allergensAvoid';

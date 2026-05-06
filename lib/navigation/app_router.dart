@@ -14,10 +14,14 @@ import '../screens/favorites_screen.dart';
 import '../screens/trending_recipes_screen.dart';
 import '../screens/tutorial_screen.dart';
 import '../screens/grocery_list_screen.dart';
+import '../screens/pantry_scan_screen.dart';
+import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
 import '../data/models/user_data.dart';
+import '../core/recipe_generation_entry_point.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../view_models/grocery_list_view_model.dart';
+import '../view_models/home_view_model.dart';
 
 class AppRouter {
   AppRouter({
@@ -25,15 +29,17 @@ class AppRouter {
     required this.homeViewModel,
     required this.recipeViewModel,
     required this.groceryListViewModel,
+    required this.apiService,
     required this.appTelemetry,
     required this.sessionManager,
     this.analytics,
   });
 
   final dynamic loginViewModel;
-  final dynamic homeViewModel;
+  final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
   final GroceryListViewModel groceryListViewModel;
+  final ApiService apiService;
   final AppTelemetry appTelemetry;
   final dynamic sessionManager;
   final FirebaseAnalytics? analytics;
@@ -83,9 +89,26 @@ class AppRouter {
           final extra = state.extra;
           UserData? userData;
           String? initialPrompt;
-          if (extra is Map<String, dynamic>) {
-            userData = extra['userData'] as UserData?;
-            initialPrompt = extra['initialPrompt'] as String?;
+          RecipeGenerationEntryPoint generationEntryPoint =
+              RecipeGenerationEntryPoint.createRecipes;
+          if (extra is Map) {
+            final map = Map<String, dynamic>.from(
+              extra.map((k, v) => MapEntry(k.toString(), v)),
+            );
+            userData = map['userData'] as UserData?;
+            final prompt = map['initialPrompt'];
+            if (prompt is String) initialPrompt = prompt;
+            final g = map['generationEntryPoint'];
+            if (g is String) {
+              for (final e in RecipeGenerationEntryPoint.values) {
+                if (e.name == g) {
+                  generationEntryPoint = e;
+                  break;
+                }
+              }
+            } else if (g is RecipeGenerationEntryPoint) {
+              generationEntryPoint = g;
+            }
           } else {
             userData = extra as UserData?;
           }
@@ -95,6 +118,7 @@ class AppRouter {
             recipeViewModel: recipeViewModel,
             groceryListViewModel: groceryListViewModel,
             sessionManager: sessionManager,
+            generationEntryPoint: generationEntryPoint,
           );
         },
       ),
@@ -149,6 +173,18 @@ class AppRouter {
           groceryListViewModel: groceryListViewModel,
           appTelemetry: appTelemetry,
         ),
+      ),
+      GoRoute(
+        path: '/pantry-scan',
+        builder: (context, __) => PantryScanScreen(
+          apiService: apiService,
+          groceryListViewModel: groceryListViewModel,
+          appTelemetry: appTelemetry,
+        ),
+      ),
+      GoRoute(
+        path: '/meal-plan',
+        redirect: (context, state) => '/home',
       ),
       GoRoute(
         path: '/profile',

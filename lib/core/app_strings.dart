@@ -25,9 +25,32 @@ class AppStrings {
   static const String recipeDescription = 'Recipe Description';
   static const String description = 'Description';
   static const String sendingTastyRecipes = 'Sending some tasty recipes your way…';
+
+  /// Rotates below the recipe-generation loading animation. Merged with
+  /// [recipeGenerationLoadingPhrasesStreamingExtras] while streaming for mode-specific lines.
+  static const List<String> recipeGenerationLoadingPhrases = [
+    'Sending something delicious your way…',
+    'Turning cravings into plates…',
+    'Tasting ideas before you chop an onion.',
+    'Gathering spice, heat, and a little swagger.',
+    'Your kitchen glow-up starts right now.',
+    'Pairing flavors so you don’t have to.',
+    'Simmering something worth the wait…',
+    'Sharpening the menu in your imagination.',
+    'Almost there—great meals begin with curiosity.',
+    'Whisking together comfort and pinch of bold.',
+    'From spark to spatula—we’re getting there.',
+  ];
+
+  /// Shown alongside [recipeGenerationLoadingPhrases] when generation is streamed.
+  static const List<String> recipeGenerationLoadingPhrasesStreamingExtras = [
+    'Streaming recipes—first ones land shortly.',
+    'Hang tight; results are bubbling up.',
+  ];
+
   static const String letsCookSomethingNice = "Let's cook something nice today";
   static const String whatDoYouFeelLikeEating = 'What do you feel like eating?';
-  static const String pantryStaples = 'Add Ingredients you have for better suggestions — tap to add';
+  static const String pantryStaples = 'Tap to Add Items in your Pantry for better suggestions';
   static const String pantryStaplesDialogTitle = 'Pantry staples';
   /// Shown in the info dialog next to the pantry staples heading.
   static const String pantryStaplesInfo =
@@ -40,6 +63,29 @@ class AppStrings {
   static const String suggestionsTapToChooseCuisines =
       'Tap to choose cuisines you usually cook';
   static const String nothingSelected = 'Nothing Selected';
+
+  /// Home batch → Change search settings (profile / lifestyle, not Create questionnaire).
+  static const String homeSearchSettingsSheetTitle = 'Your eating profile';
+  static const String homeSearchSettingsDietsHeading = 'Diets';
+  static const String homeSearchSettingsDietsHint =
+      'Select all styles that describe how you eat. These sync to your profile.';
+  static const String homeSearchSettingsDietSummaryHeading =
+      'Diet restriction summary';
+  static const String homeSearchSettingsDietSummaryHint =
+      'One-line summary merged with generations (e.g. “no dairy”).';
+  static const String homeSearchSettingsAllergensHeading =
+      'Allergens & intolerances';
+  static const String homeSearchSettingsAllergensHint =
+      'Ingredients to steer clear of where possible.';
+  static const String homeSearchSettingsAllergenNotesLabel = 'Notes (optional)';
+  static const String homeSearchSettingsPreferredCuisinesHeading =
+      'Preferred cuisines';
+  static const String homeSearchSettingsPreferredCuisinesHint =
+      'Cuisines you usually want—separate from a one-off “tonight” pick on Create Recipes.';
+  static const String homeSearchSettingsCookingProficiencyHeading =
+      'Cooking proficiency';
+  static const String homeSearchSettingsCookingProficiencyHint =
+      'Comfort and roughly how much time you like to spend cooking.';
 
   // Tutorial / drawer
   static const String howToUse = 'How to use';
@@ -110,6 +156,45 @@ class AppStrings {
   static const String groceryRemovedChecked = 'Removed checked items';
   static const String recipeAddedToGroceryList = 'Added to grocery list';
   static const String cookFlowAddUncheckedToGrocery = 'Add still needed to grocery list';
+
+  // Pantry / fridge photo scan (signed-in; server: Gemini vision)
+  static const String groceryPantryScanTitle = 'Scan pantry';
+  static const String groceryPantryScanTooltip = 'Scan pantry or fridge';
+  static const String groceryPantryScanSubtitle =
+      'Take a clear photo. We will suggest items—uncheck or remove anything wrong before adding to your list. Amounts are often approximate.';
+  static const String groceryPantryScanTakePhoto = 'Camera';
+  static const String groceryPantryScanChoosePhoto = 'Gallery';
+  static const String groceryPantryScanWorking = 'Analyzing photo…';
+  static const String groceryPantryScanReviewHeading = 'Review detected items';
+  static const String groceryPantryScanConfidence = 'Confidence';
+  static const String groceryPantryScanRemoveRow = 'Remove';
+  static const String groceryPantryScanAddSelected = 'Add selected to grocery list';
+  static const String groceryPantryScanSignInRequired =
+      'Sign in to scan your pantry or refrigerator.';
+  /// Shown when the model returns no lines (web or API).
+  static const String groceryPantryScanNoItemsDetected =
+      'No ingredients were detected in that photo. Try better light, a wider shot, or add items manually.';
+  /// Group label + merge bucket for items added from one scan session.
+  static const String groceryPantryScanSourceLabel = 'Pantry scan';
+  static String groceryPantryScanAdded(int count) =>
+      count == 1 ? 'Added 1 item to your list' : 'Added $count items to your list';
+
+  // Import recipe (auth; Gemini)
+  static const String importRecipeTabTitle = 'Import';
+  static const String importRecipeSignInRequired =
+      'Sign in to import recipes from links, text, or photos.';
+  static const String importRecipeFromLinkHint =
+      'https://…';
+  static const String importRecipePasteHint =
+      'Paste caption or recipe…';
+  static const String importRecipeExtract = 'Extract';
+  static const String importRecipeBusy = 'Reading recipe…';
+  static const String importRecipeNeedUrl = 'Paste a link first';
+  static const String importRecipeNeedMoreText = 'Paste a bit more text';
+  static const String importRecipeOcrEmpty =
+      'No readable text in that photo. Try brighter light, closer crop, or paste the recipe.';
+  static const String importRecipeWebScanUnsupported =
+      'Photo import uses on-device OCR in the iOS/Android app. Paste recipe text instead.';
 
   // Mood
   static const String howAreYouFeelingToday = 'How are you feeling today?';

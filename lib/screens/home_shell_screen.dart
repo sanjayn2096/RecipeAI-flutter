@@ -19,6 +19,7 @@ import '../widgets/sous_chef_menu_button.dart';
 import '../widgets/guest_signup_prompt.dart';
 import '../core/telemetry/app_telemetry.dart';
 import 'grocery_list_screen.dart';
+import 'import/import_hub_screen.dart';
 import 'recipe_flow_screen.dart';
 
 /// Matches selected pantry pills and sheet highlights.
@@ -130,7 +131,7 @@ String _firstNameLetterFromProfile(UserData? user, SessionProfile session) {
   return name.substring(0, 1).toUpperCase();
 }
 
-/// Main shell after login: bottom nav — Home, Create Recipes, Grocery list, Saved.
+/// Main shell after login: bottom nav — Home, Create Recipes, Grocery, Import, Saved.
 class HomeShellScreen extends StatefulWidget {
   const HomeShellScreen({
     super.key,
@@ -174,7 +175,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     if (index == 1) {
       widget.sessionManager.savePreferenceSync('customPreference', '');
     }
-    if (index == 3 && !widget.sessionManager.isGuestMode()) {
+    if (index == 4 && !widget.sessionManager.isGuestMode()) {
       widget.homeViewModel.loadSavedFromApi();
     }
   }
@@ -248,7 +249,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
           targetKey: _coachFavoritesKey,
           title: AppStrings.coachStepFavoritesTitle,
           body: AppStrings.coachStepFavoritesBody,
-          tabIndex: 3,
+          tabIndex: 4,
         ),
       ],
     );
@@ -282,7 +283,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
           _embeddedRecipeFlowKey++;
           _currentIndex = index;
         });
-        if (index == 3 && !widget.sessionManager.isGuestMode()) {
+        if (index == 4 && !widget.sessionManager.isGuestMode()) {
           widget.homeViewModel.loadSavedFromApi();
         }
         return;
@@ -293,7 +294,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       // Create Recipes uses mood/diet/cuisine only — ignore Home "Generate from text" session value.
       widget.sessionManager.savePreferenceSync('customPreference', '');
     }
-    if (index == 3 && !widget.sessionManager.isGuestMode()) {
+    if (index == 4 && !widget.sessionManager.isGuestMode()) {
       widget.homeViewModel.loadSavedFromApi();
     }
   }
@@ -442,6 +443,11 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                     appTelemetry: widget.appTelemetry,
                     embedInShell: true,
                   ),
+                  ImportHubScreen(
+                    sessionManager: widget.sessionManager,
+                    recipeViewModel: widget.recipeViewModel,
+                    groceryListViewModel: widget.groceryListViewModel,
+                  ),
                   _FavoritesTabBody(
                     homeViewModel: widget.homeViewModel,
                     recipeViewModel: widget.recipeViewModel,
@@ -474,6 +480,11 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                       icon: Icon(Icons.shopping_cart_outlined),
                       selectedIcon: Icon(Icons.shopping_cart),
                       label: 'Grocery',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.download_for_offline_outlined),
+                      selectedIcon: Icon(Icons.download_for_offline),
+                      label: 'Import',
                     ),
                     NavigationDestination(
                       icon: Icon(Icons.bookmark_outline),
@@ -509,6 +520,8 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       case 2:
         return AppStrings.groceryListTitle;
       case 3:
+        return AppStrings.importRecipeTabTitle;
+      case 4:
         return 'Saved';
       default:
         return AppStrings.appName;
@@ -834,7 +847,7 @@ class _HomeHeroRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '$greetingLine 👋',
+          '$greetingLine',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontFamily: 'serif',
             fontWeight: FontWeight.w800,
@@ -849,7 +862,7 @@ class _HomeHeroRow extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '${AppStrings.letsCookSomethingNice} 💛',
+          '${AppStrings.letsCookSomethingNice}',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             color: onSurface,
             shadows: [Shadow(color: halo, blurRadius: 8)],

@@ -102,6 +102,21 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
     setState(() => _pageIndex = _firstInstructionPage);
   }
 
+  void _selectAllGatheredIngredients() {
+    final n = _ingredients.length;
+    if (n == 0) return;
+    setState(() {
+      _checkedIngredientIndices
+        ..clear()
+        ..addAll(List<int>.generate(n, (i) => i));
+    });
+  }
+
+  void _deselectAllGatheredIngredients() {
+    if (_checkedIngredientIndices.isEmpty) return;
+    setState(_checkedIngredientIndices.clear);
+  }
+
   static bool _isHttpUrl(String s) {
     final t = s.trim().toLowerCase();
     return t.startsWith('http://') || t.startsWith('https://');
@@ -285,6 +300,25 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
             Text(
               '$checked / $total gathered',
               style: theme.textTheme.labelMedium,
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 4,
+              runSpacing: 0,
+              children: [
+                TextButton(
+                  onPressed: checked < total
+                      ? _selectAllGatheredIngredients
+                      : null,
+                  child: const Text('Select all'),
+                ),
+                TextButton(
+                  onPressed:
+                      checked > 0 ? _deselectAllGatheredIngredients : null,
+                  child: const Text('Deselect all'),
+                ),
+              ],
             ),
           ],
           const SizedBox(height: 16),

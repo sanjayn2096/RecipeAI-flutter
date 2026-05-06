@@ -74,14 +74,26 @@ abstract class GroceryIngredientDisplay {
 
   /// Title shown in the grocery list for a stored [name] (already normalized).
   static String listTitle(String storedName) {
-    var words = storedName
+    final words = _baseWords(storedName);
+    if (words.isEmpty) {
+      return storedName.trim();
+    }
+    return words.map(_titleCaseWord).join(' ');
+  }
+
+  /// Base ingredient phrase in lowercase used for matching (e.g. "green onion").
+  static String baseIngredientKey(String name) {
+    final words = _baseWords(name);
+    if (words.isEmpty) return name.trim().toLowerCase();
+    return words.map((w) => w.toLowerCase()).join(' ');
+  }
+
+  static List<String> _baseWords(String value) {
+    var words = value
         .trim()
         .split(RegExp(r'\s+'))
         .where((w) => w.isNotEmpty)
         .toList();
-    if (words.isEmpty) {
-      return storedName.trim();
-    }
     while (words.length > 1 &&
         _leadingDescriptors.contains(words.first.toLowerCase())) {
       words = words.sublist(1);
@@ -90,10 +102,7 @@ abstract class GroceryIngredientDisplay {
         _trailingCountNouns.contains(words.last.toLowerCase())) {
       words = words.sublist(0, words.length - 1);
     }
-    if (words.isEmpty) {
-      return _titleCaseWord(storedName.trim());
-    }
-    return words.map(_titleCaseWord).join(' ');
+    return words;
   }
 
   static String _titleCaseWord(String w) {

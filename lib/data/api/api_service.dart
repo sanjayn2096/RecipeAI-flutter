@@ -222,7 +222,8 @@ class ApiService {
       );
     });
     if (kDebugMode) {
-      debugPrint('[ApiService] generate-recipe response: statusCode=${r.statusCode}');
+      debugPrint(
+          '[ApiService] generate-recipe response: statusCode=${r.statusCode}');
       debugPrint('[ApiService] generate-recipe raw body:\n${r.body}');
     }
     final body = _decodeBody(r.body, url);
@@ -252,7 +253,8 @@ class ApiService {
     };
     final body = <String, dynamic>{
       'recipeName': recipeName,
-      if (cuisine != null && cuisine.trim().isNotEmpty) 'cuisine': cuisine.trim(),
+      if (cuisine != null && cuisine.trim().isNotEmpty)
+        'cuisine': cuisine.trim(),
       if (clientRequestId != null && clientRequestId.trim().isNotEmpty)
         'clientRequestId': clientRequestId.trim(),
       if (threshold != null) 'threshold': threshold.clamp(0.0, 1.0),
@@ -314,8 +316,9 @@ class ApiService {
         return jsonDecode(payload);
       }
 
-      await for (final rawLine
-          in streamed.stream.transform(utf8.decoder).transform(const LineSplitter())) {
+      await for (final rawLine in streamed.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
         final line = rawLine.trimRight();
 
         if (line.isEmpty) {
@@ -437,6 +440,81 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(body));
   }
 
+  /// POST import-recipe (auth). [mode] is `url` or `text` (structured parse only, no generation).
+  Future<Recipe> importRecipe({
+    required String mode,
+    String? url,
+    String? plainText,
+    String? idToken,
+  }) async {
+    const metricPath = 'import-recipe';
+    final urlPath = _url('import-recipe');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final body = <String, dynamic>{
+      'mode': mode,
+      if (url != null && url.trim().isNotEmpty) 'url': url.trim(),
+      if (plainText != null && plainText.trim().isNotEmpty)
+        'plainText': plainText.trim(),
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(urlPath),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+    });
+    final map = _decodeBody(r.body, urlPath);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      if (map is! Map<String, dynamic>) {
+        throw ApiException(0, 'Invalid import-recipe response');
+      }
+      final raw = map['recipe'];
+      if (raw is! Map<String, dynamic>) {
+        throw ApiException(0, 'Missing recipe in import response');
+      }
+      return Recipe.fromJson(raw);
+    }
+    throw ApiException(r.statusCode, _extractError(map));
+  }
+
+  /// POST analyze-pantry-image (auth). [imageBase64] raw base64 or a `data:<mime>;base64,` data URL.
+  Future<PantryScanResponse> analyzePantryImage({
+    required String imageBase64,
+    String? mimeType,
+    String? idToken,
+  }) async {
+    const metricPath = 'analyze-pantry-image';
+    final url = _url('analyze-pantry-image');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final body = <String, dynamic>{
+      'imageBase64': imageBase64,
+      if (mimeType != null && mimeType.trim().isNotEmpty)
+        'mimeType': mimeType.trim(),
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      if (kDebugMode) {
+        final u = map is Map ? map['usage'] : null;
+        debugPrint('[ApiService] analyze-pantry-image usage: $u');
+      }
+      return PantryScanResponse.fromJson(map as Map<String, dynamic>);
+    }
+    throw ApiException(r.statusCode, _extractError(map));
+  }
+
   /// GET get-recipe/:recipeId (auth: Firebase ID token). Full document from Firestore `recipes`.
   Future<Recipe> getRecipe(String recipeId, {String? idToken}) async {
     const metricPath = 'get-recipe';
@@ -474,9 +552,7 @@ class ApiService {
         map['recipes'] ??
         map['data'];
     if (list is! List) return [];
-    return list
-        .map((e) => Recipe.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return list.map((e) => Recipe.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// Decodes response body as JSON. Throws a clear error if server returned HTML
@@ -507,7 +583,14 @@ class ApiService {
   static String _extractError(dynamic map) {
     if (map is! Map) return 'Request failed';
     final m = map;
-    for (final key in ['message', 'error', 'detail', 'details', 'msg', 'description']) {
+    for (final key in [
+      'message',
+      'error',
+      'detail',
+      'details',
+      'msg',
+      'description'
+    ]) {
       final v = m[key];
       if (v != null) {
         final s = v.toString().trim();
@@ -544,6 +627,114 @@ class ResolveRecipeHeroResponse {
       recipeImageUrl: (json['recipeImageUrl'] ?? '').toString(),
       source: (json['source'] ?? 'placeholder').toString(),
       bestScore: score,
+    );
+  }
+}
+
+/// One detected item from POST /analyze-pantry-image (user must confirm before adding).
+class PantryScanItem {
+  const PantryScanItem({
+    required this.name,
+    this.quantity = '',
+    this.unit = '',
+    this.confidence,
+    this.notes = '',
+  });
+
+  final String name;
+  final String quantity;
+  final String unit;
+  final double? confidence;
+  final String notes;
+
+  factory PantryScanItem.fromJson(Map<String, dynamic> json) {
+    final cRaw = json['confidence'];
+    double? conf;
+    if (cRaw is num) {
+      conf = cRaw.toDouble().clamp(0.0, 1.0);
+    }
+    return PantryScanItem(
+      name: (json['name'] ?? '').toString().trim(),
+      quantity: (json['quantity'] ?? '').toString().trim(),
+      unit: (json['unit'] ?? '').toString().trim(),
+      confidence: conf,
+      notes: (json['notes'] ?? '').toString().trim(),
+    );
+  }
+
+  /// Ingredient line for [GroceryIngredientNormalize.normalizeRecipeIngredientLine].
+  String toIngredientLine() {
+    final parts = <String>[];
+    if (quantity.isNotEmpty) parts.add(quantity);
+    if (unit.isNotEmpty) parts.add(unit);
+    parts.add(name);
+    return parts.join(' ');
+  }
+}
+
+/// Token usage from Gemini (for cost estimation in logs / debug).
+class PantryScanUsage {
+  const PantryScanUsage({
+    required this.model,
+    this.promptTokenCount = 0,
+    this.candidatesTokenCount = 0,
+    this.totalTokenCount = 0,
+    this.estimatedCostUsd,
+  });
+
+  final String model;
+  final int promptTokenCount;
+  final int candidatesTokenCount;
+  final int totalTokenCount;
+  final double? estimatedCostUsd;
+
+  factory PantryScanUsage.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return const PantryScanUsage(model: '');
+    }
+    double? est;
+    final e = json['estimatedCostUsd'];
+    if (e is num) est = e.toDouble();
+    return PantryScanUsage(
+      model: (json['model'] ?? '').toString(),
+      promptTokenCount: (json['promptTokenCount'] is num)
+          ? (json['promptTokenCount'] as num).toInt()
+          : 0,
+      candidatesTokenCount: (json['candidatesTokenCount'] is num)
+          ? (json['candidatesTokenCount'] as num).toInt()
+          : 0,
+      totalTokenCount: (json['totalTokenCount'] is num)
+          ? (json['totalTokenCount'] as num).toInt()
+          : 0,
+      estimatedCostUsd: est,
+    );
+  }
+}
+
+class PantryScanResponse {
+  const PantryScanResponse({
+    required this.items,
+    this.usage,
+  });
+
+  final List<PantryScanItem> items;
+  final PantryScanUsage? usage;
+
+  factory PantryScanResponse.fromJson(Map<String, dynamic> json) {
+    final raw = json['items'];
+    final list = <PantryScanItem>[];
+    if (raw is List) {
+      for (final e in raw) {
+        if (e is Map<String, dynamic>) {
+          final item = PantryScanItem.fromJson(e);
+          if (item.name.isNotEmpty) list.add(item);
+        }
+      }
+    }
+    final u = json['usage'];
+    return PantryScanResponse(
+      items: list,
+      usage: u is Map<String, dynamic> ? PantryScanUsage.fromJson(u) : null,
     );
   }
 }

@@ -146,6 +146,7 @@ void main() async {
       homeViewModel: homeViewModel,
       recipeViewModel: recipeViewModel,
       groceryListViewModel: groceryViewModel,
+      apiService: apiService,
       appTelemetry: appTelemetry,
       sessionManager: sessionManager,
       analytics: analytics,

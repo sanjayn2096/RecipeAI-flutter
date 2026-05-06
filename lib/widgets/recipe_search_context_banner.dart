@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/recipe_generation_entry_point.dart';
 import '../core/recipe_search_context.dart';
 import '../services/session_manager.dart';
 
@@ -9,16 +10,24 @@ class RecipeSearchContextBanner extends StatelessWidget {
     super.key,
     required this.sessionManager,
     required this.onChangeSearchSettings,
+    this.generationEntryPoint,
     this.margin = const EdgeInsets.fromLTRB(16, 0, 16, 8),
   });
 
   final SessionManager sessionManager;
   final VoidCallback onChangeSearchSettings;
+  /// When set, summarizes Create vs Home scoped prefs; otherwise legacy [RecipeSearchContext.fromSession].
+  final RecipeGenerationEntryPoint? generationEntryPoint;
   final EdgeInsets margin;
 
   @override
   Widget build(BuildContext context) {
-    final ctx = RecipeSearchContext.fromSession(sessionManager);
+    final ctx = generationEntryPoint != null
+        ? RecipeSearchContext.fromSessionForEntryPoint(
+            sessionManager,
+            generationEntryPoint!,
+          )
+        : RecipeSearchContext.fromSession(sessionManager);
     final scheme = Theme.of(context).colorScheme;
 
     Widget chip(String label, {Color? tint}) {

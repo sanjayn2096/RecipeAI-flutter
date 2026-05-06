@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,7 @@ import '../core/telemetry/feature_ids.dart';
 import '../data/models/grocery_item.dart';
 import '../view_models/grocery_list_view_model.dart';
 import '../widgets/grocery_item_editor_dialog.dart';
+import '../widgets/ingredient_icon.dart';
 
 /// Shopping list: edit, check off, share, copy.
 ///
@@ -99,6 +101,11 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
               onPressed: () => context.pop(),
             ),
             actions: [
+              IconButton(
+                tooltip: AppStrings.groceryPantryScanTooltip,
+                icon: const Icon(Icons.camera_alt_outlined),
+                onPressed: () => _tryOpenPantryScan(context),
+              ),
               if (items.any((e) => e.isChecked))
                 TextButton(
                   onPressed: () async {
@@ -198,8 +205,20 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                   onChanged: (v) {
                     if (v != null) vm.setChecked(item.id, v);
                   },
-                  title: Text(
-                    GroceryIngredientDisplay.listTitle(item.name),
+                  title: Row(
+                    children: [
+                      IngredientIcon(
+                        ingredientName: item.name,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          GroceryIngredientDisplay.listTitle(item.name),
+                        ),
+                      ),
+                    ],
                   ),
                   subtitle: _rowSubtitle(context, item),
                   secondary: IconButton(
@@ -224,6 +243,11 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       alignment: WrapAlignment.end,
       spacing: 4,
       children: [
+        IconButton(
+          tooltip: AppStrings.groceryPantryScanTooltip,
+          icon: const Icon(Icons.camera_alt_outlined),
+          onPressed: () => _tryOpenPantryScan(context),
+        ),
         if (items.any((e) => e.isChecked))
           TextButton(
             onPressed: () async {
@@ -247,8 +271,9 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
         IconButton(
           tooltip: AppStrings.groceryShareList,
           icon: const Icon(Icons.share_outlined),
-          onPressed:
-              !canShare ? null : () => _share(context, vm, onlyUnchecked: false),
+          onPressed: !canShare
+              ? null
+              : () => _share(context, vm, onlyUnchecked: false),
         ),
         PopupMenuButton<String>(
           enabled: canShare,
@@ -308,8 +333,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
   }
 
   String _groupKey(GroceryItem item) {
-    if (item.sourceRecipeId != null &&
-        item.sourceRecipeId!.trim().isNotEmpty) {
+    if (item.sourceRecipeId != null && item.sourceRecipeId!.trim().isNotEmpty) {
       return 'id:${item.sourceRecipeId!.trim()}';
     }
     if (item.sourceRecipeName != null &&
@@ -350,6 +374,19 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       return AppStrings.groceryIngredientsForRecipe(name);
     }
     return AppStrings.groceryGroupUnnamedRecipe;
+  }
+
+  void _tryOpenPantryScan(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(AppStrings.groceryPantryScanSignInRequired),
+        ),
+      );
+      return;
+    }
+    context.push('/pantry-scan');
   }
 
   Future<void> _share(

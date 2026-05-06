@@ -23,4 +23,8 @@ abstract final class FeatureIds {
   static const groceryMergeGuestToCloud = 'grocery_merge_guest_to_cloud';
   static const groceryShare = 'grocery_share';
   static const groceryCopy = 'grocery_copy';
+  static const groceryPantryScanAnalyze = 'grocery_pantry_scan_analyze';
+  static const groceryPantryScanConfirmAdd = 'grocery_pantry_scan_confirm_add';
+
+  static const importRecipe = 'import_recipe';
 }
