@@ -31,7 +31,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void initState() {
     super.initState();
     if (!widget.sessionManager.isGuestMode()) {
-      widget.homeViewModel.loadSavedFromApi();
+      widget.homeViewModel.loadSavedFromApi(
+        showLoading: false,
+        ignoreCache: true,
+      );
     }
   }
 

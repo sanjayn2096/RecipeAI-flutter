@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../core/app_strings.dart';
+import '../core/recipe_generation_entry_point.dart';
 import '../data/models/api_dtos.dart';
 import '../data/models/session_profile.dart';
 import '../data/models/user_data.dart';
@@ -160,7 +161,11 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   final GlobalKey _coachGetRecipesKey = GlobalKey();
   final GlobalKey _coachAddPantryKey = GlobalKey();
   final GlobalKey _coachFavoritesKey = GlobalKey();
+  final GlobalKey _coachImportLinksKey = GlobalKey();
+  final GlobalKey _coachImportPasteKey = GlobalKey();
+  final GlobalKey _coachImportScanKey = GlobalKey();
   late final CoachTourController _coachTour;
+  late final CoachTourController _importHubCoachTour;
 
   int _currentIndex = 0;
 
@@ -176,17 +181,74 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       widget.sessionManager.savePreferenceSync('customPreference', '');
     }
     if (index == 4 && !widget.sessionManager.isGuestMode()) {
-      widget.homeViewModel.loadSavedFromApi();
+      widget.homeViewModel.loadSavedFromApi(
+        showLoading: false,
+        ignoreCache: true,
+      );
     }
   }
 
   void _startCoachTour() {
-    if (_coachTour.isActive) return;
+    if (_coachTour.isActive || _importHubCoachTour.isActive) return;
     setState(() => _currentIndex = 0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _coachTour.start();
     });
   }
+
+  /// First visit to Import tab — spotlight the three tiles (once per install).
+  void _scheduleImportHubCoachIfNeeded() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _maybeStartImportHubCoachTour();
+    });
+  }
+
+  void _maybeStartImportHubCoachTour() {
+    if (_currentIndex != 3) return;
+    if (widget.sessionManager.getImportHubCoachSeenSync()) return;
+    if (_coachTour.isActive || _importHubCoachTour.isActive) return;
+    _importHubCoachTour.start();
+  }
+
+  void _finishImportHubCoachTourSeen() {
+    widget.sessionManager.setImportHubCoachSeenSync(true);
+    _importHubCoachTour.finish();
+  }
+
+  void _onImportCoachNext() {
+    if (!_importHubCoachTour.isActive) return;
+    if (_importHubCoachTour.isLastStep) {
+      _finishImportHubCoachTourSeen();
+      return;
+    }
+    final nextIdx = _importHubCoachTour.currentIndex + 1;
+    final nextStep = _importHubCoachTour.steps[nextIdx];
+    if (nextStep.tabIndex != null && nextStep.tabIndex != _currentIndex) {
+      setState(() {
+        _currentIndex = nextStep.tabIndex!;
+        _applyTabSideEffects(_currentIndex);
+      });
+    }
+    _importHubCoachTour.next();
+  }
+
+  void _onImportCoachBack() {
+    if (!_importHubCoachTour.isActive || _importHubCoachTour.currentIndex <= 0) {
+      return;
+    }
+    final prevIdx = _importHubCoachTour.currentIndex - 1;
+    final prevStep = _importHubCoachTour.steps[prevIdx];
+    if (prevStep.tabIndex != null && prevStep.tabIndex != _currentIndex) {
+      setState(() {
+        _currentIndex = prevStep.tabIndex!;
+        _applyTabSideEffects(_currentIndex);
+      });
+    }
+    _importHubCoachTour.previous();
+  }
+
+  void _onImportCoachSkip() => _finishImportHubCoachTourSeen();
 
   void _onCoachNext() {
     if (!_coachTour.isActive) return;
@@ -253,6 +315,28 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
         ),
       ],
     );
+    _importHubCoachTour = CoachTourController(
+      steps: [
+        CoachTourStep(
+          targetKey: _coachImportLinksKey,
+          title: AppStrings.coachStepImportLinksTitle,
+          body: AppStrings.coachStepImportLinksBody,
+          tabIndex: 3,
+        ),
+        CoachTourStep(
+          targetKey: _coachImportPasteKey,
+          title: AppStrings.coachStepImportPasteTitle,
+          body: AppStrings.coachStepImportPasteBody,
+          tabIndex: 3,
+        ),
+        CoachTourStep(
+          targetKey: _coachImportScanKey,
+          title: AppStrings.coachStepImportScanTitle,
+          body: AppStrings.coachStepImportScanBody,
+          tabIndex: 3,
+        ),
+      ],
+    );
     widget.homeViewModel.addListener(_onHomeUpdate);
     widget.homeViewModel.loadUserDetails();
   }
@@ -261,6 +345,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   void dispose() {
     widget.homeViewModel.removeListener(_onHomeUpdate);
     _coachTour.dispose();
+    _importHubCoachTour.dispose();
     super.dispose();
   }
 
@@ -274,6 +359,9 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   }
 
   void _onTabTapped(int index) {
+    if (_importHubCoachTour.isActive && index != 3 && index != _currentIndex) {
+      _importHubCoachTour.finish();
+    }
     final wasCreate = _currentIndex == 1;
     if (wasCreate && index != 1) {
       final err = widget.recipeViewModel.fetchError;
@@ -284,7 +372,13 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
           _currentIndex = index;
         });
         if (index == 4 && !widget.sessionManager.isGuestMode()) {
-          widget.homeViewModel.loadSavedFromApi();
+          widget.homeViewModel.loadSavedFromApi(
+            showLoading: false,
+            ignoreCache: true,
+          );
+        }
+        if (index == 3) {
+          _scheduleImportHubCoachIfNeeded();
         }
         return;
       }
@@ -295,7 +389,13 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       widget.sessionManager.savePreferenceSync('customPreference', '');
     }
     if (index == 4 && !widget.sessionManager.isGuestMode()) {
-      widget.homeViewModel.loadSavedFromApi();
+      widget.homeViewModel.loadSavedFromApi(
+        showLoading: false,
+        ignoreCache: true,
+      );
+    }
+    if (index == 3) {
+      _scheduleImportHubCoachIfNeeded();
     }
   }
 
@@ -378,6 +478,14 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                         },
                       ),
                       ListTile(
+                        leading: const Icon(Icons.trending_up),
+                        title: const Text('See trending recipes'),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          context.push('/trending');
+                        },
+                      ),
+                      ListTile(
                         leading: const Icon(Icons.shopping_cart_outlined),
                         title: const Text(AppStrings.groceryListDrawer),
                         onTap: () {
@@ -447,6 +555,9 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                     sessionManager: widget.sessionManager,
                     recipeViewModel: widget.recipeViewModel,
                     groceryListViewModel: widget.groceryListViewModel,
+                    coachImportLinksKey: _coachImportLinksKey,
+                    coachImportPasteKey: _coachImportPasteKey,
+                    coachImportScanKey: _coachImportScanKey,
                   ),
                   _FavoritesTabBody(
                     homeViewModel: widget.homeViewModel,
@@ -474,7 +585,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                     NavigationDestination(
                       icon: Icon(Icons.restaurant_outlined),
                       selectedIcon: Icon(Icons.restaurant),
-                      label: 'Create Recipes',
+                      label: 'Create',
                     ),
                     NavigationDestination(
                       icon: Icon(Icons.shopping_cart_outlined),
@@ -504,6 +615,20 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                   onNext: _onCoachNext,
                   onBack: _onCoachBack,
                   onSkip: _onCoachSkip,
+                );
+              },
+            ),
+            ListenableBuilder(
+              listenable: _importHubCoachTour,
+              builder: (_, __) {
+                if (!_importHubCoachTour.isActive) {
+                  return const SizedBox.shrink();
+                }
+                return CoachMarkOverlay(
+                  controller: _importHubCoachTour,
+                  onNext: _onImportCoachNext,
+                  onBack: _onImportCoachBack,
+                  onSkip: _onImportCoachSkip,
                 );
               },
             ),
@@ -737,6 +862,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     if (!mounted) return;
     context.push('/recipe-flow', extra: {
       'userData': widget.homeViewModel.userData,
+      'generationEntryPoint': RecipeGenerationEntryPoint.home,
       if (freeText.isNotEmpty) 'initialPrompt': freeText,
     });
   }
@@ -765,14 +891,6 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
             children: [
               const SizedBox(height: 8),
               _HomeHeroRow(greetingLine: _greetingLine()),
-              Align(
-                alignment: Alignment.center,
-                child: TextButton.icon(
-                  onPressed: () => context.push('/trending'),
-                  icon: const Icon(Icons.trending_up),
-                  label: const Text('See trending recipes'),
-                ),
-              ),
               const SizedBox(height: 12),
               _HomeSearchField(
                 controller: _customPreferenceController,
@@ -816,11 +934,13 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                   ],
                 ),
               ],
-              const SizedBox(height: 20),
-              _PromptSuggestionsStrip(
-                homeViewModel: widget.homeViewModel,
-                onSelect: _onIdeaSelected,
-              ),
+              if (!widget.sessionManager.isGuestMode()) ...[
+                const SizedBox(height: 20),
+                _PromptSuggestionsStrip(
+                  homeViewModel: widget.homeViewModel,
+                  onSelect: _onIdeaSelected,
+                ),
+              ],
               const SizedBox(height: 24),
             ],
           ),

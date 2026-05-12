@@ -17,11 +17,19 @@ class ImportHubScreen extends StatelessWidget {
     required this.sessionManager,
     required this.recipeViewModel,
     required this.groceryListViewModel,
+    this.coachImportLinksKey,
+    this.coachImportPasteKey,
+    this.coachImportScanKey,
   });
 
   final SessionManager sessionManager;
   final RecipeViewModel recipeViewModel;
   final GroceryListViewModel groceryListViewModel;
+
+  /// Optional spotlight targets for the first-time Import tab coach overlay.
+  final GlobalKey? coachImportLinksKey;
+  final GlobalKey? coachImportPasteKey;
+  final GlobalKey? coachImportScanKey;
 
   Future<bool> _allowImport(BuildContext context) async {
     if (sessionManager.isGuestMode()) {
@@ -52,28 +60,56 @@ class ImportHubScreen extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     Widget tile({
+      GlobalKey? coachKey,
       required IconData icon,
+      required String title,
       required String tooltip,
       required VoidCallback onTap,
     }) {
-      return Tooltip(
+      final textTheme = Theme.of(context).textTheme;
+      final child = Tooltip(
         message: tooltip,
         child: Material(
           color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: scheme.primary, width: 1.5),
+          ),
+          clipBehavior: Clip.antiAlias,
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: onTap,
-            child: Center(
-              child: Icon(
-                icon,
-                size: 40,
-                color: scheme.primary,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 36,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
       );
+      if (coachKey != null) {
+        return KeyedSubtree(key: coachKey, child: child);
+      }
+      return child;
     }
 
     return Padding(
@@ -83,13 +119,16 @@ class ImportHubScreen extends StatelessWidget {
         children: [
           Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
                   child: Row(
                     children: [
                       Expanded(
                         child: tile(
+                          coachKey: coachImportLinksKey,
                           icon: Icons.link_rounded,
+                          title: AppStrings.importHubTileLinks,
                           tooltip: 'Paste a recipe link — web or social',
                           onTap: () => _push(
                             context,
@@ -104,7 +143,9 @@ class ImportHubScreen extends StatelessWidget {
                       const SizedBox(width: 14),
                       Expanded(
                         child: tile(
+                          coachKey: coachImportPasteKey,
                           icon: Icons.format_quote_rounded,
+                          title: AppStrings.importHubTilePaste,
                           tooltip: 'Paste caption or recipe text',
                           onTap: () => _push(
                             context,
@@ -122,7 +163,9 @@ class ImportHubScreen extends StatelessWidget {
                 const SizedBox(height: 14),
                 Expanded(
                   child: tile(
+                    coachKey: coachImportScanKey,
                     icon: Icons.document_scanner_outlined,
+                    title: AppStrings.importHubTileScan,
                     tooltip: 'Scan a cookbook page or recipe card',
                     onTap: () => _push(
                       context,

@@ -1,3 +1,4 @@
+import '../../core/recipe_origin.dart';
 import '../../core/recipe_parsing.dart';
 import 'nutritional_value.dart';
 
@@ -22,6 +23,7 @@ class Recipe {
     /// From model output when present — [null] means older saved recipes without these keys.
     this.vegetarianFriendly,
     this.glutenFriendly,
+    this.recipeOrigin = RecipeOrigin.generated,
   });
 
   final String recipeId;
@@ -45,6 +47,9 @@ class Recipe {
 
   /// Model-estimated: no wheat, barley, rye, or obvious gluten in the dish.
   final bool? glutenFriendly;
+
+  /// AI-generated vs imported; older payloads default to [RecipeOrigin.generated].
+  final RecipeOrigin recipeOrigin;
 
   /// Backward-compatible alias: previously a single "favorite" meant "saved" only.
   bool get isFavorite => isSaved;
@@ -98,6 +103,9 @@ class Recipe {
           : const [],
       vegetarianFriendly: asBool(vf),
       glutenFriendly: asBool(gf),
+      recipeOrigin: RecipeOrigin.fromWire(
+        json['recipeOrigin'] ?? json['recipe_origin'],
+      ),
     );
   }
 
@@ -117,6 +125,7 @@ class Recipe {
         'stepImageUrls': stepImageUrls,
         if (vegetarianFriendly != null) 'vegetarianFriendly': vegetarianFriendly,
         if (glutenFriendly != null) 'glutenFriendly': glutenFriendly,
+        'recipeOrigin': recipeOrigin.wireValue,
       };
 
   /// POST save-favorites: backends expect `isSaved` / `isFavorite` and `imageUrl` alias.
@@ -137,6 +146,7 @@ class Recipe {
       'stepImageUrls': stepImageUrls,
       if (vegetarianFriendly != null) 'vegetarianFriendly': vegetarianFriendly,
       if (glutenFriendly != null) 'glutenFriendly': glutenFriendly,
+      'recipeOrigin': recipeOrigin.wireValue,
     };
   }
 
@@ -148,6 +158,7 @@ class Recipe {
     List<String>? stepImageUrls,
     bool? vegetarianFriendly,
     bool? glutenFriendly,
+    RecipeOrigin? recipeOrigin,
   }) =>
       Recipe(
         recipeId: recipeId,
@@ -164,6 +175,7 @@ class Recipe {
         stepImageUrls: stepImageUrls ?? this.stepImageUrls,
         vegetarianFriendly: vegetarianFriendly ?? this.vegetarianFriendly,
         glutenFriendly: glutenFriendly ?? this.glutenFriendly,
+        recipeOrigin: recipeOrigin ?? this.recipeOrigin,
       );
 
   /// Combined text for client-side search across all recipe fields.

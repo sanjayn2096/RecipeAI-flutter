@@ -23,5 +23,12 @@ void main() {
         'Olive Oil',
       );
     });
+
+    test('shoppingCorePhrase strips freshly ground', () {
+      expect(
+        GroceryIngredientDisplay.shoppingCorePhrase('Freshly Ground Pepper'),
+        'pepper',
+      );
+    });
   });
 }

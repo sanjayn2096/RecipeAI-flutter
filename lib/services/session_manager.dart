@@ -283,6 +283,14 @@ class SessionManager {
     _prefs?.setBool(_prefix + AppConstants.prefsGuestMode, value);
   }
 
+  /// Import tab one-time tile coach (see [HomeShellScreen]).
+  bool getImportHubCoachSeenSync() =>
+      _prefs?.getBool(_prefix + AppConstants.prefsImportHubCoachSeen) ?? false;
+
+  void setImportHubCoachSeenSync(bool value) {
+    _prefs?.setBool(_prefix + AppConstants.prefsImportHubCoachSeen, value);
+  }
+
   void clearGuestModeSync() {
     _prefs?.remove(_prefix + AppConstants.prefsGuestMode);
   }

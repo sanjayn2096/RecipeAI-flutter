@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/app_strings.dart';
+import '../core/recipe_origin.dart';
 import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
 import '../view_models/home_view_model.dart';
@@ -8,6 +10,8 @@ import '../view_models/grocery_list_view_model.dart';
 import 'cartoon_outlined_card.dart';
 import 'recipe_list_row.dart';
 import 'guest_signup_prompt.dart';
+
+enum _SavedLibraryTab { created, exported }
 
 /// Saved list with swipe-left to remove (POST /save-favorites with isSaved: false).
 class FavoriteRecipesListView extends StatefulWidget {
@@ -33,6 +37,7 @@ class FavoriteRecipesListView extends StatefulWidget {
 
 class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
   late final TextEditingController _searchController;
+  _SavedLibraryTab _libraryTab = _SavedLibraryTab.created;
 
   @override
   void initState() {
@@ -44,6 +49,15 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  bool _matchesLibraryTab(Recipe r) {
+    switch (_libraryTab) {
+      case _SavedLibraryTab.created:
+        return r.recipeOrigin != RecipeOrigin.imported;
+      case _SavedLibraryTab.exported:
+        return r.recipeOrigin == RecipeOrigin.imported;
+    }
   }
 
   @override
@@ -98,14 +112,41 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
         if (saved.isEmpty) {
           return const Center(child: Text('No saved recipes yet'));
         }
-        final filtered = saved
+
+        final searched = saved
             .where((r) => r.matchesSearchQuery(_searchController.text))
             .toList();
+        final filtered =
+            searched.where(_matchesLibraryTab).toList();
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: SegmentedButton<_SavedLibraryTab>(
+                segments: const [
+                  ButtonSegment(
+                    value: _SavedLibraryTab.created,
+                    label: Text(AppStrings.savedListSegmentCreated),
+                    icon: Icon(Icons.auto_awesome_outlined, size: 18),
+                  ),
+                  ButtonSegment(
+                    value: _SavedLibraryTab.exported,
+                    label: Text(AppStrings.savedListSegmentExported),
+                    icon: Icon(Icons.download_outlined, size: 18),
+                  ),
+                ],
+                selected: {_libraryTab},
+                onSelectionChanged: (s) {
+                  setState(() {
+                    _libraryTab = s.first;
+                  });
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: TextField(
                 controller: _searchController,
                 decoration: const InputDecoration(
@@ -117,7 +158,7 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
               ),
             ),
             Expanded(
-              child: filtered.isEmpty
+              child: searched.isEmpty
                   ? Center(
                       child: Text(
                         'No recipes match your search',
@@ -129,89 +170,106 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                         textAlign: TextAlign.center,
                       ),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      itemCount: filtered.length,
-                      itemBuilder: (_, i) {
-                        final recipe = filtered[i];
-                        final dismissKey = recipe.recipeId.isNotEmpty
-                            ? 'saved_${recipe.recipeId}'
-                            : 'saved_h_${Object.hash(recipe.recipeName, recipe.cuisine, recipe.cookingTime, i)}';
-                        return Dismissible(
-                          key: ValueKey(dismissKey),
-                          direction: DismissDirection.endToStart,
-                          confirmDismiss: (direction) async {
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (dialogContext) => AlertDialog(
-                                title: const Text('Remove from saved?'),
-                                content: Text(
-                                  'Remove "${recipe.recipeName}" from your saved list?',
+                  : filtered.isEmpty
+                      ? Center(
+                          child: Text(
+                            _libraryTab == _SavedLibraryTab.created
+                                ? AppStrings.savedListEmptyCreated
+                                : AppStrings.savedListEmptyExported,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(dialogContext).pop(false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  FilledButton(
-                                    onPressed: () =>
-                                        Navigator.of(dialogContext).pop(true),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor:
-                                          Theme.of(context).colorScheme.error,
-                                      foregroundColor: Theme.of(context)
-                                          .colorScheme
-                                          .onError,
-                                    ),
-                                    child: const Text('Remove'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            return confirmed ?? false;
-                          },
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 24),
-                            color: Theme.of(context).colorScheme.error,
-                            child: Icon(
-                              Icons.delete_outline,
-                              color: Theme.of(context).colorScheme.onError,
-                              size: 28,
-                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          onDismissed: (_) {
-                            widget.homeViewModel
-                                .removeSavedWithSwipe(recipe)
-                                .then((ok) {
-                              if (!ok && context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, i) {
+                            final recipe = filtered[i];
+                            final dismissKey = recipe.recipeId.isNotEmpty
+                                ? 'saved_${recipe.recipeId}'
+                                : 'saved_h_${Object.hash(recipe.recipeName, recipe.cuisine, recipe.cookingTime, i)}';
+                            return Dismissible(
+                              key: ValueKey(dismissKey),
+                              direction: DismissDirection.endToStart,
+                              confirmDismiss: (direction) async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (dialogContext) => AlertDialog(
+                                    title: const Text('Remove from saved?'),
                                     content: Text(
-                                        'Could not remove from saved'),
+                                      'Remove "${recipe.recipeName}" from your saved list?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(dialogContext)
+                                                .pop(false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () =>
+                                            Navigator.of(dialogContext)
+                                                .pop(true),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .error,
+                                          foregroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .onError,
+                                        ),
+                                        child: const Text('Remove'),
+                                      ),
+                                    ],
                                   ),
                                 );
-                              }
-                            });
-                          },
-                          child: CartoonOutlinedCard(
-                            child: RecipeListRow(
-                              recipe: recipe,
-                              trailingActions: const [],
-                              onTap: () => _openSavedRecipe(
-                                context,
-                                homeViewModel: widget.homeViewModel,
-                                listRecipe: recipe,
-                                recipeViewModel: widget.recipeViewModel,
-                                groceryListViewModel:
-                                    widget.groceryListViewModel,
+                                return confirmed ?? false;
+                              },
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 24),
+                                color: Theme.of(context).colorScheme.error,
+                                child: Icon(
+                                  Icons.delete_outline,
+                                  color: Theme.of(context).colorScheme.onError,
+                                  size: 28,
+                                ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                              onDismissed: (_) {
+                                widget.homeViewModel
+                                    .removeSavedWithSwipe(recipe)
+                                    .then((ok) {
+                                  if (!ok && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Could not remove from saved'),
+                                      ),
+                                    );
+                                  }
+                                });
+                              },
+                              child: CartoonOutlinedCard(
+                                child: RecipeListRow(
+                                  recipe: recipe,
+                                  trailingActions: const [],
+                                  onTap: () => _openSavedRecipe(
+                                    context,
+                                    homeViewModel: widget.homeViewModel,
+                                    listRecipe: recipe,
+                                    recipeViewModel: widget.recipeViewModel,
+                                    groceryListViewModel:
+                                        widget.groceryListViewModel,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
             ),
           ],
         );
@@ -263,7 +321,10 @@ Future<void> _openSavedRecipe(
   try {
     final full =
         await homeViewModel.fetchSavedRecipeDetail(listRecipe.recipeId);
-    final toShow = full.copyWith(isSaved: true);
+    final toShow = full.copyWith(
+      isSaved: true,
+      recipeOrigin: listRecipe.recipeOrigin,
+    );
     if (!context.mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
     context.push(

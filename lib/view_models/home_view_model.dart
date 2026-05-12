@@ -190,11 +190,20 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   /// Saved tab: read Hive when present; otherwise GET fetch-saved once.
-  Future<void> loadSavedFromApi({bool showLoading = true}) async {
+  ///
+  /// When [ignoreCache] is true, always GET fetch-saved so list metadata (e.g.
+  /// [Recipe.recipeOrigin] for Created vs Exported) matches the server after save.
+  Future<void> loadSavedFromApi({
+    bool showLoading = true,
+    bool ignoreCache = false,
+  }) async {
     final profile = _userRepo.readSessionProfile();
     final userId = profile.userId;
 
-    if (showLoading && userId != null && userId.isNotEmpty) {
+    if (showLoading &&
+        !ignoreCache &&
+        userId != null &&
+        userId.isNotEmpty) {
       final cached = _userRepo.readCachedSavedSync();
       if (cached != null) {
         _apiSaved = dedupeSavedByRecipeId(cached);
@@ -233,8 +242,11 @@ class HomeViewModel extends ChangeNotifier {
 
   /// @nodoc
   @Deprecated('Use loadSavedFromApi')
-  Future<void> loadFavoritesFromApi({bool showLoading = true}) =>
-      loadSavedFromApi(showLoading: showLoading);
+  Future<void> loadFavoritesFromApi({
+    bool showLoading = true,
+    bool ignoreCache = false,
+  }) =>
+      loadSavedFromApi(showLoading: showLoading, ignoreCache: ignoreCache);
 
   Future<void> _recoverSavedFromNetwork() async {
     try {

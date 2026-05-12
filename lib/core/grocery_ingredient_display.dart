@@ -6,9 +6,15 @@ abstract class GroceryIngredientDisplay {
     'minced',
     'chopped',
     'diced',
-    'grated',
     'sliced',
     'shredded',
+    'grated',
+    'thinly',
+    'roughly',
+    'finely',
+    'thickly',
+    'freshly',
+    'lightly',
     'crushed',
     'peeled',
     'trimmed',
@@ -44,6 +50,20 @@ abstract class GroceryIngredientDisplay {
     'about',
     'approx',
     'plus',
+    'juiced',
+    'zested',
+    'halved',
+    'quartered',
+    'seeded',
+    'thawed',
+    'melted',
+    'warmed',
+    'softened',
+    'mashed',
+    'smashed',
+    'packed',
+    'heaping',
+    'divided',
   };
 
   static const _trailingCountNouns = <String>{
@@ -88,10 +108,26 @@ abstract class GroceryIngredientDisplay {
     return words.map((w) => w.toLowerCase()).join(' ');
   }
 
+  /// Core shopping phrase without leading prep/descriptor tokens (lower case words joined).
+  static String shoppingCorePhrase(String segment) {
+    final trimmed = segment.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final words = _baseWords(trimmed);
+    if (words.isEmpty) {
+      return trimmed
+          .toLowerCase()
+          .replaceAll(RegExp(r'^[^\w]+|[^\w]+$'), '')
+          .trim();
+    }
+    return words.map((w) => w.toLowerCase()).join(' ');
+  }
+
   static List<String> _baseWords(String value) {
     var words = value
         .trim()
         .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => w.replaceAll(RegExp(r'^[^\w]+|[^\w]+$'), ''))
         .where((w) => w.isNotEmpty)
         .toList();
     while (words.length > 1 &&

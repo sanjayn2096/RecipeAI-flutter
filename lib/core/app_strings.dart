@@ -127,6 +127,15 @@ class AppStrings {
   static const String coachStepFavoritesTitle = 'Saved recipes';
   static const String coachStepFavoritesBody =
       'Recipes you bookmark (save) appear here. Sign up from guest mode to sync to your account.';
+  static const String coachStepImportLinksTitle = 'Import from links';
+  static const String coachStepImportLinksBody =
+      'Paste a URL from the web or social — we\'ll pull out the recipe fields for you.';
+  static const String coachStepImportPasteTitle = 'Paste recipes';
+  static const String coachStepImportPasteBody =
+      'Have the text already? Drop the full recipe or caption here and we\'ll structure it.';
+  static const String coachStepImportScanTitle = 'Scan recipes';
+  static const String coachStepImportScanBody =
+      'Photograph a cookbook page or recipe card. On your phone we read the text with on-device OCR.';
   static const String groceryListTitle = 'Grocery list';
   static const String groceryListDrawer = 'Grocery list';
   static const String groceryEmptyHint =
@@ -137,6 +146,8 @@ class AppStrings {
   static const String groceryNameSearchHint = 'e.g. Garlic';
   static const String groceryGroupOther = 'Other items';
   static const String groceryGroupUnnamedRecipe = 'Recipe';
+  static const String groceryViewAllIngredients = 'All ingredients';
+  static const String groceryViewPerRecipe = 'Per recipe';
 
   static String groceryIngredientsForRecipe(String recipeTitle) =>
       'Ingredients needed for $recipeTitle';
@@ -181,10 +192,13 @@ class AppStrings {
 
   // Import recipe (auth; Gemini)
   static const String importRecipeTabTitle = 'Import';
+  static const String importHubTileLinks = 'Import from links';
+  static const String importHubTilePaste = 'Paste recipes';
+  static const String importHubTileScan = 'Scan recipes';
   static const String importRecipeSignInRequired =
       'Sign in to import recipes from links, text, or photos.';
   static const String importRecipeFromLinkHint =
-      'https://…';
+      'Paste any Web / Social Media link';
   static const String importRecipePasteHint =
       'Paste caption or recipe…';
   static const String importRecipeExtract = 'Extract';
@@ -195,6 +209,12 @@ class AppStrings {
       'No readable text in that photo. Try brighter light, closer crop, or paste the recipe.';
   static const String importRecipeWebScanUnsupported =
       'Photo import uses on-device OCR in the iOS/Android app. Paste recipe text instead.';
+
+  /// Saved tab: filter between AI-created vs imported library.
+  static const String savedListSegmentCreated = 'Created';
+  static const String savedListSegmentExported = 'Exported';
+  static const String savedListEmptyCreated = 'No created recipes here yet.';
+  static const String savedListEmptyExported = 'No exported recipes here yet.';
 
   // Mood
   static const String howAreYouFeelingToday = 'How are you feeling today?';

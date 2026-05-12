@@ -37,7 +37,14 @@ class GroceryListScreen extends StatefulWidget {
   State<GroceryListScreen> createState() => _GroceryListScreenState();
 }
 
+enum _GroceryIngredientsViewMode {
+  allClubbed,
+  perRecipe,
+}
+
 class _GroceryListScreenState extends State<GroceryListScreen> {
+  _GroceryIngredientsViewMode _viewMode = _GroceryIngredientsViewMode.allClubbed;
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -64,7 +71,9 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                       ),
                     ),
                   )
-                : _buildGroupedList(context, vm, items);
+                : (_viewMode == _GroceryIngredientsViewMode.allClubbed
+                    ? _buildAllClubbedList(context, vm, items)
+                    : _buildPerRecipeGroupedList(context, vm, items));
 
         final fab = FloatingActionButton.extended(
           onPressed: () => _addItem(context, vm),
@@ -86,6 +95,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                     child: _actionRow(context, vm, canShare),
                   ),
                 ),
+                _viewToggle(context, enabled: items.isNotEmpty),
                 Expanded(child: listBody),
               ],
             ),
@@ -157,14 +167,45 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
               ),
             ],
           ),
-          body: listBody,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _viewToggle(context, enabled: items.isNotEmpty),
+              Expanded(child: listBody),
+            ],
+          ),
           floatingActionButton: fab,
         );
       },
     );
   }
 
-  Widget _buildGroupedList(
+  Widget _viewToggle(BuildContext context, {required bool enabled}) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+        child: SegmentedButton<_GroceryIngredientsViewMode>(
+          segments: const [
+            ButtonSegment(
+              value: _GroceryIngredientsViewMode.allClubbed,
+              label: Text(AppStrings.groceryViewAllIngredients),
+            ),
+            ButtonSegment(
+              value: _GroceryIngredientsViewMode.perRecipe,
+              label: Text(AppStrings.groceryViewPerRecipe),
+            ),
+          ],
+          selected: {_viewMode},
+          onSelectionChanged: !enabled
+              ? null
+              : (s) => setState(() => _viewMode = s.first),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPerRecipeGroupedList(
     BuildContext context,
     GroceryListViewModel vm,
     List<GroceryItem> items,
@@ -185,6 +226,109 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           initiallyExpanded: false,
+          children: [
+            for (final item in groupItems)
+              Dismissible(
+                key: Key(item.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  child: Icon(
+                    Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+                onDismissed: (_) => vm.deleteItem(item.id),
+                child: CheckboxListTile(
+                  value: item.isChecked,
+                  onChanged: (v) {
+                    if (v != null) vm.setChecked(item.id, v);
+                  },
+                  title: Row(
+                    children: [
+                      IngredientIcon(
+                        ingredientName: item.name,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          GroceryIngredientDisplay.listTitle(item.name),
+                        ),
+                      ),
+                    ],
+                  ),
+                  subtitle: _rowSubtitle(context, item),
+                  secondary: IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () => _editItem(context, vm, item),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAllClubbedList(
+    BuildContext context,
+    GroceryListViewModel vm,
+    List<GroceryItem> items,
+  ) {
+    final groups = <String, List<GroceryItem>>{};
+    for (final item in items) {
+      final k = GroceryIngredientDisplay.baseIngredientKey(item.name);
+      groups.putIfAbsent(k, () => []).add(item);
+    }
+
+    final keys = groups.keys.toList()
+      ..sort((a, b) {
+        final ta = GroceryIngredientDisplay.listTitle(groups[a]!.first.name);
+        final tb = GroceryIngredientDisplay.listTitle(groups[b]!.first.name);
+        return ta.toLowerCase().compareTo(tb.toLowerCase());
+      });
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 88),
+      itemCount: keys.length,
+      itemBuilder: (context, i) {
+        final key = keys[i];
+        final groupItems = groups[key]!;
+        final title = GroceryIngredientDisplay.listTitle(groupItems.first.name);
+        final total = groupItems.length;
+        final unchecked = groupItems.where((e) => !e.isChecked).length;
+        final recipeCount = groupItems
+            .map((e) => (e.sourceRecipeId ?? e.sourceRecipeName ?? '').trim())
+            .where((s) => s.isNotEmpty)
+            .toSet()
+            .length;
+
+        final subtitleParts = <String>[];
+        if (recipeCount > 0) {
+          subtitleParts.add(recipeCount == 1 ? '1 recipe' : '$recipeCount recipes');
+        }
+        if (unchecked != total) {
+          subtitleParts.add('$unchecked left');
+        }
+
+        return ExpansionTile(
+          key: PageStorageKey<String>('club:$key'),
+          title: Text(
+            total <= 1 ? title : '$title ×$total',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          subtitle: subtitleParts.isEmpty
+              ? null
+              : Text(
+                  subtitleParts.join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
           children: [
             for (final item in groupItems)
               Dismissible(
@@ -400,14 +544,25 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       );
       return;
     }
-    final text = GroceryListTextExport.formatList(
-      vm.items,
-      title: AppStrings.groceryShareSubject,
-      onlyUnchecked: onlyUnchecked,
-    );
+    final text = _viewMode == _GroceryIngredientsViewMode.perRecipe
+        ? GroceryListTextExport.formatPerRecipe(
+            vm.items,
+            title: AppStrings.groceryShareSubject,
+            onlyUnchecked: onlyUnchecked,
+          )
+        : GroceryListTextExport.formatAllClubbed(
+            vm.items,
+            title: AppStrings.groceryShareSubject,
+            onlyUnchecked: onlyUnchecked,
+          );
     await widget.appTelemetry.logFeatureInteraction(
       featureId: FeatureIds.groceryShare,
-      action: onlyUnchecked ? 'unchecked_only' : 'all',
+      action: [
+        _viewMode == _GroceryIngredientsViewMode.perRecipe
+            ? 'per_recipe'
+            : 'all_clubbed',
+        onlyUnchecked ? 'unchecked_only' : 'all',
+      ].join('_'),
     );
     await Share.share(text, subject: AppStrings.groceryShareSubject);
   }
@@ -423,15 +578,26 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       );
       return;
     }
-    final text = GroceryListTextExport.formatList(
-      vm.items,
-      title: AppStrings.groceryShareSubject,
-      onlyUnchecked: onlyUnchecked,
-    );
+    final text = _viewMode == _GroceryIngredientsViewMode.perRecipe
+        ? GroceryListTextExport.formatPerRecipe(
+            vm.items,
+            title: AppStrings.groceryShareSubject,
+            onlyUnchecked: onlyUnchecked,
+          )
+        : GroceryListTextExport.formatAllClubbed(
+            vm.items,
+            title: AppStrings.groceryShareSubject,
+            onlyUnchecked: onlyUnchecked,
+          );
     await Clipboard.setData(ClipboardData(text: text));
     await widget.appTelemetry.logFeatureInteraction(
       featureId: FeatureIds.groceryCopy,
-      action: onlyUnchecked ? 'unchecked_only' : 'all',
+      action: [
+        _viewMode == _GroceryIngredientsViewMode.perRecipe
+            ? 'per_recipe'
+            : 'all_clubbed',
+        onlyUnchecked ? 'unchecked_only' : 'all',
+      ].join('_'),
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

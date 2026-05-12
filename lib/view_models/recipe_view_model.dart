@@ -33,13 +33,16 @@ class RecipeViewModel extends ChangeNotifier {
     required RecipeRepository recipeRepository,
     required UserRepository userRepository,
     required AppTelemetry appTelemetry,
+    VoidCallback? onPrivateSavedListChanged,
   })  : _recipeRepo = recipeRepository,
         _userRepo = userRepository,
-        _telemetry = appTelemetry;
+        _telemetry = appTelemetry,
+        _onPrivateSavedListChanged = onPrivateSavedListChanged;
 
   final RecipeRepository _recipeRepo;
   final UserRepository _userRepo;
   final AppTelemetry _telemetry;
+  final VoidCallback? _onPrivateSavedListChanged;
 
   List<Recipe> _recipes = [];
   List<Recipe> get recipes => _recipes;
@@ -240,6 +243,7 @@ class RecipeViewModel extends ChangeNotifier {
       _recipes = _recipes
           .map((r) => r.recipeId == updated.recipeId ? updated : r)
           .toList();
+      _onPrivateSavedListChanged?.call();
       notifyListeners();
       return true;
     } catch (_) {

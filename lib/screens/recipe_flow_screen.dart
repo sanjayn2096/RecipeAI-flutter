@@ -403,7 +403,9 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        isError ? Icons.error_outline : Icons.restaurant_outlined,
+                        isError
+                            ? Icons.broken_image_outlined
+                            : Icons.restaurant_outlined,
                         size: 48,
                         color: isError
                             ? Theme.of(context).colorScheme.error
@@ -416,16 +418,18 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        isError
-                            ? err
-                            : 'Nothing came back this time. Tap Refresh to try again, '
-                                'or use Back to adjust mood, diet, cuisine, or cooking time.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
+                      if (!isError)
+                        Text(
+                          'Nothing came back this time. Tap Refresh to try again, '
+                          'or use Back to adjust mood, diet, cuisine, or cooking time.',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                          textAlign: TextAlign.center,
+                        ),
                       const SizedBox(height: 24),
                       FilledButton(
                         onPressed: () async {
