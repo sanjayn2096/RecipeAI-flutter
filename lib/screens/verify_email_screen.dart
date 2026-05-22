@@ -145,13 +145,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
             children: [
               Text(
                 email.isEmpty
-                    ? 'We sent a verification link to your email. Open it, then return to this app—we will continue automatically. Please check Spam folder if you are not able to locate in inbox'
-                    : 'We sent a verification link to $email. Open it, then return to this app—we will continue automatically. Please check Spam folder if you are not able to locate in inbox',
+                    ? 'We sent a verification link to your email. Open it, then return to this app — we continue automatically once verified. Check your spam folder if needed.'
+                    : 'We sent a verification link to $email. Open it, then return to this app — we continue automatically once verified. Check your spam folder if needed.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 12),
               Text(
-                'Stuck? Try Check again below.',
+                'Stuck after signing in? Try Check again. You can also resend the email.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -167,7 +167,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
                 child: Text(
                   _resendSecs > 0
                       ? 'Resend email ($_resendSecs s)'
-                      : 'Resend email',
+                      : 'Resend verification email',
                 ),
               ),
               const SizedBox(height: 12),

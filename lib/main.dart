@@ -8,6 +8,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
@@ -27,6 +28,7 @@ import 'view_models/login_view_model.dart';
 import 'view_models/home_view_model.dart';
 import 'view_models/recipe_view_model.dart';
 import 'view_models/grocery_list_view_model.dart';
+import 'view_models/subscription_view_model.dart';
 import 'navigation/app_router.dart';
 
 Future<void> _initCrashlytics() async {
@@ -69,6 +71,10 @@ void main() async {
 
   await _initCrashlytics();
 
+  if (!kIsWeb) {
+    await MobileAds.instance.initialize();
+  }
+
   try {
     await Hive.initFlutter();
     final savedRecipesBox = await SavedRecipesHiveStore.openBox();
@@ -99,10 +105,19 @@ void main() async {
       },
       onApiCompleted: appTelemetry.logApiCall,
     );
+
+    late final SubscriptionViewModel subscriptionViewModel;
+    subscriptionViewModel = SubscriptionViewModel(
+      apiService: apiService,
+      sessionManager: sessionManager,
+      appTelemetry: appTelemetry,
+    );
+
     final authRepo = AuthRepository(
       apiService: apiService,
       sessionManager: sessionManager,
       savedRecipesHiveStore: savedRecipesHiveStore,
+      onProfileLoaded: subscriptionViewModel.applyProfileSubscription,
     );
     final userRepo = UserRepository(
       apiService: apiService,
@@ -146,16 +161,20 @@ void main() async {
       homeViewModel: homeViewModel,
       recipeViewModel: recipeViewModel,
       groceryListViewModel: groceryViewModel,
+      subscriptionViewModel: subscriptionViewModel,
       apiService: apiService,
       appTelemetry: appTelemetry,
       sessionManager: sessionManager,
       analytics: analytics,
     ).router;
 
+    unawaited(subscriptionViewModel.refreshFromApi());
+
     runApp(RecipeAiApp(
       router: router,
       sessionManager: sessionManager,
       appTelemetry: appTelemetry,
+      subscriptionViewModel: subscriptionViewModel,
     ));
   } catch (e, st) {
     if (kDebugMode) {
@@ -217,11 +236,13 @@ class RecipeAiApp extends StatefulWidget {
     required this.router,
     required this.sessionManager,
     required this.appTelemetry,
+    required this.subscriptionViewModel,
   });
 
   final GoRouter router;
   final SessionManager sessionManager;
   final AppTelemetry appTelemetry;
+  final SubscriptionViewModel subscriptionViewModel;
 
   @override
   State<RecipeAiApp> createState() => _RecipeAiAppState();
@@ -237,6 +258,7 @@ class _RecipeAiAppState extends State<RecipeAiApp> {
     _authSub =
         FirebaseAuth.instance.authStateChanges().listen((_) {
       unawaited(widget.appTelemetry.syncUserIdentity(widget.sessionManager));
+      unawaited(widget.subscriptionViewModel.refreshFromApi());
     });
   }
 

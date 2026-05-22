@@ -186,8 +186,13 @@ class SaveFavoriteRecipesResponse {
 
 /// Response from POST generate-recipe. Backend may return { "recipes": [...] } or array.
 class GenerateRecipeResponse {
-  GenerateRecipeResponse({required this.recipes});
+  GenerateRecipeResponse({
+    required this.recipes,
+    this.assistantMessage,
+  });
   final List<Recipe> recipes;
+  /// Conversational summary from the server (intent-aware tailoring).
+  final String? assistantMessage;
   factory GenerateRecipeResponse.fromJson(dynamic json) {
     if (json is List) {
       return GenerateRecipeResponse(
@@ -198,10 +203,23 @@ class GenerateRecipeResponse {
     }
     final map = json as Map<String, dynamic>;
     final list = map['recipes'] as List<dynamic>? ?? map['recipe'] as List<dynamic>? ?? [];
+    final msg = map['assistantMessage'] as String?;
     return GenerateRecipeResponse(
       recipes: list.map((e) => Recipe.fromJson(e as Map<String, dynamic>)).toList(),
+      assistantMessage: msg?.trim().isNotEmpty == true ? msg!.trim() : null,
     );
   }
+}
+
+/// Result of a recipe generation batch (sync or streamed).
+class RecipeBatchResult {
+  const RecipeBatchResult({
+    required this.recipes,
+    this.assistantMessage,
+  });
+
+  final List<Recipe> recipes;
+  final String? assistantMessage;
 }
 
 /// PATCH /user-lifestyle — omit fields you do not want to change.
@@ -281,11 +299,13 @@ class UserProfileResponse {
     this.allergensAvoid,
     this.allergyNotes,
     this.hasAllergyNotesField = false,
+    this.subscription,
   });
   final String userId;
   final String? email;
   final String? firstName;
   final String? lastName;
+  final Map<String, dynamic>? subscription;
   /// Present when GET user document includes structured fields (`null` = omit key — do not wipe local prefs).
   final List<String>? dietProfiles;
   final List<String>? allergensAvoid;
@@ -317,6 +337,12 @@ class UserProfileResponse {
       allergyNotes = raw == null ? '' : raw.toString().trim();
     }
 
+    Map<String, dynamic>? subscription;
+    final subRaw = json['subscription'];
+    if (subRaw is Map) {
+      subscription = Map<String, dynamic>.from(subRaw);
+    }
+
     return UserProfileResponse(
       userId: uid is String ? uid : uid?.toString() ?? '',
       email: json['email'] as String?,
@@ -329,6 +355,7 @@ class UserProfileResponse {
           : null,
       allergyNotes: allergyNotes,
       hasAllergyNotesField: hasAllergyNotesField,
+      subscription: subscription,
     );
   }
 }

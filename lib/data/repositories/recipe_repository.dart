@@ -6,6 +6,7 @@ import '../../core/constants.dart';
 import '../../core/feature_flags.dart';
 import '../../core/recipe_generation_entry_point.dart';
 import '../api/api_service.dart' show ApiService;
+import '../../core/recipe_origin.dart';
 import '../models/api_dtos.dart';
 import '../models/recipe.dart';
 import '../../services/session_manager.dart';
@@ -27,9 +28,10 @@ class RecipeRepository {
   /// Uses feature-flagged flow:
   /// - control: POST /generate-recipe
   /// - stream/experiment: POST /generate-recipes-stream
-  Future<List<Recipe>> fetchRecipesFromBackend({
+  Future<RecipeBatchResult> fetchRecipesFromBackend({
     void Function(Recipe recipe)? onRecipe,
     void Function(bool isStreaming)? onFlowSelected,
+    void Function(String assistantMessage)? onAssistantMessage,
     List<String> excludeRecipeNames = const [],
     String? userRefinementNote,
     int generationAttempt = 1,
@@ -38,7 +40,7 @@ class RecipeRepository {
   }) async {
     if (_api == null) {
       if (kDebugMode) debugPrint('[RecipeRepository] fetchRecipesFromBackend: no ApiService, returning empty');
-      return [];
+      return const RecipeBatchResult(recipes: []);
     }
 
     final user = _firebaseAuth.currentUser;
@@ -113,7 +115,15 @@ class RecipeRepository {
 
     if (useStreaming) {
       final streamed = <Recipe>[];
-      await for (final recipe in _api!.generateRecipeStream(req, idToken: idToken)) {
+      String? assistantMessage;
+      await for (final recipe in _api!.generateRecipeStream(
+        req,
+        idToken: idToken,
+        onAssistantMessage: (msg) {
+          assistantMessage = msg;
+          onAssistantMessage?.call(msg);
+        },
+      )) {
         final enriched = await _resolveHeroImage(recipe, idToken: idToken);
         streamed.add(enriched);
         onRecipe?.call(enriched);
@@ -121,7 +131,10 @@ class RecipeRepository {
       if (user == null) {
         await _session.recordGuestRecipeGenerationSuccess();
       }
-      return streamed;
+      return RecipeBatchResult(
+        recipes: streamed,
+        assistantMessage: assistantMessage,
+      );
     }
 
     final res = await _api!.generateRecipe(req, idToken: idToken);
@@ -131,13 +144,17 @@ class RecipeRepository {
     if (user == null) {
       await _session.recordGuestRecipeGenerationSuccess();
     }
-    return enriched;
+    return RecipeBatchResult(
+      recipes: enriched,
+      assistantMessage: res.assistantMessage,
+    );
   }
 
   /// Same as [fetchRecipesFromBackend] — all recipe lists come from the backend.
-  Future<List<Recipe>> fetchRecipes({
+  Future<RecipeBatchResult> fetchRecipes({
     void Function(Recipe recipe)? onRecipe,
     void Function(bool isStreaming)? onFlowSelected,
+    void Function(String assistantMessage)? onAssistantMessage,
     List<String> excludeRecipeNames = const [],
     String? userRefinementNote,
     int generationAttempt = 1,
@@ -147,6 +164,7 @@ class RecipeRepository {
       fetchRecipesFromBackend(
         onRecipe: onRecipe,
         onFlowSelected: onFlowSelected,
+        onAssistantMessage: onAssistantMessage,
         excludeRecipeNames: excludeRecipeNames,
         userRefinementNote: userRefinementNote,
         generationAttempt: generationAttempt,
@@ -194,7 +212,7 @@ class RecipeRepository {
       idToken: token,
     );
     raw = await _resolveHeroImage(raw, idToken: token);
-    return raw;
+    return raw.copyWith(recipeOrigin: RecipeOrigin.imported);
   }
 
   Future<Recipe> _resolveHeroImage(Recipe recipe, {String? idToken}) async {

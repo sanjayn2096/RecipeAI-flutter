@@ -1,22 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Shown when a guest hits the daily free recipe generation cap. Returns `true` if user chose Sign up.
-Future<bool?> showGuestRecipeLimitReachedDialog(BuildContext context) {
-  return showDialog<bool>(
+import '../core/telemetry/app_telemetry.dart';
+
+enum GuestLimitAction { dismiss, signUp, premium }
+
+/// Shown when a guest hits the daily free recipe generation cap.
+Future<GuestLimitAction?> showGuestRecipeLimitReachedDialog(
+  BuildContext context, {
+  AppTelemetry? appTelemetry,
+}) {
+  return showDialog<GuestLimitAction>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('Free limit reached'),
       content: const Text(
-        'You’ve used your free recipe generations for today. Create an account to keep generating recipes.',
+        'You’ve used your free recipe generations for today. Sign up for a free account or upgrade to Premium for unlimited recipes and no ads.',
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
+          onPressed: () => Navigator.of(ctx).pop(GuestLimitAction.dismiss),
           child: const Text('Not now'),
         ),
+        TextButton(
+          onPressed: () {
+            if (appTelemetry != null) {
+              appTelemetry.logPremiumCtaTap(source: 'guest_quota_dialog');
+            }
+            Navigator.of(ctx).pop(GuestLimitAction.premium);
+          },
+          child: const Text('Go Premium'),
+        ),
         FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(true),
+          onPressed: () => Navigator.of(ctx).pop(GuestLimitAction.signUp),
           child: const Text('Sign up'),
         ),
       ],

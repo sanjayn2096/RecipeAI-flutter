@@ -27,4 +27,9 @@ abstract final class FeatureIds {
   static const groceryPantryScanConfirmAdd = 'grocery_pantry_scan_confirm_add';
 
   static const importRecipe = 'import_recipe';
+
+  static const premiumCta = 'premium_cta';
+  static const premiumSubscribe = 'premium_subscribe';
+  static const premiumRestore = 'premium_restore';
+  static const openLatestRecipes = 'open_latest_recipes';
 }

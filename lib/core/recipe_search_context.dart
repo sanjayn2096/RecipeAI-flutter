@@ -122,12 +122,6 @@ class RecipeSearchContext {
       lines.add(custom.length > 200 ? '${custom.substring(0, 197)}…' : custom);
     }
 
-    if (entryPoint == RecipeGenerationEntryPoint.home) {
-      if (custom.isEmpty && dietProfiles.isNotEmpty) {
-        lines.add('Diets (profile): ${dietProfiles.join(', ')}');
-      }
-    }
-
     if (custom.isEmpty &&
         mood.trim().isNotEmpty &&
         mood.trim() != AppStrings.feelingLucky) {
@@ -135,9 +129,10 @@ class RecipeSearchContext {
     }
 
     if (_meaningfulDiet(dietLine)) {
-      if (entryPoint == RecipeGenerationEntryPoint.home) {
-        lines.add('Diet summary line: $dietLine');
-      } else {
+      final homeUsesProfileDiets = entryPoint ==
+              RecipeGenerationEntryPoint.home &&
+          dietProfiles.isNotEmpty;
+      if (!homeUsesProfileDiets) {
         lines.add('Diet: $dietLine');
       }
     }

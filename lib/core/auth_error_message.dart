@@ -58,7 +58,9 @@ String _platformMessage(PlatformException e) {
 String _firebaseMessage(FirebaseAuthException e) {
   switch (e.code) {
     case 'email-already-in-use':
-      return 'This email is already registered. Try logging in instead.';
+      return 'This email is already registered. Try signing in with your '
+          'password — if your email is not verified yet, we\'ll help you verify '
+          'after you sign in.';
     case 'invalid-email':
       return 'Enter a valid email address.';
     case 'weak-password':

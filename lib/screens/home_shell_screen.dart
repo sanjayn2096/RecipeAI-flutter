@@ -18,7 +18,10 @@ import '../widgets/favorite_recipes_list_view.dart';
 import '../widgets/sous_chef_brand.dart';
 import '../widgets/sous_chef_menu_button.dart';
 import '../widgets/guest_signup_prompt.dart';
+import '../widgets/bottom_ad_banner.dart';
+import '../core/monetization_navigation.dart';
 import '../core/telemetry/app_telemetry.dart';
+import '../view_models/subscription_view_model.dart';
 import 'grocery_list_screen.dart';
 import 'import/import_hub_screen.dart';
 import 'recipe_flow_screen.dart';
@@ -140,6 +143,7 @@ class HomeShellScreen extends StatefulWidget {
     required this.loginViewModel,
     required this.recipeViewModel,
     required this.groceryListViewModel,
+    required this.subscriptionViewModel,
     required this.appTelemetry,
     required this.sessionManager,
   });
@@ -148,6 +152,7 @@ class HomeShellScreen extends StatefulWidget {
   final dynamic loginViewModel;
   final RecipeViewModel recipeViewModel;
   final GroceryListViewModel groceryListViewModel;
+  final SubscriptionViewModel subscriptionViewModel;
   final AppTelemetry appTelemetry;
   final dynamic sessionManager;
 
@@ -486,6 +491,37 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                         },
                       ),
                       ListTile(
+                        leading: Icon(
+                          widget.subscriptionViewModel.isPremium
+                              ? Icons.new_releases
+                              : Icons.new_releases_outlined,
+                        ),
+                        title: const Text('Latest recipes'),
+                        trailing: widget.subscriptionViewModel.isPremium
+                            ? null
+                            : const Icon(Icons.lock_outline, size: 18),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          context.push('/latest-recipes');
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.workspace_premium_outlined),
+                        title: Text(
+                          widget.subscriptionViewModel.isPremium
+                              ? 'Premium active'
+                              : 'Sous Chef Premium',
+                        ),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          openPremiumPaywall(
+                            context,
+                            source: 'drawer',
+                            appTelemetry: widget.appTelemetry,
+                          );
+                        },
+                      ),
+                      ListTile(
                         leading: const Icon(Icons.shopping_cart_outlined),
                         title: const Text(AppStrings.groceryListDrawer),
                         onTap: () {
@@ -534,6 +570,8 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                     homeViewModel: widget.homeViewModel,
                     recipeViewModel: widget.recipeViewModel,
                     sessionManager: widget.sessionManager,
+                    subscriptionViewModel: widget.subscriptionViewModel,
+                    appTelemetry: widget.appTelemetry,
                     coachGetRecipesKey: _coachGetRecipesKey,
                     coachAddPantryKey: _coachAddPantryKey,
                   ),
@@ -568,42 +606,52 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                   ),
                 ],
               ),
-              bottomNavigationBar: KeyedSubtree(
-                key: _coachNavKey,
-                child: NavigationBar(
-                  surfaceTintColor: Colors.transparent,
-                  elevation: 0,
-                  selectedIndex: _currentIndex,
-                  onDestinationSelected: _onTabTapped,
-                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                  destinations: const [
-                    NavigationDestination(
-                      icon: Icon(Icons.home_outlined),
-                      selectedIcon: Icon(Icons.home),
-                      label: 'Home',
+              bottomNavigationBar: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BottomAdBanner(
+                    subscriptionViewModel: widget.subscriptionViewModel,
+                    appTelemetry: widget.appTelemetry,
+                  ),
+                  KeyedSubtree(
+                    key: _coachNavKey,
+                    child: NavigationBar(
+                      surfaceTintColor: Colors.transparent,
+                      elevation: 0,
+                      selectedIndex: _currentIndex,
+                      onDestinationSelected: _onTabTapped,
+                      labelBehavior:
+                          NavigationDestinationLabelBehavior.alwaysShow,
+                      destinations: const [
+                        NavigationDestination(
+                          icon: Icon(Icons.home_outlined),
+                          selectedIcon: Icon(Icons.home),
+                          label: 'Home',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.restaurant_outlined),
+                          selectedIcon: Icon(Icons.restaurant),
+                          label: 'Create',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.shopping_cart_outlined),
+                          selectedIcon: Icon(Icons.shopping_cart),
+                          label: 'Grocery',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.download_for_offline_outlined),
+                          selectedIcon: Icon(Icons.download_for_offline),
+                          label: 'Import',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.bookmark_outline),
+                          selectedIcon: Icon(Icons.bookmark),
+                          label: 'Saved',
+                        ),
+                      ],
                     ),
-                    NavigationDestination(
-                      icon: Icon(Icons.restaurant_outlined),
-                      selectedIcon: Icon(Icons.restaurant),
-                      label: 'Create',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.shopping_cart_outlined),
-                      selectedIcon: Icon(Icons.shopping_cart),
-                      label: 'Grocery',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.download_for_offline_outlined),
-                      selectedIcon: Icon(Icons.download_for_offline),
-                      label: 'Import',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.bookmark_outline),
-                      selectedIcon: Icon(Icons.bookmark),
-                      label: 'Saved',
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             ListenableBuilder(
@@ -729,6 +777,8 @@ class _HomeTabBody extends StatefulWidget {
     required this.homeViewModel,
     required this.recipeViewModel,
     required this.sessionManager,
+    required this.subscriptionViewModel,
+    required this.appTelemetry,
     required this.coachGetRecipesKey,
     required this.coachAddPantryKey,
   });
@@ -736,6 +786,8 @@ class _HomeTabBody extends StatefulWidget {
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
   final dynamic sessionManager;
+  final SubscriptionViewModel subscriptionViewModel;
+  final AppTelemetry appTelemetry;
   final GlobalKey coachGetRecipesKey;
   final GlobalKey coachAddPantryKey;
 
@@ -848,14 +900,26 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
       );
       return;
     }
-    if (widget.sessionManager.isGuestMode()) {
+    if (widget.sessionManager.isGuestMode() &&
+        !widget.subscriptionViewModel.isPremium) {
       final exceeded =
           await widget.sessionManager.isGuestRecipeQuotaExceededForToday();
       if (!mounted) return;
       if (exceeded) {
-        final goSignup = await showGuestRecipeLimitReachedDialog(context);
+        final action = await showGuestRecipeLimitReachedDialog(
+          context,
+          appTelemetry: widget.appTelemetry,
+        );
         if (!mounted) return;
-        if (goSignup == true) goToSignup(context);
+        if (action == GuestLimitAction.signUp) {
+          goToSignup(context);
+        } else if (action == GuestLimitAction.premium) {
+          openPremiumPaywall(
+            context,
+            source: 'guest_quota',
+            appTelemetry: widget.appTelemetry,
+          );
+        }
         return;
       }
     }
@@ -1107,7 +1171,7 @@ class _HomeSearchFieldState extends State<_HomeSearchField>
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(22),
                 child: ColoredBox(
-                  color: scheme.surfaceContainerHigh,
+                  color: scheme.surface,
                   child: Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -1127,13 +1191,14 @@ class _HomeSearchFieldState extends State<_HomeSearchField>
                                     ),
                             cursorColor: onSurface,
                             decoration: InputDecoration(
+                              filled: false,
                               isDense: true,
                               border: InputBorder.none,
                               focusedBorder: InputBorder.none,
                               enabledBorder: InputBorder.none,
                               hintText: hasText
                                   ? null
-                                  : 'e.g. something light, pasta, curry',
+                                  : 'e.g. quick weeknight for kids, meal prep Sunday, high protein',
                               hintStyle: TextStyle(
                                 color: scheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w400,
@@ -1182,29 +1247,29 @@ class _HomeFilterChips extends StatelessWidget {
 
   static const List<({String label, IconData icon, String phrase})> _options = [
     (
-      label: 'Quick & Easy',
+      label: 'Busy night',
       icon: Icons.flash_on,
-      phrase: 'Quick and easy dinner under 30 minutes',
+      phrase: 'Busy weeknight — dinner on the table in under 30 minutes, kid-friendly',
     ),
     (
-      label: 'High Protein',
+      label: 'Meal prep',
+      icon: Icons.calendar_month,
+      phrase: 'Meal prep for the week — reheat well, balanced lunches',
+    ),
+    (
+      label: 'Health goals',
       icon: Icons.fitness_center,
-      phrase: 'High protein healthy meal',
+      phrase: 'Hitting health goals — high protein, lighter dinner',
     ),
     (
       label: 'Vegetarian',
       icon: Icons.eco,
-      phrase: 'Tasty vegetarian recipe',
+      phrase: 'Tasty vegetarian dinner, not too heavy',
     ),
     (
-      label: 'Low Calorie',
-      icon: Icons.local_fire_department,
-      phrase: 'Light low calorie dinner',
-    ),
-    (
-      label: 'Comfort Food',
+      label: 'Comfort',
       icon: Icons.ramen_dining,
-      phrase: 'Warm comforting food',
+      phrase: 'Cozy comfort food after a long day',
     ),
   ];
 

@@ -41,6 +41,75 @@ class AppTelemetry {
     );
   }
 
+  Future<void> setSubscriptionTier(String tier) async {
+    await _analytics.setUserProperty(name: 'subscription_tier', value: tier);
+  }
+
+  Future<void> logPremiumCtaTap({required String source}) async {
+    await _analytics.logEvent(
+      name: 'premium_cta_tap',
+      parameters: {'source': _truncate(source, _maxParamLen)},
+    );
+  }
+
+  Future<void> logPremiumPaywallView({required String source}) async {
+    await _analytics.logEvent(
+      name: 'premium_paywall_view',
+      parameters: {'source': _truncate(source, _maxParamLen)},
+    );
+  }
+
+  Future<void> logPremiumPaywallScroll({required String maxSection}) async {
+    await _analytics.logEvent(
+      name: 'premium_paywall_scroll',
+      parameters: {'max_section': _truncate(maxSection, _maxParamLen)},
+    );
+  }
+
+  Future<void> logPremiumSubscribeTap({
+    required String source,
+    required String productId,
+  }) async {
+    await _analytics.logEvent(
+      name: 'premium_subscribe_tap',
+      parameters: {
+        'source': _truncate(source, _maxParamLen),
+        'product_id': _truncate(productId, _maxParamLen),
+      },
+    );
+  }
+
+  Future<void> logPremiumPurchaseResult({
+    required String result,
+    String? errorCode,
+  }) async {
+    await _analytics.logEvent(
+      name: 'premium_purchase_result',
+      parameters: {
+        'result': _truncate(result, _maxParamLen),
+        if (errorCode != null)
+          'error_code': _truncate(errorCode, _maxParamLen),
+      },
+    );
+  }
+
+  Future<void> logPremiumRestoreTap() async {
+    await _analytics.logEvent(name: 'premium_restore_tap');
+  }
+
+  Future<void> logPremiumPaywallDismiss({
+    required String source,
+    required int secondsOnScreen,
+  }) async {
+    await _analytics.logEvent(
+      name: 'premium_paywall_dismiss',
+      parameters: {
+        'source': _truncate(source, _maxParamLen),
+        'seconds_on_screen': secondsOnScreen,
+      },
+    );
+  }
+
   /// Aligns Analytics user id and [user_type] with Firebase Auth + guest mode.
   Future<void> syncUserIdentity(SessionManager session) async {
     final user = FirebaseAuth.instance.currentUser;

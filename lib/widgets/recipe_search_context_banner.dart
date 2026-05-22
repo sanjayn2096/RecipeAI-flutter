@@ -11,6 +11,7 @@ class RecipeSearchContextBanner extends StatelessWidget {
     required this.sessionManager,
     required this.onChangeSearchSettings,
     this.generationEntryPoint,
+    this.assistantMessage,
     this.margin = const EdgeInsets.fromLTRB(16, 0, 16, 8),
   });
 
@@ -18,6 +19,8 @@ class RecipeSearchContextBanner extends StatelessWidget {
   final VoidCallback onChangeSearchSettings;
   /// When set, summarizes Create vs Home scoped prefs; otherwise legacy [RecipeSearchContext.fromSession].
   final RecipeGenerationEntryPoint? generationEntryPoint;
+  /// Server-generated conversational reply (intent-aware tailoring).
+  final String? assistantMessage;
   final EdgeInsets margin;
 
   @override
@@ -42,6 +45,8 @@ class RecipeSearchContextBanner extends StatelessWidget {
     }
 
     final note = ctx.allergyNotes;
+    final chefReply = assistantMessage?.trim();
+    final hasChefReply = chefReply != null && chefReply.isNotEmpty;
     final bullets = ctx.detailLines
         .map(
           (s) => Padding(
@@ -65,7 +70,7 @@ class RecipeSearchContextBanner extends StatelessWidget {
         child: ExpansionTile(
           initiallyExpanded: true,
           title: Text(
-            'Why these recipes',
+            hasChefReply ? 'From your sous chef' : 'Why these recipes',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -73,6 +78,26 @@ class RecipeSearchContextBanner extends StatelessWidget {
           childrenPadding:
               const EdgeInsets.only(left: 16, right: 16, bottom: 12),
           children: [
+            if (hasChefReply) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: scheme.primary.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Text(
+                  chefReply,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        height: 1.35,
+                      ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -112,7 +137,7 @@ class RecipeSearchContextBanner extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Diet profiles',
+                  'Diet preferences',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),

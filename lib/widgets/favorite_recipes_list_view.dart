@@ -11,7 +11,7 @@ import 'cartoon_outlined_card.dart';
 import 'recipe_list_row.dart';
 import 'guest_signup_prompt.dart';
 
-enum _SavedLibraryTab { created, exported }
+enum _SavedLibraryTab { created, imported }
 
 /// Saved list with swipe-left to remove (POST /save-favorites with isSaved: false).
 class FavoriteRecipesListView extends StatefulWidget {
@@ -55,7 +55,7 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
     switch (_libraryTab) {
       case _SavedLibraryTab.created:
         return r.recipeOrigin != RecipeOrigin.imported;
-      case _SavedLibraryTab.exported:
+      case _SavedLibraryTab.imported:
         return r.recipeOrigin == RecipeOrigin.imported;
     }
   }
@@ -132,9 +132,9 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                     icon: Icon(Icons.auto_awesome_outlined, size: 18),
                   ),
                   ButtonSegment(
-                    value: _SavedLibraryTab.exported,
-                    label: Text(AppStrings.savedListSegmentExported),
-                    icon: Icon(Icons.download_outlined, size: 18),
+                    value: _SavedLibraryTab.imported,
+                    label: Text(AppStrings.savedListSegmentImported),
+                    icon: Icon(Icons.file_download_outlined, size: 18),
                   ),
                 ],
                 selected: {_libraryTab},
@@ -175,7 +175,7 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                           child: Text(
                             _libraryTab == _SavedLibraryTab.created
                                 ? AppStrings.savedListEmptyCreated
-                                : AppStrings.savedListEmptyExported,
+                                : AppStrings.savedListEmptyImported,
                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                   color: Theme.of(context)
                                       .colorScheme

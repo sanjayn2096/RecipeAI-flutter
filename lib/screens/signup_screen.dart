@@ -143,136 +143,160 @@ class _SignupScreenState extends State<SignupScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 440),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-              const SousChefLoginHeader(),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  border: const OutlineInputBorder(),
-                  errorText: _emailError,
-                ),
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.email],
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _passwordController,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  helperText: 'At least $_minPasswordLength characters',
-                  border: const OutlineInputBorder(),
-                  errorText: _passwordError,
-                  suffixIcon: IconButton(
-                    tooltip:
-                        _obscurePassword ? 'Show password' : 'Hide password',
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                    onPressed: () {
-                      setState(() => _obscurePassword = !_obscurePassword);
-                    },
-                  ),
-                ),
-                // Hidden by default (_obscurePassword == true); eye toggles visibility.
-                obscureText: _obscurePassword,
-                keyboardType: TextInputType.visiblePassword,
-                enableSuggestions: false,
-                autocorrect: false,
-                autofillHints: const [AutofillHints.newPassword],
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _firstNameController,
-                decoration: InputDecoration(
-                  labelText: 'First Name',
-                  border: const OutlineInputBorder(),
-                  errorText: _firstNameError,
-                ),
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.givenName],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _lastNameController,
-                decoration: InputDecoration(
-                  labelText: 'Last Name',
-                  border: const OutlineInputBorder(),
-                  errorText: _lastNameError,
-                ),
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.familyName],
-              ),
-              if (widget.loginViewModel.errorMessage != null) ...[
-                const SizedBox(height: 16),
-                Material(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .errorContainer
-                      .withOpacity(0.35),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          color: Theme.of(context).colorScheme.error,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            widget.loginViewModel.errorMessage!,
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onErrorContainer,
-                            ),
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SousChefLoginHeader(),
+                              const SizedBox(height: 32),
+                              Text(
+                                'We will email you a verification link. If this address is '
+                                'already registered, log in instead — after sign-in we help you '
+                                'verify if needed.',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                              const SizedBox(height: 20),
+                              TextField(
+                                controller: _emailController,
+                                decoration: InputDecoration(
+                                  labelText: 'Email',
+                                  border: const OutlineInputBorder(),
+                                  errorText: _emailError,
+                                ),
+                                keyboardType: TextInputType.emailAddress,
+                                autofillHints: const [AutofillHints.email],
+                                textInputAction: TextInputAction.next,
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _passwordController,
+                                decoration: InputDecoration(
+                                  labelText: 'Password',
+                                  helperText:
+                                      'At least $_minPasswordLength characters',
+                                  border: const OutlineInputBorder(),
+                                  errorText: _passwordError,
+                                  suffixIcon: IconButton(
+                                    tooltip: _obscurePassword
+                                        ? 'Show password'
+                                        : 'Hide password',
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_outlined
+                                          : Icons.visibility_off_outlined,
+                                    ),
+                                    onPressed: () {
+                                      setState(() =>
+                                          _obscurePassword = !_obscurePassword);
+                                    },
+                                  ),
+                                ),
+                                obscureText: _obscurePassword,
+                                keyboardType: TextInputType.visiblePassword,
+                                enableSuggestions: false,
+                                autocorrect: false,
+                                autofillHints: const [
+                                  AutofillHints.newPassword
+                                ],
+                                textInputAction: TextInputAction.next,
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _firstNameController,
+                                decoration: InputDecoration(
+                                  labelText: 'First Name',
+                                  border: const OutlineInputBorder(),
+                                  errorText: _firstNameError,
+                                ),
+                                textCapitalization: TextCapitalization.words,
+                                textInputAction: TextInputAction.next,
+                                autofillHints: const [AutofillHints.givenName],
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _lastNameController,
+                                decoration: InputDecoration(
+                                  labelText: 'Last Name',
+                                  border: const OutlineInputBorder(),
+                                  errorText: _lastNameError,
+                                ),
+                                textCapitalization: TextCapitalization.words,
+                                textInputAction: TextInputAction.done,
+                                autofillHints: const [AutofillHints.familyName],
+                              ),
+                              if (widget.loginViewModel.errorMessage !=
+                                  null) ...[
+                                const SizedBox(height: 16),
+                                Material(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .errorContainer
+                                      .withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(
+                                          Icons.error_outline,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .error,
+                                          size: 22,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            widget.loginViewModel
+                                                .errorMessage!,
+                                            style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onErrorContainer,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 24),
+                              FilledButton(
+                                onPressed: () async {
+                                  widget.loginViewModel.clearError();
+                                  if (!_validateFields()) return;
+                                  await widget.loginViewModel.signup(
+                                    email: _emailController.text.trim(),
+                                    password: _passwordController.text,
+                                    firstName:
+                                        _firstNameController.text.trim(),
+                                    lastName:
+                                        _lastNameController.text.trim(),
+                                  );
+                                },
+                                child: const Text('Sign up'),
+                              ),
+                              TextButton(
+                                onPressed: widget.onLoginTap,
+                                child: const Text(
+                                    'Already have an account? Log in'),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () async {
-                  widget.loginViewModel.clearError();
-                  if (!_validateFields()) return;
-
-                  await widget.loginViewModel.signup(
-                    email: _emailController.text.trim(),
-                    password: _passwordController.text,
-                    firstName: _firstNameController.text.trim(),
-                    lastName: _lastNameController.text.trim(),
-                  );
-                  if (widget.loginViewModel.isLoggedIn && context.mounted) {}
-                },
-                child: const Text('Sign up'),
-              ),
-              TextButton(
-                onPressed: widget.onLoginTap,
-                child: const Text('Already have an account? Log in'),
-              ),
-                          ],
-                        ),
                       ),
-                    ),
                     ],
                   ),
                 ),

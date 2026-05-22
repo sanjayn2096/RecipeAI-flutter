@@ -3,19 +3,27 @@ import 'package:go_router/go_router.dart';
 
 import '../core/auth_error_message.dart';
 import '../core/diet_allergy_options.dart';
+import '../core/monetization_config.dart';
+import '../core/monetization_navigation.dart';
+import '../core/telemetry/app_telemetry.dart';
 import '../view_models/home_view_model.dart';
 import '../view_models/login_view_model.dart';
+import '../view_models/subscription_view_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
     required this.homeViewModel,
     required this.loginViewModel,
+    required this.subscriptionViewModel,
+    required this.appTelemetry,
     required this.onBack,
   });
 
   final HomeViewModel homeViewModel;
   final LoginViewModel loginViewModel;
+  final SubscriptionViewModel subscriptionViewModel;
+  final AppTelemetry appTelemetry;
   final VoidCallback onBack;
 
   @override
@@ -102,6 +110,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return ListView(
             padding: const EdgeInsets.all(24),
             children: [
+              ListenableBuilder(
+                listenable: widget.subscriptionViewModel,
+                builder: (context, _) {
+                  final premium = widget.subscriptionViewModel.isPremium;
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    child: ListTile(
+                      leading: Icon(
+                        premium
+                            ? Icons.verified
+                            : Icons.workspace_premium_outlined,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      title: Text(
+                        premium ? 'Premium active' : 'Sous Chef Premium',
+                      ),
+                      subtitle: Text(
+                        premium
+                            ? 'Ads removed · unlimited usage · latest recipes'
+                            : '${MonetizationConfig.monthlyPriceDisplay}/month · remove ads, unlimited recipes',
+                      ),
+                      trailing: premium
+                          ? null
+                          : const Icon(Icons.chevron_right),
+                      onTap: premium
+                          ? null
+                          : () => openPremiumPaywall(
+                                context,
+                                source: 'profile',
+                                appTelemetry: widget.appTelemetry,
+                              ),
+                    ),
+                  );
+                },
+              ),
               if (!p.hasDisplayFields)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),

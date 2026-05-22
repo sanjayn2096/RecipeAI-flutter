@@ -49,7 +49,8 @@ class AppStrings {
   ];
 
   static const String letsCookSomethingNice = "Let's cook something nice today";
-  static const String whatDoYouFeelLikeEating = 'What do you feel like eating?';
+  static const String whatDoYouFeelLikeEating =
+      'What are you trying to cook for?';
   static const String pantryStaples = 'Tap to Add Items in your Pantry for better suggestions';
   static const String pantryStaplesDialogTitle = 'Pantry staples';
   /// Shown in the info dialog next to the pantry staples heading.
@@ -65,14 +66,10 @@ class AppStrings {
   static const String nothingSelected = 'Nothing Selected';
 
   /// Home batch → Change search settings (profile / lifestyle, not Create questionnaire).
-  static const String homeSearchSettingsSheetTitle = 'Your eating profile';
-  static const String homeSearchSettingsDietsHeading = 'Diets';
+  static const String homeSearchSettingsSheetTitle = 'Your Recipe Preferences';
+  static const String homeSearchSettingsDietsHeading = 'Diet Preferences';
   static const String homeSearchSettingsDietsHint =
       'Select all styles that describe how you eat. These sync to your profile.';
-  static const String homeSearchSettingsDietSummaryHeading =
-      'Diet restriction summary';
-  static const String homeSearchSettingsDietSummaryHint =
-      'One-line summary merged with generations (e.g. “no dairy”).';
   static const String homeSearchSettingsAllergensHeading =
       'Allergens & intolerances';
   static const String homeSearchSettingsAllergensHint =
@@ -212,9 +209,9 @@ class AppStrings {
 
   /// Saved tab: filter between AI-created vs imported library.
   static const String savedListSegmentCreated = 'Created';
-  static const String savedListSegmentExported = 'Exported';
+  static const String savedListSegmentImported = 'Imported';
   static const String savedListEmptyCreated = 'No created recipes here yet.';
-  static const String savedListEmptyExported = 'No exported recipes here yet.';
+  static const String savedListEmptyImported = 'No imported recipes here yet.';
 
   // Mood
   static const String howAreYouFeelingToday = 'How are you feeling today?';

@@ -143,6 +143,8 @@ class LoginViewModel extends ChangeNotifier {
       _session.clearAnonymousAndGuestQuotaSync();
       _isLoggedIn = true;
     } on EmailNotVerifiedException {
+      _session.clearGuestModeSync();
+      _session.clearAnonymousAndGuestQuotaSync();
       _setVerificationPending(email.trim());
     } catch (e) {
       _errorMessage = authErrorMessage(e);

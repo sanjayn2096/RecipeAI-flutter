@@ -192,7 +192,7 @@ class HomeViewModel extends ChangeNotifier {
   /// Saved tab: read Hive when present; otherwise GET fetch-saved once.
   ///
   /// When [ignoreCache] is true, always GET fetch-saved so list metadata (e.g.
-  /// [Recipe.recipeOrigin] for Created vs Exported) matches the server after save.
+  /// [Recipe.recipeOrigin] for Created vs Imported) matches the server after save.
   Future<void> loadSavedFromApi({
     bool showLoading = true,
     bool ignoreCache = false,
@@ -275,6 +275,21 @@ class HomeViewModel extends ChangeNotifier {
         debugPrint('[HomeViewModel] loadTrendingRecipes: $e');
       }
       return [];
+    }
+  }
+
+  /// GET /latest-recipes (premium).
+  Future<List<Recipe>> loadLatestRecipes() async {
+    try {
+      await _telemetry.logFeatureInteraction(
+        featureId: FeatureIds.openLatestRecipes,
+      );
+      return _userRepo.fetchLatestRecipes(limit: 30);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[HomeViewModel] loadLatestRecipes: $e');
+      }
+      rethrow;
     }
   }
 

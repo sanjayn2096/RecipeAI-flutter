@@ -44,6 +44,7 @@ class AuthRepository {
     required SessionManager sessionManager,
     required SavedRecipesHiveStore savedRecipesHiveStore,
     FirebaseAuth? firebaseAuth,
+    this.onProfileLoaded,
   })  : _api = apiService,
         _session = sessionManager,
         _savedRecipesHiveStore = savedRecipesHiveStore,
@@ -53,6 +54,9 @@ class AuthRepository {
   final SessionManager _session;
   final SavedRecipesHiveStore _savedRecipesHiveStore;
   final FirebaseAuth _firebaseAuth;
+
+  /// Called after GET get_user_profile is persisted (subscription sync).
+  final void Function(Map<String, dynamic>? subscription)? onProfileLoaded;
 
   /// GET get_user_profile: at most once per signed-in Firebase user while the app is running
   /// (no duplicate calls from Profile or other screens; a new app launch will call again on [checkSession]/login).
@@ -65,6 +69,8 @@ class AuthRepository {
     final u = _firebaseAuth.currentUser;
     return u != null && !u.emailVerified;
   }
+
+  bool get hasFirebaseUser => _firebaseAuth.currentUser != null;
 
   /// True if the signed-in user has Google Sign-In linked (use Google reauth to delete).
   bool get currentUserHasGoogleProvider {
@@ -100,6 +106,7 @@ class AuthRepository {
       allergyNotes: profile.allergyNotes,
       applyAllergyNotes: profile.hasAllergyNotesField,
     );
+    onProfileLoaded?.call(profile.subscription);
   }
 
   /// Returns true if user is already signed in, email verified, and backend profile loaded.
@@ -170,7 +177,7 @@ class AuthRepository {
     return true;
   }
 
-  /// Create the Firebase account on-device, send verification email, then require verified
+  /// Create the Firebase account, send Firebase verification email, then require verified
   /// email before loading the backend profile ([getUserProfile]).
   Future<void> signup({
     required String email,

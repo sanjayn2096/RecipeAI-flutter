@@ -134,9 +134,9 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
     if (!sm.isGuestMode()) return true;
     if (!(await sm.isGuestRecipeQuotaExceededForToday())) return true;
     if (!mounted) return false;
-    final goSignup = await showGuestRecipeLimitReachedDialog(context);
+    final action = await showGuestRecipeLimitReachedDialog(context);
     if (!mounted) return false;
-    if (goSignup == true) goToSignup(context);
+    if (action == GuestLimitAction.signUp) goToSignup(context);
     if (popRouteWhenBlocked && !widget.embedInTab && context.mounted) {
       context.pop();
     }
@@ -287,20 +287,35 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
         if (lifestyleMode) {
           return _HomeLifestyleSearchSettingsSheet(
             sessionManager: sm,
-            onSaved: () {
-              vm.scheduleLifestyleSync();
-              if (mounted) setState(() {});
-            },
+            onSaved: _onSearchSettingsSaved,
           );
         }
         return _CreateRecipesSearchSettingsSheet(
           sessionManager: sm,
-          onSaved: () {
-            if (mounted) setState(() {});
-          },
+          onSaved: _onSearchSettingsSaved,
         );
       },
     );
+  }
+
+  /// Persists search settings are already saved by the sheet; re-run generation.
+  Future<void> _onSearchSettingsSaved() async {
+    final vm = widget.recipeViewModel as RecipeViewModel;
+    final ep = vm.lastGenerationEntryPoint ?? widget.generationEntryPoint;
+    if (ep == RecipeGenerationEntryPoint.home) {
+      vm.scheduleLifestyleSync();
+    }
+    if (!mounted) return;
+    setState(() {});
+    if (!await _ensureGuestCanGenerate()) return;
+    if (!mounted) return;
+    _clearCustomPreferenceForEmbeddedCreateFlow();
+    if (kDebugMode) {
+      debugPrint(
+        '[RecipeFlowScreen] Search settings saved: refreshing recipes (entry=$ep)',
+      );
+    }
+    await vm.fetchRecipes(entryPoint: ep);
   }
 
   void _editSearchSettingsFromResultsList() {
@@ -363,26 +378,48 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
           final isStreaming = widget.recipeViewModel.isStreamingFlow == true;
 
           if (isLoading && recipes.isEmpty) {
+            final loadingReply =
+                (widget.recipeViewModel as RecipeViewModel).assistantMessage
+                    ?.trim();
             return Scaffold(
               appBar: AppBar(
                 title: const Text(AppStrings.fetchRecipes),
                 actions: _embedShellMenuActions(),
               ),
               body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 260,
-                      child: Lottie.asset(
-                        'assets/animations/cooking_animation.json',
-                        repeat: true,
-                        fit: BoxFit.contain,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 260,
+                        child: Lottie.asset(
+                          'assets/animations/cooking_animation.json',
+                          repeat: true,
+                          fit: BoxFit.contain,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    RotatingRecipeLoadingMessage(isStreaming: isStreaming),
-                  ],
+                      const SizedBox(height: 16),
+                      RotatingRecipeLoadingMessage(isStreaming: isStreaming),
+                      if (loadingReply != null && loadingReply.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Text(
+                              loadingReply,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(height: 1.35),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -520,6 +557,9 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                           (widget.recipeViewModel as RecipeViewModel)
                                   .lastGenerationEntryPoint ??
                               widget.generationEntryPoint,
+                      assistantMessage:
+                          (widget.recipeViewModel as RecipeViewModel)
+                              .assistantMessage,
                       onChangeSearchSettings:
                           _editSearchSettingsFromResultsList,
                     ),
@@ -826,7 +866,7 @@ class _CreateRecipesSearchSettingsSheet extends StatefulWidget {
   });
 
   final SessionManager sessionManager;
-  final VoidCallback onSaved;
+  final Future<void> Function() onSaved;
 
   @override
   State<_CreateRecipesSearchSettingsSheet> createState() =>
@@ -850,14 +890,15 @@ class _CreateRecipesSearchSettingsSheetState
     _cooking = sm.getCreateFlowCookingPreference();
   }
 
-  void _save() {
+  Future<void> _save() async {
     final sm = widget.sessionManager;
     sm.saveCreateFlowMoodSync(_mood);
     sm.saveCreateFlowDietRestrictionsSync(_diet);
     sm.saveCreateFlowCuisineSync(_cuisine);
     sm.saveCreateFlowCookingPreferenceSync(_cooking);
-    widget.onSaved();
+    if (!mounted) return;
     Navigator.pop(context);
+    await widget.onSaved();
   }
 
   Widget _radioRow(String title, List<String> options, String groupValue,
@@ -960,7 +1001,7 @@ class _HomeLifestyleSearchSettingsSheet extends StatefulWidget {
   });
 
   final SessionManager sessionManager;
-  final VoidCallback onSaved;
+  final Future<void> Function() onSaved;
 
   @override
   State<_HomeLifestyleSearchSettingsSheet> createState() =>
@@ -970,7 +1011,6 @@ class _HomeLifestyleSearchSettingsSheet extends StatefulWidget {
 class _HomeLifestyleSearchSettingsSheetState
     extends State<_HomeLifestyleSearchSettingsSheet> {
   late Set<String> _dietProfiles;
-  late String _dietRestrictionSummary;
   late Set<String> _allergensAvoid;
   late TextEditingController _allergyNotesController;
   late Set<String> _usualCuisines;
@@ -985,10 +1025,6 @@ class _HomeLifestyleSearchSettingsSheetState
     super.initState();
     final sm = widget.sessionManager;
     _dietProfiles = sm.getDietProfiles().toSet();
-    final drRaw = sm.getLifestyleDietRestrictions();
-    _dietRestrictionSummary = AppStrings.dietOptions.contains(drRaw)
-        ? drRaw
-        : AppStrings.noRestrictions;
     _allergensAvoid = sm.getAllergensAvoid().toSet();
     _allergyNotesController = TextEditingController(
       text: sm.getAllergyNotes() ?? '',
@@ -1038,15 +1074,15 @@ class _HomeLifestyleSearchSettingsSheetState
   Future<void> _save() async {
     final sm = widget.sessionManager;
     await sm.saveDietProfiles(_dietProfiles.toList());
-    sm.saveLifestyleDietRestrictionsSync(_dietRestrictionSummary);
+    sm.saveLifestyleDietRestrictionsSync(AppStrings.noRestrictions);
     await sm.saveAllergensAvoid(_allergensAvoid.toList());
     final notes = _allergyNotesController.text.trim();
     await sm.saveAllergyNotes(notes.isEmpty ? null : notes);
     sm.saveUsualCuisinesSync(_usualCuisines.toList());
     sm.saveLifestyleCookingPreferenceSync(_cookingProficiency);
-    widget.onSaved();
     if (!mounted) return;
     Navigator.pop(context);
+    await widget.onSaved();
   }
 
   Widget _sectionHeading(String title, {String? hint}) {
@@ -1105,31 +1141,6 @@ class _HomeLifestyleSearchSettingsSheetState
     );
   }
 
-  Widget _dietRestrictionRadios() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _sectionHeading(
-          AppStrings.homeSearchSettingsDietSummaryHeading,
-          hint: AppStrings.homeSearchSettingsDietSummaryHint,
-        ),
-        const SizedBox(height: 8),
-        ...AppStrings.dietOptions.map(
-          (opt) => RadioListTile<String>(
-            dense: true,
-            title: Text(opt, style: const TextStyle(fontSize: 14)),
-            value: opt,
-            groupValue: _dietRestrictionSummary,
-            onChanged: (v) {
-              if (v != null) setState(() => _dietRestrictionSummary = v);
-            },
-          ),
-        ),
-        const SizedBox(height: 4),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final kb = MediaQuery.viewInsetsOf(context).bottom;
@@ -1175,8 +1186,6 @@ class _HomeLifestyleSearchSettingsSheetState
                   .toList(),
             ),
             const SizedBox(height: 12),
-            _dietRestrictionRadios(),
-            const SizedBox(height: 8),
             _sectionHeading(
               AppStrings.homeSearchSettingsAllergensHeading,
               hint: AppStrings.homeSearchSettingsAllergensHint,

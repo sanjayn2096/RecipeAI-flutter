@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/constants.dart';
+import '../data/models/subscription_status.dart';
 
 /// Single source for session and user preferences (injected, no duplicate instances).
 class SessionManager {
@@ -32,6 +35,7 @@ class SessionManager {
     await p.remove(_prefix + AppConstants.prefsAnonymousId);
     await p.remove(_prefix + AppConstants.prefsGuestGenDayKey);
     await p.remove(_prefix + AppConstants.prefsGuestGenCount);
+    await p.remove(_prefix + AppConstants.prefsSubscriptionCache);
   }
 
   Future<void> saveUserId(String userId) async {
@@ -345,5 +349,30 @@ class SessionManager {
     }
     await p.setString(keyDay, day);
     await p.setInt(keyCount, count + 1);
+  }
+
+  SubscriptionStatus readSubscriptionCacheSync() {
+    final raw =
+        _prefs?.getString(_prefix + AppConstants.prefsSubscriptionCache);
+    if (raw == null || raw.isEmpty) return const SubscriptionStatus();
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      return SubscriptionStatus.fromJson(map);
+    } catch (_) {
+      return const SubscriptionStatus();
+    }
+  }
+
+  Future<void> saveSubscriptionCacheSync(SubscriptionStatus status) async {
+    final p = await _p;
+    await p.setString(
+      _prefix + AppConstants.prefsSubscriptionCache,
+      jsonEncode(status.toJson()),
+    );
+  }
+
+  Future<void> clearSubscriptionCacheSync() async {
+    final p = await _p;
+    await p.remove(_prefix + AppConstants.prefsSubscriptionCache);
   }
 }

@@ -275,9 +275,11 @@ class ApiService {
 
   /// POST generate-recipes-stream.
   /// Emits each recipe as it arrives via SSE events.
+  /// [onAssistantMessage] fires once when the server sends an intent-aware intro.
   Stream<Recipe> generateRecipeStream(
     GenerateRecipeRequest request, {
     String? idToken,
+    void Function(String message)? onAssistantMessage,
   }) async* {
     const metricPath = 'generate-recipes-stream';
     final url = _url('generate-recipes-stream');
@@ -328,6 +330,13 @@ class ApiService {
           if (event == 'recipe') {
             if (payload is Map<String, dynamic>) {
               yield Recipe.fromJson(payload);
+            }
+          } else if (event == 'assistant') {
+            if (payload is Map<String, dynamic>) {
+              final msg = payload['message'] as String?;
+              if (msg != null && msg.trim().isNotEmpty) {
+                onAssistantMessage?.call(msg.trim());
+              }
             }
           } else if (event == 'error') {
             throw ApiException(statusCode, _extractError(payload));
@@ -418,6 +427,61 @@ class ApiService {
     final map = _decodeBody(r.body, url);
     if (r.statusCode >= 200 && r.statusCode < 300) {
       return;
+    }
+    throw ApiException(r.statusCode, _extractError(map));
+  }
+
+  /// GET /latest-recipes — auth + premium.
+  Future<List<Recipe>> fetchLatestRecipes({
+    int limit = 20,
+    String? idToken,
+  }) async {
+    const metricPath = 'latest-recipes';
+    final raw = limit.clamp(1, 50);
+    final url = _url('latest-recipes?limit=$raw');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('GET', metricPath, () async {
+      return http.get(Uri.parse(url), headers: headers);
+    });
+    final body = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return _parseRecipeList(body);
+    }
+    throw ApiException(r.statusCode, _extractError(body));
+  }
+
+  /// POST /verify-subscription — validates store purchase and updates Firestore.
+  Future<Map<String, dynamic>> verifySubscription({
+    required String platform,
+    required String productId,
+    String? purchaseToken,
+    String? receiptData,
+    String? idToken,
+  }) async {
+    const metricPath = 'verify-subscription';
+    final url = _url('verify-subscription');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode({
+          'platform': platform,
+          'productId': productId,
+          if (purchaseToken != null) 'purchaseToken': purchaseToken,
+          if (receiptData != null) 'receiptData': receiptData,
+        }),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return map as Map<String, dynamic>;
     }
     throw ApiException(r.statusCode, _extractError(map));
   }

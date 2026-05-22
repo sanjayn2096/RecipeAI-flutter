@@ -59,4 +59,7 @@ class AppConstants {
 
   /// One-time coach overlay on the Import tab import tiles.
   static const String prefsImportHubCoachSeen = 'importHubCoachSeen';
+
+  /// Cached subscription JSON from get_user_profile (offline UI).
+  static const String prefsSubscriptionCache = 'subscriptionCache';
 }

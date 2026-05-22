@@ -201,6 +201,15 @@ class UserRepository {
     } catch (_) {}
   }
 
+  /// GET /latest-recipes — premium subscribers only.
+  Future<List<Recipe>> fetchLatestRecipes({int limit = 30}) async {
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) {
+      throw ApiException(401, 'Sign in required');
+    }
+    return _api.fetchLatestRecipes(limit: limit, idToken: token);
+  }
+
   /// POST suggest-prompts — empty when guest or signed out.
   Future<List<PromptSuggestionItem>> fetchPromptSuggestions({
     String? clientRequestId,

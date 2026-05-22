@@ -12,6 +12,8 @@ import '../screens/cook_recipe_flow_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/favorites_screen.dart';
 import '../screens/trending_recipes_screen.dart';
+import '../screens/latest_recipes_screen.dart';
+import '../screens/premium_paywall_screen.dart';
 import '../screens/tutorial_screen.dart';
 import '../screens/grocery_list_screen.dart';
 import '../screens/pantry_scan_screen.dart';
@@ -22,6 +24,7 @@ import '../core/recipe_generation_entry_point.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../view_models/grocery_list_view_model.dart';
 import '../view_models/home_view_model.dart';
+import '../view_models/subscription_view_model.dart';
 
 class AppRouter {
   AppRouter({
@@ -29,6 +32,7 @@ class AppRouter {
     required this.homeViewModel,
     required this.recipeViewModel,
     required this.groceryListViewModel,
+    required this.subscriptionViewModel,
     required this.apiService,
     required this.appTelemetry,
     required this.sessionManager,
@@ -39,6 +43,7 @@ class AppRouter {
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
   final GroceryListViewModel groceryListViewModel;
+  final SubscriptionViewModel subscriptionViewModel;
   final ApiService apiService;
   final AppTelemetry appTelemetry;
   final dynamic sessionManager;
@@ -79,9 +84,24 @@ class AppRouter {
           loginViewModel: loginViewModel,
           recipeViewModel: recipeViewModel,
           groceryListViewModel: groceryListViewModel,
+          subscriptionViewModel: subscriptionViewModel,
           appTelemetry: appTelemetry,
           sessionManager: sessionManager,
         ),
+      ),
+      GoRoute(
+        path: '/premium',
+        builder: (context, state) {
+          final source = state.uri.queryParameters['source'] ??
+              (state.extra is String ? state.extra as String : 'unknown');
+          return PremiumPaywallScreen(
+            source: source,
+            subscriptionViewModel: subscriptionViewModel,
+            sessionManager: sessionManager,
+            loginViewModel: loginViewModel as LoginViewModel,
+            appTelemetry: appTelemetry,
+          );
+        },
       ),
       GoRoute(
         path: '/recipe-flow',
@@ -191,6 +211,8 @@ class AppRouter {
         builder: (context, __) => ProfileScreen(
           homeViewModel: homeViewModel,
           loginViewModel: loginViewModel,
+          subscriptionViewModel: subscriptionViewModel,
+          appTelemetry: appTelemetry,
           onBack: () => context.pop(),
         ),
       ),
@@ -210,6 +232,17 @@ class AppRouter {
           homeViewModel: homeViewModel,
           recipeViewModel: recipeViewModel,
           groceryListViewModel: groceryListViewModel,
+          onBack: () => context.pop(),
+        ),
+      ),
+      GoRoute(
+        path: '/latest-recipes',
+        builder: (context, __) => LatestRecipesScreen(
+          homeViewModel: homeViewModel,
+          recipeViewModel: recipeViewModel,
+          groceryListViewModel: groceryListViewModel,
+          subscriptionViewModel: subscriptionViewModel,
+          appTelemetry: appTelemetry,
           onBack: () => context.pop(),
         ),
       ),

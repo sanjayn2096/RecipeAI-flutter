@@ -65,6 +65,9 @@ class RecipeViewModel extends ChangeNotifier {
   RecipeGenerationEntryPoint? _lastBatchEntryPoint;
   RecipeGenerationEntryPoint? get lastGenerationEntryPoint => _lastBatchEntryPoint;
 
+  String? _assistantMessage;
+  String? get assistantMessage => _assistantMessage;
+
   /// POST generate-recipe with structured session fields (server builds prompt).
   Future<void> fetchRecipes({
     RecipeGenerationEntryPoint entryPoint =
@@ -82,15 +85,20 @@ class RecipeViewModel extends ChangeNotifier {
     _isLoading = true;
     _isStreamingFlow = false;
     _fetchError = null;
+    _assistantMessage = null;
     _recipes = [];
     notifyListeners();
     try {
       final streamedRecipes = <Recipe>[];
-      _recipes = await _recipeRepo.fetchRecipes(
+      final batch = await _recipeRepo.fetchRecipes(
         generationAttempt: 1,
         generationSource: entryPoint,
         onFlowSelected: (isStreaming) {
           _isStreamingFlow = isStreaming;
+          notifyListeners();
+        },
+        onAssistantMessage: (msg) {
+          _assistantMessage = msg;
           notifyListeners();
         },
         onRecipe: (recipe) {
@@ -99,6 +107,8 @@ class RecipeViewModel extends ChangeNotifier {
           notifyListeners();
         },
       );
+      _recipes = batch.recipes;
+      _assistantMessage = batch.assistantMessage ?? _assistantMessage;
       _fetchError = null;
       _successfulGenerationAttempts = 1;
       _lastBatchEntryPoint = entryPoint;
@@ -162,6 +172,10 @@ class RecipeViewModel extends ChangeNotifier {
           _isStreamingFlow = isStreaming;
           notifyListeners();
         },
+        onAssistantMessage: (msg) {
+          _assistantMessage = msg;
+          notifyListeners();
+        },
         onRecipe: (recipe) {
           streamed.add(recipe);
           final next = append
@@ -177,9 +191,10 @@ class RecipeViewModel extends ChangeNotifier {
 
       if (!streamFlow) {
         _recipes = append
-            ? _dedupeRecipesByNormalizedTitle([...prior, ...fetched])
-            : fetched;
+            ? _dedupeRecipesByNormalizedTitle([...prior, ...fetched.recipes])
+            : fetched.recipes;
       }
+      _assistantMessage = fetched.assistantMessage ?? _assistantMessage;
       _successfulGenerationAttempts = nextAttempt;
       _fetchError = null;
     } catch (e, st) {
@@ -200,6 +215,7 @@ class RecipeViewModel extends ChangeNotifier {
 
   void clearRecipeGenerationState() {
     _fetchError = null;
+    _assistantMessage = null;
     _recipes = [];
     _successfulGenerationAttempts = 0;
     _lastBatchEntryPoint = null;
