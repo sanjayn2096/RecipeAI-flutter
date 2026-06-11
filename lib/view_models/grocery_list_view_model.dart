@@ -157,6 +157,103 @@ class GroceryListViewModel extends ChangeNotifier {
     );
   }
 
+  /// Merges ingredient lines across a meal plan (by normalized name, any source).
+  Future<void> addMergedLinesFromMealPlan({
+    required List<String> lines,
+    String? planId,
+  }) async {
+    if (lines.isEmpty) return;
+    final now = DateTime.now();
+    final sourceId = planId != null && planId.trim().isNotEmpty
+        ? 'mealPlan:${planId.trim()}'
+        : 'mealPlan';
+    const sourceName = 'Meal plan';
+
+    if (_isCloudUser) {
+      for (final raw in lines) {
+        final trimmed = raw.trim();
+        if (trimmed.isEmpty) continue;
+        final parsed =
+            GroceryIngredientNormalize.normalizeRecipeIngredientLine(trimmed);
+        final norm = GroceryItem.normalizeName(parsed.displayName);
+        final idx = _items.indexWhere(
+          (e) => GroceryItem.normalizeName(e.name) == norm,
+        );
+        if (idx >= 0) {
+          final existing = _items[idx];
+          final merged = existing.copyWith(
+            updatedAt: now,
+            note: _mergeMealPlanNote(existing.note, sourceName),
+            sourceRecipeId: sourceId,
+            sourceRecipeName: sourceName,
+          );
+          await _repo.upsertFirestore(merged);
+        } else {
+          await _repo.upsertFirestore(
+            GroceryItem(
+              id: GroceryItem.newId(),
+              name: parsed.displayName,
+              quantity: parsed.quantity,
+              unit: parsed.unit,
+              createdAt: now,
+              updatedAt: now,
+              sourceRecipeId: sourceId,
+              sourceRecipeName: sourceName,
+            ),
+          );
+        }
+      }
+    } else {
+      var next = List<GroceryItem>.from(_items);
+      for (final raw in lines) {
+        final trimmed = raw.trim();
+        if (trimmed.isEmpty) continue;
+        final parsed =
+            GroceryIngredientNormalize.normalizeRecipeIngredientLine(trimmed);
+        final norm = GroceryItem.normalizeName(parsed.displayName);
+        final idx = next.indexWhere(
+          (e) => GroceryItem.normalizeName(e.name) == norm,
+        );
+        if (idx >= 0) {
+          final existing = next[idx];
+          next[idx] = existing.copyWith(
+            updatedAt: now,
+            note: _mergeMealPlanNote(existing.note, sourceName),
+            sourceRecipeId: sourceId,
+            sourceRecipeName: sourceName,
+          );
+        } else {
+          next.add(
+            GroceryItem(
+              id: GroceryItem.newId(),
+              name: parsed.displayName,
+              quantity: parsed.quantity,
+              unit: parsed.unit,
+              createdAt: now,
+              updatedAt: now,
+              sourceRecipeId: sourceId,
+              sourceRecipeName: sourceName,
+            ),
+          );
+        }
+      }
+      _items = next;
+      await _persistGuest();
+    }
+    await _telemetry.logFeatureInteraction(
+      featureId: FeatureIds.mealPlanAddToGrocery,
+    );
+  }
+
+  String? _mergeMealPlanNote(String? existing, String sourceName) {
+    const tag = '(meal plan)';
+    if (existing == null || existing.isEmpty) {
+      return '$sourceName $tag';
+    }
+    if (existing.contains(tag)) return existing;
+    return '$existing $tag';
+  }
+
   /// Same recipe bucket: merge by name only when from the same recipe (or both manual).
   static bool sameRecipeSource(
     GroceryItem existing,

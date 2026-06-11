@@ -294,9 +294,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submitGoogleSignIn(BuildContext context) async {
+    if (_googleSigningIn) return;
     setState(() => _googleSigningIn = true);
-    widget.loginViewModel.clearError();
-    await widget.loginViewModel.signInWithGoogle();
-    if (mounted) setState(() => _googleSigningIn = false);
+    try {
+      widget.loginViewModel.clearError();
+      await widget.loginViewModel.signInWithGoogle();
+    } finally {
+      if (mounted) setState(() => _googleSigningIn = false);
+    }
   }
 }

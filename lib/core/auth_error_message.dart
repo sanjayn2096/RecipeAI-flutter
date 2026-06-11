@@ -79,7 +79,7 @@ String _firebaseMessage(FirebaseAuthException e) {
     case 'too-many-requests':
       return 'Too many attempts. Please wait a moment and try again.';
     case 'operation-not-allowed':
-      return 'Sign-in with email and password is not enabled.';
+      return 'This sign-in method is not enabled. In Firebase Console → Authentication → Sign-in method, enable Google (and email/password if needed).';
     case 'requires-recent-login':
       return 'For your security, sign in again, then try deleting your account.';
     case 'no-current-user':

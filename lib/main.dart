@@ -8,7 +8,6 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
@@ -19,7 +18,9 @@ import 'core/theme.dart';
 import 'data/api/api_service.dart';
 import 'data/local/saved_recipes_hive_store.dart';
 import 'data/local/grocery_hive_store.dart';
+import 'data/local/meal_plan_hive_store.dart';
 import 'data/repositories/grocery_list_repository.dart';
+import 'data/repositories/meal_plan_repository.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/recipe_repository.dart';
 import 'data/repositories/user_repository.dart';
@@ -29,6 +30,7 @@ import 'view_models/home_view_model.dart';
 import 'view_models/recipe_view_model.dart';
 import 'view_models/grocery_list_view_model.dart';
 import 'view_models/subscription_view_model.dart';
+import 'view_models/meal_plan_view_model.dart';
 import 'navigation/app_router.dart';
 
 Future<void> _initCrashlytics() async {
@@ -71,16 +73,20 @@ void main() async {
 
   await _initCrashlytics();
 
-  if (!kIsWeb) {
-    await MobileAds.instance.initialize();
-  }
-
   try {
     await Hive.initFlutter();
-    final savedRecipesBox = await SavedRecipesHiveStore.openBox();
+    final [
+      savedRecipesBox,
+      groceryBox,
+      mealPlanBox,
+    ] = await Future.wait([
+      SavedRecipesHiveStore.openBox(),
+      GroceryHiveStore.openBox(),
+      MealPlanHiveStore.openBox(),
+    ]);
     final savedRecipesHiveStore = SavedRecipesHiveStore(savedRecipesBox);
-    final groceryBox = await GroceryHiveStore.openBox();
     final groceryHiveStore = GroceryHiveStore(groceryBox);
+    final mealPlanHiveStore = MealPlanHiveStore(mealPlanBox);
 
     final prefs = await SharedPreferences.getInstance();
     final sessionManager = SessionManager(prefs: prefs);
@@ -113,11 +119,15 @@ void main() async {
       appTelemetry: appTelemetry,
     );
 
+    late final HomeViewModel homeViewModel;
     final authRepo = AuthRepository(
       apiService: apiService,
       sessionManager: sessionManager,
       savedRecipesHiveStore: savedRecipesHiveStore,
-      onProfileLoaded: subscriptionViewModel.applyProfileSubscription,
+      onProfileLoaded: (subscriptionJson) {
+        subscriptionViewModel.applyProfileSubscription(subscriptionJson);
+        homeViewModel.loadUserDetails();
+      },
     );
     final userRepo = UserRepository(
       apiService: apiService,
@@ -137,7 +147,7 @@ void main() async {
       sessionManager: sessionManager,
       appTelemetry: appTelemetry,
     );
-    final homeViewModel = HomeViewModel(
+    homeViewModel = HomeViewModel(
       userRepository: userRepo,
       authRepository: authRepo,
       sessionManager: sessionManager,
@@ -156,19 +166,28 @@ void main() async {
     );
     unawaited(groceryViewModel.init());
 
+    final mealPlanRepo = MealPlanRepository(
+      apiService: apiService,
+      sessionManager: sessionManager,
+      hiveStore: mealPlanHiveStore,
+    );
+    final mealPlanViewModel = MealPlanViewModel(
+      repository: mealPlanRepo,
+      appTelemetry: appTelemetry,
+    );
+
     final router = AppRouter(
       loginViewModel: loginViewModel,
       homeViewModel: homeViewModel,
       recipeViewModel: recipeViewModel,
       groceryListViewModel: groceryViewModel,
+      mealPlanViewModel: mealPlanViewModel,
       subscriptionViewModel: subscriptionViewModel,
       apiService: apiService,
       appTelemetry: appTelemetry,
       sessionManager: sessionManager,
       analytics: analytics,
     ).router;
-
-    unawaited(subscriptionViewModel.refreshFromApi());
 
     runApp(RecipeAiApp(
       router: router,

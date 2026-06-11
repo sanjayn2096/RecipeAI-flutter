@@ -65,6 +65,12 @@ class LoginViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       _clearVerificationPending();
+      if (_session.isGuestMode()) {
+        _isLoggedIn = false;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
       _isLoggedIn = await _auth.checkSession();
       if (_isLoggedIn) {
         _session.clearGuestModeSync();
@@ -107,13 +113,20 @@ class LoginViewModel extends ChangeNotifier {
     try {
       await _telemetry.logFeatureInteraction(featureId: FeatureIds.signInGoogle);
       final ok = await _auth.signInWithGoogle();
-      if (!ok) return;
+      if (!ok) {
+        notifyListeners();
+        return;
+      }
       _session.clearGuestModeSync();
       _session.clearAnonymousAndGuestQuotaSync();
       _isLoggedIn = true;
     } on EmailNotVerifiedException {
       _setVerificationPending(_auth.currentUserEmail);
-    } catch (e) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[LoginViewModel] signInWithGoogle failed: $e');
+        debugPrint(st.toString());
+      }
       _errorMessage = authErrorMessage(e);
     }
     notifyListeners();

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../core/env_config.dart';
 import '../../core/telemetry/api_call_context.dart';
 import '../models/api_dtos.dart';
+import '../models/meal_plan.dart';
 import '../models/recipe.dart';
 
 /// Central API service for all backend and session-related calls.
@@ -663,12 +664,71 @@ class ApiService {
     }
     return 'Request failed';
   }
+
+  /// POST /generate-meal-plan
+  Future<MealPlanResult> generateMealPlan(
+    GenerateMealPlanRequest request, {
+    String? idToken,
+  }) async {
+    const metricPath = 'generate-meal-plan';
+    final url = _url('generate-meal-plan');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(request.toJson()),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return MealPlanResult.fromJson(map as Map<String, dynamic>);
+    }
+    throw ApiException(
+      r.statusCode,
+      _extractError(map),
+      code: map is Map ? map['code']?.toString() : null,
+    );
+  }
+
+  /// POST /regenerate-meal-plan-slot
+  Future<MealPlanResult> regenerateMealPlanSlot(
+    RegenerateMealPlanSlotRequest request, {
+    String? idToken,
+  }) async {
+    const metricPath = 'regenerate-meal-plan-slot';
+    final url = _url('regenerate-meal-plan-slot');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(request.toJson()),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return MealPlanResult.fromJson(map as Map<String, dynamic>);
+    }
+    throw ApiException(
+      r.statusCode,
+      _extractError(map),
+      code: map is Map ? map['code']?.toString() : null,
+    );
+  }
 }
 
 class ApiException implements Exception {
-  ApiException(this.statusCode, this.message);
+  ApiException(this.statusCode, this.message, {this.code});
   final int statusCode;
   final String message;
+  final String? code;
   @override
   String toString() => 'ApiException($statusCode): $message';
 }

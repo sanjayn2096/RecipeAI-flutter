@@ -1,5 +1,8 @@
+import 'dart:async' show unawaited;
+
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show debugPrint, defaultTargetPlatform, kDebugMode, kIsWeb, TargetPlatform;
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/email_not_verified_exception.dart';
@@ -16,10 +19,30 @@ import '../../services/session_manager.dart';
 const String _kGoogleWebClientId =
     '516167677061-ig3llepi6f5jk5jg0ajmcma7ps54ino5.apps.googleusercontent.com';
 
+/// iOS OAuth client (must match [GIDClientID] + URL scheme in ios/Runner/Info.plist).
+const String _kGoogleIosClientId =
+    '516167677061-k8bqvu71tpq9i3c6ktk8j9fn0k184mvu.apps.googleusercontent.com';
+
+const Duration _kProfileFetchTimeout = Duration(seconds: 30);
+
+void _authLog(String step, [Object? detail]) {
+  if (!kDebugMode) return;
+  debugPrint('[AuthRepository] $step${detail == null ? '' : ': $detail'}');
+}
+
 GoogleSignIn _mobileGoogleSignIn() {
   return GoogleSignIn(
+    clientId: (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
+        ? _kGoogleIosClientId
+        : null,
     serverClientId: _kGoogleWebClientId,
     scopes: const ['email', 'profile'],
+  );
+}
+
+bool _userSignedInWithOAuth(User user) {
+  return user.providerData.any(
+    (p) => p.providerId == 'google.com' || p.providerId == 'apple.com',
   );
 }
 
@@ -83,10 +106,53 @@ class AuthRepository {
     if (_profileFetchedForFirebaseUid == firebaseUser.uid) {
       return;
     }
+    _authLog('fetching user profile');
     final token = await firebaseUser.getIdToken();
-    final profile = await _api.getUserProfile(idToken: token);
+    final profile = await _api
+        .getUserProfile(idToken: token)
+        .timeout(_kProfileFetchTimeout, onTimeout: () {
+      throw Exception(
+        'Loading your profile timed out. Check your connection and try again.',
+      );
+    });
+    _authLog('user profile loaded', profile.userId);
     await _persistProfileFromResponse(firebaseUser, profile);
     _profileFetchedForFirebaseUid = firebaseUser.uid;
+  }
+
+  bool _hasCachedSessionProfile(User user) {
+    final backendUserId = _session.getUserId();
+    if (backendUserId == null || backendUserId.isEmpty) return false;
+    final storedEmail = _session.getStoredEmail()?.trim().toLowerCase();
+    if (storedEmail == null || storedEmail.isEmpty) return false;
+    final firebaseEmail = user.email?.trim().toLowerCase();
+    if (firebaseEmail != null &&
+        firebaseEmail.isNotEmpty &&
+        storedEmail != firebaseEmail) {
+      return false;
+    }
+    return true;
+  }
+
+  bool _sessionAllowedWithoutNetworkReload(User user) {
+    if (_userSignedInWithOAuth(user)) return true;
+    return user.emailVerified;
+  }
+
+  /// Reload Firebase user + GET get_user_profile without blocking splash navigation.
+  Future<void> _refreshSessionInBackground() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return;
+    try {
+      await user.reload();
+      final fresh = _firebaseAuth.currentUser;
+      if (fresh == null) return;
+      if (!_sessionAllowedWithoutNetworkReload(fresh)) return;
+      await _fetchAndPersistUserProfileOnce(fresh);
+      _authLog('background session refresh complete');
+    } catch (e) {
+      _authLog('background session refresh failed', e);
+    }
   }
 
   Future<void> _persistProfileFromResponse(User firebaseUser, UserProfileResponse profile) async {
@@ -109,14 +175,27 @@ class AuthRepository {
     onProfileLoaded?.call(profile.subscription);
   }
 
-  /// Returns true if user is already signed in, email verified, and backend profile loaded.
+  /// Returns true when a signed-in user may enter the app.
+  ///
+  /// With a locally cached profile, returns immediately and refreshes Firebase +
+  /// GET get_user_profile in the background. Without cache, blocks until profile
+  /// is loaded (first launch after sign-in).
   Future<bool> checkSession() async {
     final user = _firebaseAuth.currentUser;
     if (user == null) return false;
+    if (!_sessionAllowedWithoutNetworkReload(user)) {
+      return false;
+    }
+    if (_hasCachedSessionProfile(user)) {
+      _authLog('checkSession fast path (cached profile)');
+      unawaited(_refreshSessionInBackground());
+      return true;
+    }
+    _authLog('checkSession slow path (no cached profile)');
     await user.reload();
     final u = _firebaseAuth.currentUser;
     if (u == null) return false;
-    if (!u.emailVerified) {
+    if (!_sessionAllowedWithoutNetworkReload(u)) {
       return false;
     }
     try {
@@ -135,7 +214,7 @@ class AuthRepository {
     await u.reload();
     final fresh = _firebaseAuth.currentUser;
     if (fresh == null) throw Exception('Login failed');
-    if (!fresh.emailVerified) {
+    if (!fresh.emailVerified && !_userSignedInWithOAuth(fresh)) {
       throw EmailNotVerifiedException();
     }
     await _fetchAndPersistUserProfileOnce(fresh);
@@ -154,26 +233,42 @@ class AuthRepository {
   /// Google Sign-In, then same profile hydration as [login].
   /// Returns `false` if the user closed the Google account picker without signing in.
   Future<bool> signInWithGoogle() async {
+    _authLog('signInWithGoogle start', kIsWeb ? 'web' : defaultTargetPlatform);
     if (kIsWeb) {
+      _authLog('opening Google popup');
       final userCred =
           await _firebaseAuth.signInWithPopup(_webGoogleAuthProvider());
       if (userCred.user == null) throw Exception('Login failed');
+      _authLog('Firebase popup sign-in ok', userCred.user!.uid);
       await _completeLoginForCurrentUser();
+      _authLog('signInWithGoogle complete');
       return true;
     }
     final googleSignIn = _mobileGoogleSignIn();
+    _authLog('opening Google account picker');
     final account = await googleSignIn.signIn();
     if (account == null) {
+      _authLog('Google sign-in cancelled');
       return false;
     }
+    _authLog('Google account selected', account.email);
     final googleAuth = await account.authentication;
+    if (googleAuth.idToken == null) {
+      throw Exception(
+        'Google did not return an ID token. Check Firebase OAuth client setup '
+        '(SHA-1 on Android, GIDClientID on iOS).',
+      );
+    }
+    _authLog('Google tokens received');
     final credential = GoogleAuthProvider.credential(
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
     );
     final userCred = await _firebaseAuth.signInWithCredential(credential);
     if (userCred.user == null) throw Exception('Login failed');
+    _authLog('Firebase credential sign-in ok', userCred.user!.uid);
     await _completeLoginForCurrentUser();
+    _authLog('signInWithGoogle complete');
     return true;
   }
 

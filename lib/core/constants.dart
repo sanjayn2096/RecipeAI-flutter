@@ -57,6 +57,9 @@ class AppConstants {
   /// Hive box for grocery list when there is no signed-in Firebase user (guest / signed out).
   static const String hiveGroceryBox = 'grocery_list_local';
 
+  /// Latest generated meal plan (guest or offline cache).
+  static const String hiveMealPlanBox = 'meal_plan_local';
+
   /// One-time coach overlay on the Import tab import tiles.
   static const String prefsImportHubCoachSeen = 'importHubCoachSeen';
 

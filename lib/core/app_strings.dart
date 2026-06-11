@@ -48,9 +48,9 @@ class AppStrings {
     'Hang tight; results are bubbling up.',
   ];
 
-  static const String letsCookSomethingNice = "Let's cook something nice today";
+  static const String letsCookSomethingNice = "Let's cook something nice together";
   static const String whatDoYouFeelLikeEating =
-      'What are you trying to cook for?';
+      'What can I help you with today?';
   static const String pantryStaples = 'Tap to Add Items in your Pantry for better suggestions';
   static const String pantryStaplesDialogTitle = 'Pantry staples';
   /// Shown in the info dialog next to the pantry staples heading.
@@ -326,6 +326,51 @@ class AppStrings {
         return null;
     }
   }
+
+  // Meal planner
+  static const String mealPlanTitle = 'Meal planner';
+  static const String mealPlanDrawer = 'Meal planner';
+  static const String mealPlanHomePrompt =
+      'Want help planning your meals? Try out our Meal Planner';
+  static const String mealPlanHomeCta = 'Try Meal Planner';
+  static const String mealPlanHubSubtitle =
+      'Plan meals from your pantry and budget. We suggest recipes and what to buy.';
+  static const String mealPlanStartNew = 'Plan my week';
+  static const String mealPlanResume = 'View last plan';
+  static const String mealPlanWizardTitle = 'Build your plan';
+  static const String mealPlanStepDiet = 'Diet goals';
+  static const String mealPlanStepCuisines = 'Cuisines to try';
+  static const String mealPlanStepMeals = 'Meals to plan';
+  static const String mealPlanStepDays = 'Days to plan';
+  static const String mealPlanStepPantry = 'Ingredients you have';
+  static const String mealPlanStepBudget = 'Weekly grocery budget';
+  static const String mealPlanGenerate = 'Generate plan';
+  static const String mealPlanGenerating = 'Planning your meals…';
+  static const String mealPlanFreeDayLimit =
+      'Free plans include up to 3 days. Upgrade for a full week.';
+  static const String mealPlanPremiumDays = 'Full week (Premium)';
+  static const String mealPlanMissingTitle = 'Still need to buy';
+  static const String mealPlanAddToGrocery = 'Add selected to grocery list';
+  static const String mealPlanCopyList = 'Copy shopping list';
+  static const String mealPlanShopInstacart = 'Shop with Instacart';
+  static const String mealPlanInstacartTitle = 'Instacart — coming soon';
+  static const String mealPlanInstacartBody =
+      'We\'re finishing our Instacart integration. For now, add items to your grocery list or copy the list to shop in your favorite app.';
+  static const String mealPlanBudgetSummary = 'Estimated cost';
+  static const String mealPlanOverBudget =
+      'Estimated total is above your weekly budget.';
+  static const String mealPlanRegenerate = 'Try another recipe';
+  static const String mealPlanViewRecipe = 'View recipe';
+  static const String mealPlanBreakfast = 'Breakfast';
+  static const String mealPlanLunch = 'Lunch';
+  static const String mealPlanDinner = 'Dinner';
+  static const String mealPlanMon = 'Mon';
+  static const String mealPlanTue = 'Tue';
+  static const String mealPlanWed = 'Wed';
+  static const String mealPlanThu = 'Thu';
+  static const String mealPlanFri = 'Fri';
+  static const String mealPlanSat = 'Sat';
+  static const String mealPlanSun = 'Sun';
 
   /// Prior questionnaire step (mood has no previous).
   static String? previousRoute(String route) {

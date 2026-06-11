@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../services/mobile_ads_initializer.dart';
 import '../widgets/sous_chef_brand.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -42,6 +45,7 @@ class _SplashScreenState extends State<SplashScreen> {
       context.go('/verify-email');
     } else if (widget.loginViewModel.isLoggedIn ||
         widget.loginViewModel.isGuestMode) {
+      unawaited(MobileAdsInitializer.ensureInitialized());
       context.go('/home');
     } else {
       context.go('/login');

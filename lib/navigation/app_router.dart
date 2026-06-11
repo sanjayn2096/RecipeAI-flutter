@@ -17,6 +17,9 @@ import '../screens/premium_paywall_screen.dart';
 import '../screens/tutorial_screen.dart';
 import '../screens/grocery_list_screen.dart';
 import '../screens/pantry_scan_screen.dart';
+import '../screens/meal_plan_hub_screen.dart';
+import '../screens/meal_plan_wizard_screen.dart';
+import '../screens/meal_plan_review_screen.dart';
 import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
 import '../data/models/user_data.dart';
@@ -25,6 +28,8 @@ import '../core/telemetry/app_telemetry.dart';
 import '../view_models/grocery_list_view_model.dart';
 import '../view_models/home_view_model.dart';
 import '../view_models/subscription_view_model.dart';
+import '../view_models/meal_plan_view_model.dart';
+import '../services/session_manager.dart';
 
 class AppRouter {
   AppRouter({
@@ -32,6 +37,7 @@ class AppRouter {
     required this.homeViewModel,
     required this.recipeViewModel,
     required this.groceryListViewModel,
+    required this.mealPlanViewModel,
     required this.subscriptionViewModel,
     required this.apiService,
     required this.appTelemetry,
@@ -43,6 +49,7 @@ class AppRouter {
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
   final GroceryListViewModel groceryListViewModel;
+  final MealPlanViewModel mealPlanViewModel;
   final SubscriptionViewModel subscriptionViewModel;
   final ApiService apiService;
   final AppTelemetry appTelemetry;
@@ -204,7 +211,29 @@ class AppRouter {
       ),
       GoRoute(
         path: '/meal-plan',
-        redirect: (context, state) => '/home',
+        builder: (context, __) => MealPlanHubScreen(
+          mealPlanViewModel: mealPlanViewModel,
+          appTelemetry: appTelemetry,
+        ),
+        routes: [
+          GoRoute(
+            path: 'wizard',
+            builder: (context, __) => MealPlanWizardScreen(
+              mealPlanViewModel: mealPlanViewModel,
+              subscriptionViewModel: subscriptionViewModel,
+              sessionManager: sessionManager as SessionManager,
+              appTelemetry: appTelemetry,
+            ),
+          ),
+          GoRoute(
+            path: 'review',
+            builder: (context, __) => MealPlanReviewScreen(
+              mealPlanViewModel: mealPlanViewModel,
+              groceryListViewModel: groceryListViewModel,
+              appTelemetry: appTelemetry,
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: '/profile',

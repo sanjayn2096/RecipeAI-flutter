@@ -12,4 +12,7 @@ class FirestorePaths {
 
   /// Grocery list items for signed-in users.
   static const String grocerySubcollection = 'groceryItems';
+
+  /// AI-generated weekly meal plans.
+  static const String mealPlansSubcollection = 'mealPlans';
 }

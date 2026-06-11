@@ -2,11 +2,9 @@ import 'dart:math' show max, min, pi, sin;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../core/app_strings.dart';
 import '../core/recipe_generation_entry_point.dart';
-import '../data/models/api_dtos.dart';
 import '../data/models/session_profile.dart';
 import '../data/models/user_data.dart';
 import '../tutorial/coach_tour.dart';
@@ -28,19 +26,6 @@ import 'recipe_flow_screen.dart';
 
 /// Matches selected pantry pills and sheet highlights.
 const Color _kPantrySelectedGreen = Color(0xFF2E7D32);
-
-final List<PromptSuggestionItem> _kDemoPromptIdeas = <PromptSuggestionItem>[
-  PromptSuggestionItem(
-      text: 'Quick Indian Fish Curry', subtitle: 'Spicy • Easy'),
-  PromptSuggestionItem(
-      text: 'Creamy Mushroom Risotto', subtitle: 'Comfort • Medium'),
-  PromptSuggestionItem(
-      text: 'Greek Grilled Chicken', subtitle: 'High protein • Fast'),
-  PromptSuggestionItem(
-      text: 'Tofu Vegetable Stir Fry', subtitle: 'Vegan • Quick'),
-  PromptSuggestionItem(
-      text: 'Butter Chicken & Naan', subtitle: 'Classic • Rich'),
-];
 
 /// App bar: shared surface, [SousChefMenuButton], mark + "Sous Chef", profile initial + menu.
 class _SousHomeAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -522,6 +507,14 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                         },
                       ),
                       ListTile(
+                        leading: const Icon(Icons.calendar_month_outlined),
+                        title: const Text(AppStrings.mealPlanDrawer),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          context.push('/meal-plan');
+                        },
+                      ),
+                      ListTile(
                         leading: const Icon(Icons.shopping_cart_outlined),
                         title: const Text(AppStrings.groceryListDrawer),
                         onTap: () {
@@ -563,49 +556,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                           leadingWidth: 56,
                           title: Text(_appBarTitle),
                         ),
-              body: IndexedStack(
-                index: _currentIndex,
-                children: [
-                  _HomeTabBody(
-                    homeViewModel: widget.homeViewModel,
-                    recipeViewModel: widget.recipeViewModel,
-                    sessionManager: widget.sessionManager,
-                    subscriptionViewModel: widget.subscriptionViewModel,
-                    appTelemetry: widget.appTelemetry,
-                    coachGetRecipesKey: _coachGetRecipesKey,
-                    coachAddPantryKey: _coachAddPantryKey,
-                  ),
-                  RecipeFlowScreen(
-                    key: ValueKey<int>(_embeddedRecipeFlowKey),
-                    userData: userData,
-                    recipeViewModel: widget.recipeViewModel,
-                    groceryListViewModel: widget.groceryListViewModel,
-                    sessionManager: widget.sessionManager,
-                    embedInTab: true,
-                    onOpenAppMenu: _openAppDrawer,
-                  ),
-                  GroceryListScreen(
-                    groceryListViewModel: widget.groceryListViewModel,
-                    appTelemetry: widget.appTelemetry,
-                    embedInShell: true,
-                  ),
-                  ImportHubScreen(
-                    sessionManager: widget.sessionManager,
-                    recipeViewModel: widget.recipeViewModel,
-                    groceryListViewModel: widget.groceryListViewModel,
-                    coachImportLinksKey: _coachImportLinksKey,
-                    coachImportPasteKey: _coachImportPasteKey,
-                    coachImportScanKey: _coachImportScanKey,
-                  ),
-                  _FavoritesTabBody(
-                    homeViewModel: widget.homeViewModel,
-                    recipeViewModel: widget.recipeViewModel,
-                    groceryListViewModel: widget.groceryListViewModel,
-                    isGuest: isGuest,
-                    coachFavoritesKey: _coachFavoritesKey,
-                  ),
-                ],
-              ),
+              body: _buildActiveTab(userData: userData, isGuest: isGuest),
               bottomNavigationBar: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -684,6 +635,60 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
         );
       },
     );
+  }
+
+  /// Only the selected bottom-nav tab is built (unlike [IndexedStack], which kept all five).
+  Widget _buildActiveTab({
+    required UserData? userData,
+    required bool isGuest,
+  }) {
+    switch (_currentIndex) {
+      case 0:
+        return _HomeTabBody(
+          homeViewModel: widget.homeViewModel,
+          recipeViewModel: widget.recipeViewModel,
+          sessionManager: widget.sessionManager,
+          subscriptionViewModel: widget.subscriptionViewModel,
+          appTelemetry: widget.appTelemetry,
+          coachGetRecipesKey: _coachGetRecipesKey,
+          coachAddPantryKey: _coachAddPantryKey,
+        );
+      case 1:
+        return RecipeFlowScreen(
+          key: ValueKey<int>(_embeddedRecipeFlowKey),
+          userData: userData,
+          recipeViewModel: widget.recipeViewModel,
+          groceryListViewModel: widget.groceryListViewModel,
+          sessionManager: widget.sessionManager,
+          embedInTab: true,
+          onOpenAppMenu: _openAppDrawer,
+        );
+      case 2:
+        return GroceryListScreen(
+          groceryListViewModel: widget.groceryListViewModel,
+          appTelemetry: widget.appTelemetry,
+          embedInShell: true,
+        );
+      case 3:
+        return ImportHubScreen(
+          sessionManager: widget.sessionManager,
+          recipeViewModel: widget.recipeViewModel,
+          groceryListViewModel: widget.groceryListViewModel,
+          coachImportLinksKey: _coachImportLinksKey,
+          coachImportPasteKey: _coachImportPasteKey,
+          coachImportScanKey: _coachImportScanKey,
+        );
+      case 4:
+        return _FavoritesTabBody(
+          homeViewModel: widget.homeViewModel,
+          recipeViewModel: widget.recipeViewModel,
+          groceryListViewModel: widget.groceryListViewModel,
+          isGuest: isGuest,
+          coachFavoritesKey: _coachFavoritesKey,
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   String get _appBarTitle {
@@ -933,9 +938,6 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
 
   Future<void> _onGetRecipesPressed() => _startRecipeFlow();
 
-  Future<void> _onIdeaSelected(String prompt) =>
-      _startRecipeFlow(promptOverride: prompt);
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -998,13 +1000,10 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                   ],
                 ),
               ],
-              if (!widget.sessionManager.isGuestMode()) ...[
-                const SizedBox(height: 20),
-                _PromptSuggestionsStrip(
-                  homeViewModel: widget.homeViewModel,
-                  onSelect: _onIdeaSelected,
-                ),
-              ],
+              const SizedBox(height: 20),
+              _MealPlannerPromoCard(
+                onTap: () => context.push('/meal-plan'),
+              ),
               const SizedBox(height: 24),
             ],
           ),
@@ -1198,7 +1197,7 @@ class _HomeSearchFieldState extends State<_HomeSearchField>
                               enabledBorder: InputBorder.none,
                               hintText: hasText
                                   ? null
-                                  : 'e.g. quick weeknight for kids, meal prep Sunday, high protein',
+                                  : 'Quick Weeknight Meal, High Protein meal..?',
                               hintStyle: TextStyle(
                                 color: scheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w400,
@@ -1406,268 +1405,53 @@ class _PantryHintBar extends StatelessWidget {
   }
 }
 
-/// Recipe idea cards: image band + text (horizontal list height budget).
-const double _kIdeaCardWidth = 200;
-const double _kIdeaImageHeight = 108;
-const double _kIdeaCardHeight = 214;
+/// Home promo for the AI meal planner (replaces former "Ideas for you" strip).
+class _MealPlannerPromoCard extends StatelessWidget {
+  const _MealPlannerPromoCard({required this.onTap});
 
-class _PromptSuggestionsStrip extends StatelessWidget {
-  const _PromptSuggestionsStrip({
-    required this.homeViewModel,
-    required this.onSelect,
-  });
-
-  final HomeViewModel homeViewModel;
-  final ValueChanged<String> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: homeViewModel,
-      builder: (context, _) {
-        final scheme = Theme.of(context).colorScheme;
-        if (homeViewModel.promptSuggestionsLoading) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ideasSectionHeader(context),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: _kIdeaCardHeight,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    for (var i = 0; i < 5; i++)
-                      Padding(
-                        padding: EdgeInsets.only(right: i < 4 ? 10 : 0),
-                        child: Shimmer.fromColors(
-                          baseColor: scheme.surfaceContainerHighest,
-                          highlightColor: Color.lerp(
-                                scheme.surfaceContainerHighest,
-                                scheme.onSurface,
-                                0.12,
-                              ) ??
-                              scheme.surfaceContainerHigh,
-                          period: const Duration(milliseconds: 1500),
-                          child: _IdeaCardPlaceholder(colorScheme: scheme),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        }
-        final fromApi = homeViewModel.promptSuggestions;
-        final items = fromApi.isNotEmpty ? fromApi : _kDemoPromptIdeas;
-        if (items.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ideasSectionHeader(context),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: _kIdeaCardHeight,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  final s = items[index];
-                  return _PromptSuggestionTile(
-                    text: s.text,
-                    subtitle: s.subtitle,
-                    timeLabel: '15 min',
-                    colorScheme: scheme,
-                    onTap: () => onSelect(s.text),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-Row _ideasSectionHeader(BuildContext context) {
-  final onSurface = Theme.of(context).colorScheme.onSurface;
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      Text(
-        'Ideas for you',
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: onSurface,
-            ),
-      ),
-      TextButton(
-        onPressed: () {},
-        style: TextButton.styleFrom(
-          foregroundColor: const Color(0xFFFF8F00),
-          padding: EdgeInsets.zero,
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        child: const Text('See all >'),
-      ),
-    ],
-  );
-}
-
-class _IdeaCardPlaceholder extends StatelessWidget {
-  const _IdeaCardPlaceholder({required this.colorScheme});
-
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: _kIdeaCardWidth,
-      height: _kIdeaCardHeight,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
-      ),
-    );
-  }
-}
-
-class _PromptSuggestionTile extends StatelessWidget {
-  const _PromptSuggestionTile({
-    required this.text,
-    this.subtitle,
-    this.timeLabel = '15 min',
-    required this.colorScheme,
-    required this.onTap,
-  });
-
-  final String text;
-  final String? subtitle;
-  final String timeLabel;
-  final ColorScheme colorScheme;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = colorScheme;
-    return SizedBox(
-      width: _kIdeaCardWidth,
-      height: _kIdeaCardHeight,
-      child: Material(
-        color: Colors.transparent,
-        elevation: 0,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            width: _kIdeaCardWidth,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.45),
-                width: 1,
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.primaryContainer.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.calendar_month_outlined,
+                size: 36,
+                color: scheme.primary,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(
-                    alpha: Theme.of(context).brightness == Brightness.dark
-                        ? 0.28
-                        : 0.05,
-                  ),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppStrings.mealPlanHomePrompt,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onSurface,
+                            height: 1.35,
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.tonal(
+                      onPressed: onTap,
+                      child: const Text(AppStrings.mealPlanHomeCta),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  height: _kIdeaImageHeight,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ColoredBox(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? scheme.surfaceContainerHigh
-                            : const Color(0xFFFFE0B2),
-                        child: Center(
-                          child: Icon(
-                            Icons.image_outlined,
-                            size: 48,
-                            color: scheme.primary.withValues(alpha: 0.45),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.primary,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            timeLabel,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: scheme.onPrimary,
-                                ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        text,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: scheme.onSurface,
-                            ),
-                      ),
-                      if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle!.trim(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.labelMedium?.copyWith(
-                                    color: const Color(0xFFFF6F00),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

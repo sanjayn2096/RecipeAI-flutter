@@ -32,4 +32,11 @@ abstract final class FeatureIds {
   static const premiumSubscribe = 'premium_subscribe';
   static const premiumRestore = 'premium_restore';
   static const openLatestRecipes = 'open_latest_recipes';
+
+  static const mealPlanOpen = 'meal_plan_open';
+  static const mealPlanGenerate = 'meal_plan_generate';
+  static const mealPlanRegenerateSlot = 'meal_plan_regenerate_slot';
+  static const mealPlanAddToGrocery = 'meal_plan_add_to_grocery';
+  static const mealPlanInstacartSoon = 'meal_plan_instacart_soon';
+  static const mealPlanCopyList = 'meal_plan_copy_list';
 }

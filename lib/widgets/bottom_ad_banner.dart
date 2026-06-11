@@ -5,6 +5,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../core/monetization_config.dart';
 import '../core/monetization_navigation.dart';
 import '../core/telemetry/app_telemetry.dart';
+import '../services/mobile_ads_initializer.dart';
 import '../view_models/subscription_view_model.dart';
 
 /// Adaptive banner above the shell bottom navigation (mobile, non-premium).
@@ -65,6 +66,9 @@ class _BottomAdBannerState extends State<BottomAdBanner> {
 
   Future<void> _loadAd() async {
     if (kIsWeb || widget.subscriptionViewModel.isPremium) return;
+
+    await MobileAdsInitializer.ensureInitialized();
+    if (!mounted) return;
 
     final width = MediaQuery.sizeOf(context).width.truncate();
     if (width <= 0) return;
