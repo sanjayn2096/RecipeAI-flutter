@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
 
 /// Asset path for the Sous Chef logo — light theme (square PNG: mark + wordmark + tagline).
 const String kSousChefLogoAsset = 'assets/sous_chef_logo.png';
@@ -58,7 +58,7 @@ class SousChefLoginHeader extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          AppStrings.appName,
+          context.l10n.appName,
           style: theme.textTheme.headlineMedium,
           textAlign: TextAlign.center,
         ),
@@ -94,7 +94,7 @@ class SousChefInlineTitle extends StatelessWidget {
             alignment: PlaceholderAlignment.middle,
             child: SizedBox(width: 2),
           ),
-          const TextSpan(text: AppStrings.appName),
+          TextSpan(text: context.l10n.appName),
         ],
       ),
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/app_strings.dart';
+import '../../core/l10n_context.dart';
 import '../../data/api/api_service.dart';
 import '../../view_models/grocery_list_view_model.dart';
 import '../../view_models/recipe_view_model.dart';
@@ -37,7 +37,7 @@ class _ImportRecipeTextScreenState extends State<ImportRecipeTextScreen> {
     final raw = _controller.text.trim();
     if (raw.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.importRecipeNeedMoreText)),
+        SnackBar(content: Text(context.l10n.importRecipeNeedMoreText)),
       );
       return;
     }
@@ -116,7 +116,7 @@ class _ImportRecipeTextScreenState extends State<ImportRecipeTextScreen> {
                 maxLines: null,
                 textAlignVertical: TextAlignVertical.top,
                 decoration: InputDecoration(
-                  hintText: AppStrings.importRecipePasteHint,
+                  hintText: context.l10n.importRecipePasteHint,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -138,8 +138,8 @@ class _ImportRecipeTextScreenState extends State<ImportRecipeTextScreen> {
                   : const Icon(Icons.arrow_forward_rounded),
               label: Text(
                 _busy
-                    ? AppStrings.importRecipeBusy
-                    : AppStrings.importRecipeExtract,
+                    ? context.l10n.importRecipeBusy
+                    : context.l10n.importRecipeExtract,
               ),
             ),
           ],

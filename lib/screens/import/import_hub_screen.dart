@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/app_strings.dart';
+import '../../core/l10n_context.dart';
 import '../../services/session_manager.dart';
 import '../../view_models/grocery_list_view_model.dart';
 import '../../view_models/recipe_view_model.dart';
@@ -41,7 +41,7 @@ class ImportHubScreen extends StatelessWidget {
     if (FirebaseAuth.instance.currentUser == null) {
       if (!context.mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.importRecipeSignInRequired)),
+        SnackBar(content: Text(context.l10n.importRecipeSignInRequired)),
       );
       return false;
     }
@@ -128,7 +128,7 @@ class ImportHubScreen extends StatelessWidget {
                         child: tile(
                           coachKey: coachImportLinksKey,
                           icon: Icons.link_rounded,
-                          title: AppStrings.importHubTileLinks,
+                          title: context.l10n.importHubTileLinks,
                           tooltip: 'Paste a recipe link — web or social',
                           onTap: () => _push(
                             context,
@@ -145,7 +145,7 @@ class ImportHubScreen extends StatelessWidget {
                         child: tile(
                           coachKey: coachImportPasteKey,
                           icon: Icons.format_quote_rounded,
-                          title: AppStrings.importHubTilePaste,
+                          title: context.l10n.importHubTilePaste,
                           tooltip: 'Paste caption or recipe text',
                           onTap: () => _push(
                             context,
@@ -165,7 +165,7 @@ class ImportHubScreen extends StatelessWidget {
                   child: tile(
                     coachKey: coachImportScanKey,
                     icon: Icons.document_scanner_outlined,
-                    title: AppStrings.importHubTileScan,
+                    title: context.l10n.importHubTileScan,
                     tooltip: 'Scan a cookbook page or recipe card',
                     onTap: () => _push(
                       context,

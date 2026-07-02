@@ -9,6 +9,7 @@ import '../../core/email_not_verified_exception.dart';
 import '../api/api_service.dart';
 import '../local/saved_recipes_hive_store.dart';
 import '../models/api_dtos.dart';
+import '../../onboarding/onboarding_session_extension.dart';
 import '../../services/session_manager.dart';
 
 /// Web OAuth client ID from Firebase (Project settings → Your apps → Web client).
@@ -24,6 +25,10 @@ const String _kGoogleIosClientId =
     '516167677061-k8bqvu71tpq9i3c6ktk8j9fn0k184mvu.apps.googleusercontent.com';
 
 const Duration _kProfileFetchTimeout = Duration(seconds: 30);
+const Duration _kFirebaseAuthTimeout = Duration(seconds: 45);
+
+/// Brief pause after the Google account UI closes on Android before Firebase auth.
+const Duration _kAndroidGooglePickerSettleDelay = Duration(milliseconds: 300);
 
 void _authLog(String step, [Object? detail]) {
   if (!kDebugMode) return;
@@ -102,12 +107,44 @@ class AuthRepository {
     return u.providerData.any((p) => p.providerId == 'google.com');
   }
 
-  Future<void> _fetchAndPersistUserProfileOnce(User firebaseUser) async {
-    if (_profileFetchedForFirebaseUid == firebaseUser.uid) {
+  /// Waits for Firebase Auth to emit initial persisted state (important on web).
+  Future<void> waitForAuthReady() async {
+    try {
+      await _firebaseAuth.authStateChanges().first.timeout(
+        _kFirebaseAuthTimeout,
+        onTimeout: () => _firebaseAuth.currentUser,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _reloadFirebaseUser(User user) async {
+    try {
+      await user.reload().timeout(_kFirebaseAuthTimeout, onTimeout: () {
+        throw Exception(
+          'Session reload timed out. Check your internet connection and try again.',
+        );
+      });
+    } catch (e) {
+      _authLog('user.reload failed, using cached Firebase user', e);
+    }
+  }
+
+  Future<void> _fetchAndPersistUserProfileOnce(
+    User firebaseUser, {
+    bool force = false,
+  }) async {
+    if (!force && _profileFetchedForFirebaseUid == firebaseUser.uid) {
       return;
     }
     _authLog('fetching user profile');
-    final token = await firebaseUser.getIdToken();
+    final token = await firebaseUser.getIdToken().timeout(
+      _kFirebaseAuthTimeout,
+      onTimeout: () {
+        throw Exception(
+          'Could not get an auth token. Check your internet connection and try again.',
+        );
+      },
+    );
     final profile = await _api
         .getUserProfile(idToken: token)
         .timeout(_kProfileFetchTimeout, onTimeout: () {
@@ -144,7 +181,7 @@ class AuthRepository {
     final user = _firebaseAuth.currentUser;
     if (user == null) return;
     try {
-      await user.reload();
+      await _reloadFirebaseUser(user);
       final fresh = _firebaseAuth.currentUser;
       if (fresh == null) return;
       if (!_sessionAllowedWithoutNetworkReload(fresh)) return;
@@ -156,6 +193,14 @@ class AuthRepository {
   }
 
   Future<void> _persistProfileFromResponse(User firebaseUser, UserProfileResponse profile) async {
+    final previousUserId = _session.getUserId();
+    if (previousUserId != null &&
+        previousUserId.isNotEmpty &&
+        previousUserId != profile.userId) {
+      _session.clearLifestylePrefsSync();
+      _session.clearOnboardingStateSync();
+    }
+
     final emailFromFirebase = firebaseUser.email ?? '';
     final email = (profile.email != null && profile.email!.trim().isNotEmpty)
         ? profile.email!.trim()
@@ -169,10 +214,43 @@ class AuthRepository {
     await _session.persistLifestyleFromBackend(
       dietProfiles: profile.dietProfiles,
       allergensAvoid: profile.allergensAvoid,
+      preferredCuisines: profile.preferredCuisines,
       allergyNotes: profile.allergyNotes,
       applyAllergyNotes: profile.hasAllergyNotesField,
     );
+    _session.setOnboardingCompleteSync(profile.onboardingComplete);
     onProfileLoaded?.call(profile.subscription);
+  }
+
+  /// Ensures onboarding routing uses backend state (handles cleared local prefs).
+  Future<void> prepareOnboardingRoutingState() async {
+    if (_session.isGuestMode()) return;
+    if (_session.getOnboardingCompleteSync()) return;
+
+    if (_session.hasExistingLifestyleProfile()) {
+      await markOnboardingCompleteOnBackend();
+      return;
+    }
+
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return;
+    try {
+      await _fetchAndPersistUserProfileOnce(user, force: true);
+    } catch (e) {
+      _authLog('onboarding routing profile refresh failed', e);
+    }
+  }
+
+  Future<void> markOnboardingCompleteOnBackend() async {
+    if (_session.isGuestMode()) return;
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return;
+    final token = await user.getIdToken();
+    await _api.patchUserOnboarding(
+      PatchUserOnboardingRequest(onboardingComplete: true),
+      idToken: token,
+    );
+    _session.setOnboardingCompleteSync(true);
   }
 
   /// Returns true when a signed-in user may enter the app.
@@ -181,6 +259,8 @@ class AuthRepository {
   /// GET get_user_profile in the background. Without cache, blocks until profile
   /// is loaded (first launch after sign-in).
   Future<bool> checkSession() async {
+    await waitForAuthReady();
+
     final user = _firebaseAuth.currentUser;
     if (user == null) return false;
     if (!_sessionAllowedWithoutNetworkReload(user)) {
@@ -188,11 +268,20 @@ class AuthRepository {
     }
     if (_hasCachedSessionProfile(user)) {
       _authLog('checkSession fast path (cached profile)');
-      unawaited(_refreshSessionInBackground());
+      if (!_session.getOnboardingCompleteSync()) {
+        try {
+          await _fetchAndPersistUserProfileOnce(user, force: true);
+        } catch (e) {
+          _authLog('profile refetch for onboarding failed', e);
+          unawaited(_refreshSessionInBackground());
+        }
+      } else {
+        unawaited(_refreshSessionInBackground());
+      }
       return true;
     }
     _authLog('checkSession slow path (no cached profile)');
-    await user.reload();
+    await _reloadFirebaseUser(user);
     final u = _firebaseAuth.currentUser;
     if (u == null) return false;
     if (!_sessionAllowedWithoutNetworkReload(u)) {
@@ -201,23 +290,85 @@ class AuthRepository {
     try {
       await _fetchAndPersistUserProfileOnce(u);
       return true;
-    } catch (_) {
+    } catch (e) {
+      _authLog('profile fetch failed on cold start', e);
+      if (_userSignedInWithOAuth(u)) {
+        await _persistMinimalProfileFromFirebase(u);
+        unawaited(_refreshSessionInBackground());
+        return true;
+      }
       await _firebaseAuth.signOut();
       await _session.clearSession();
       return false;
     }
   }
 
+  Future<void> _persistMinimalProfileFromFirebase(User user) async {
+    final displayName = user.displayName?.trim() ?? '';
+    String? firstName;
+    String? lastName;
+    if (displayName.isNotEmpty) {
+      final parts = displayName.split(RegExp(r'\s+'));
+      firstName = parts.first;
+      if (parts.length > 1) {
+        lastName = parts.sublist(1).join(' ');
+      }
+    }
+    await _session.persistUserProfile(
+      userId: user.uid,
+      email: user.email ?? '',
+      firstName: firstName,
+      lastName: lastName,
+    );
+  }
+
   Future<void> _completeLoginForCurrentUser() async {
     final u = _firebaseAuth.currentUser;
     if (u == null) throw Exception('Login failed');
-    await u.reload();
+    if (_userSignedInWithOAuth(u)) {
+      await _completeOAuthLogin(u);
+      return;
+    }
+    await u.reload().timeout(_kFirebaseAuthTimeout, onTimeout: () {
+      throw Exception(
+        'Sign-in timed out. Check your internet connection and try again.',
+      );
+    });
     final fresh = _firebaseAuth.currentUser;
     if (fresh == null) throw Exception('Login failed');
-    if (!fresh.emailVerified && !_userSignedInWithOAuth(fresh)) {
+    if (!fresh.emailVerified) {
       throw EmailNotVerifiedException();
     }
     await _fetchAndPersistUserProfileOnce(fresh);
+  }
+
+  /// Google/Apple: skip [User.reload] (often slow/hangs on Android) and hydrate profile.
+  Future<void> _completeOAuthLogin(User user) async {
+    _authLog('completing OAuth login');
+    try {
+      await _fetchAndPersistUserProfileOnce(user);
+    } catch (e) {
+      _authLog('profile fetch failed, using Firebase profile', e);
+      await _persistMinimalProfileFromFirebase(user);
+      unawaited(_refreshSessionInBackground());
+    }
+  }
+
+  Future<UserCredential> _signInWithGoogleCredential(
+    AuthCredential credential,
+  ) async {
+    _authLog('calling Firebase signInWithCredential');
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      await Future<void>.delayed(_kAndroidGooglePickerSettleDelay);
+    }
+    return _firebaseAuth.signInWithCredential(credential).timeout(
+      _kFirebaseAuthTimeout,
+      onTimeout: () {
+        throw Exception(
+          'Firebase sign-in timed out. Check your internet connection and try again.',
+        );
+      },
+    );
   }
 
   /// Sign in with Firebase, then fetch user profile from backend (GET get_user_profile).
@@ -261,13 +412,13 @@ class AuthRepository {
     }
     _authLog('Google tokens received');
     final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
+      accessToken: googleAuth.accessToken,
     );
-    final userCred = await _firebaseAuth.signInWithCredential(credential);
+    final userCred = await _signInWithGoogleCredential(credential);
     if (userCred.user == null) throw Exception('Login failed');
     _authLog('Firebase credential sign-in ok', userCred.user!.uid);
-    await _completeLoginForCurrentUser();
+    await _completeOAuthLogin(userCred.user!);
     _authLog('signInWithGoogle complete');
     return true;
   }

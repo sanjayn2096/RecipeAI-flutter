@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
 import '../core/grocery_ingredient_normalize.dart';
 import '../data/models/grocery_item.dart';
 
@@ -93,9 +93,11 @@ class _GroceryItemEditorDialogState extends State<_GroceryItemEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return AlertDialog(
       title: Text(
-        widget.isEdit ? AppStrings.groceryEditItem : AppStrings.groceryAddItem,
+        widget.isEdit ? l10n.groceryEditItem : l10n.groceryAddItem,
       ),
       content: SizedBox(
         width: double.maxFinite,
@@ -107,16 +109,16 @@ class _GroceryItemEditorDialogState extends State<_GroceryItemEditorDialog> {
               TextField(
                 controller: _nameCtrl,
                 decoration: InputDecoration(
-                  labelText: AppStrings.groceryFieldName,
-                  hintText: AppStrings.groceryNameSearchHint,
+                  labelText: l10n.groceryFieldName,
+                  hintText: l10n.groceryNameSearchHint,
                 ),
                 textCapitalization: TextCapitalization.sentences,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
                 value: _quantity,
-                decoration: const InputDecoration(
-                  labelText: AppStrings.groceryFieldQuantity,
+                decoration: InputDecoration(
+                  labelText: l10n.groceryFieldQuantity,
                 ),
                 items: List.generate(
                   100,
@@ -132,8 +134,8 @@ class _GroceryItemEditorDialogState extends State<_GroceryItemEditorDialog> {
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: _unitValue,
-                decoration: const InputDecoration(
-                  labelText: AppStrings.groceryFieldUnit,
+                decoration: InputDecoration(
+                  labelText: l10n.groceryFieldUnit,
                 ),
                 items: kGroceryUnitChoices
                     .map(
@@ -150,8 +152,8 @@ class _GroceryItemEditorDialogState extends State<_GroceryItemEditorDialog> {
               const SizedBox(height: 8),
               TextField(
                 controller: _noteCtrl,
-                decoration: const InputDecoration(
-                  labelText: AppStrings.groceryFieldNoteOptional,
+                decoration: InputDecoration(
+                  labelText: l10n.groceryFieldNoteOptional,
                 ),
                 maxLines: 2,
               ),
@@ -162,7 +164,7 @@ class _GroceryItemEditorDialogState extends State<_GroceryItemEditorDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text(AppStrings.back),
+          child: Text(l10n.back),
         ),
         FilledButton(
           onPressed: () {
@@ -180,7 +182,7 @@ class _GroceryItemEditorDialogState extends State<_GroceryItemEditorDialog> {
               ),
             );
           },
-          child: const Text(AppStrings.ok),
+          child: Text(l10n.ok),
         ),
       ],
     );

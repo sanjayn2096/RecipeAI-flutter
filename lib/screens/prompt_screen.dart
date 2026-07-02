@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
+import '../core/l10n_extensions.dart';
 
 class PromptScreen extends StatelessWidget {
   const PromptScreen({
@@ -24,16 +25,31 @@ class PromptScreen extends StatelessWidget {
   /// Extra actions (e.g. shell app menu when embedded in [HomeShellScreen]).
   final List<Widget>? appBarActions;
 
-  String get _title => AppStrings.titleForRoute(route);
+  String _labelForOption(BuildContext context, String key) {
+    final l10n = context.l10n;
+    switch (route) {
+      case 'mood':
+        return l10n.moodLabel(key);
+      case 'dietRestrictions':
+        return l10n.dietLabel(key);
+      case 'cuisinePreferences':
+        return l10n.cuisineLabel(key);
+      case 'cookingPreferences':
+        return l10n.cookingLabel(key);
+      default:
+        return key;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
         // Room for up to ~4 lines of [titleLarge] when questions are long.
         toolbarHeight: 112,
         title: Text(
-          _title,
+          l10n.titleForRoute(route),
           maxLines: 4,
           softWrap: true,
           overflow: TextOverflow.ellipsis,
@@ -43,7 +59,7 @@ class PromptScreen extends StatelessWidget {
         leading: onBack != null
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
-                tooltip: AppStrings.back,
+                tooltip: l10n.back,
                 onPressed: onBack,
               )
             : null,
@@ -59,9 +75,9 @@ class PromptScreen extends StatelessWidget {
               child: ListView(
                 children: options
                     .map(
-                      (opt) => RadioListTile<String>(
-                        title: Text(opt),
-                        value: opt,
+                      (key) => RadioListTile<String>(
+                        title: Text(_labelForOption(context, key)),
+                        value: key,
                         groupValue: selectedOption,
                         onChanged: (v) {
                           if (v != null) onOptionSelected(v);
@@ -74,7 +90,7 @@ class PromptScreen extends StatelessWidget {
             const SizedBox(height: 16),
             FilledButton(
               onPressed: selectedOption != null ? onNext : null,
-              child: const Text(AppStrings.next),
+              child: Text(l10n.next),
             ),
           ],
         ),

@@ -2,9 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
 import '../core/recipe_parsing.dart';
 import '../data/models/recipe.dart';
+import '../services/recipe_image_cache.dart';
 import '../view_models/grocery_list_view_model.dart';
 
 /// Full-screen cooking mode: gather ingredients → step-by-step → Fin.
@@ -364,7 +365,7 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
               child: OutlinedButton.icon(
                 onPressed: _addStillNeededToGroceryFromGather,
                 icon: const Icon(Icons.add_shopping_cart_outlined),
-                label: const Text(AppStrings.cookFlowAddUncheckedToGrocery),
+                label: Text(context.l10n.cookFlowAddUncheckedToGrocery),
               ),
             ),
           FilledButton.icon(
@@ -403,7 +404,7 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(AppStrings.recipeAddedToGroceryList)),
+      SnackBar(content: Text(context.l10n.recipeAddedToGroceryList)),
     );
   }
 
@@ -429,6 +430,8 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
     // the full step image can be seen without heavy cropping.
     final screen = MediaQuery.sizeOf(context);
     final stepImageSize = (screen.width * 0.5).clamp(180.0, 260.0);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final stepMemCachePx = recipeImageMemCachePx(stepImageSize, dpr);
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -461,6 +464,11 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
                     color: theme.colorScheme.surfaceContainerHighest,
                     child: CachedNetworkImage(
                       imageUrl: stepImageUrl,
+                      cacheManager: RecipeImageCacheManager.instance,
+                      memCacheWidth: stepMemCachePx,
+                      memCacheHeight: stepMemCachePx,
+                      maxWidthDiskCache: kRecipeImageMaxDiskCachePx,
+                      maxHeightDiskCache: kRecipeImageMaxDiskCachePx,
                       progressIndicatorBuilder: (context, _, __) =>
                           const Center(child: CircularProgressIndicator()),
                       fit: BoxFit.contain,

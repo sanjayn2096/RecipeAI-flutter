@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:recipe_ai/l10n/app_localizations.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
+import '../core/l10n_extensions.dart';
 
 /// Cycles catchy lines below the recipe-generation loading animation.
 class RotatingRecipeLoadingMessage extends StatefulWidget {
@@ -25,38 +27,47 @@ class _RotatingRecipeLoadingMessageState
   Timer? _timer;
   int _index = 0;
 
-  List<String> get _activeMessages {
-    const base = AppStrings.recipeGenerationLoadingPhrases;
+  List<String> _activeMessages(AppLocalizations l10n) {
+    final base = l10n.recipeGenerationLoadingPhrases;
     if (base.isEmpty) {
-      return [AppStrings.sendingTastyRecipes];
+      return [l10n.sendingTastyRecipes];
     }
     final merged = [
       ...base,
       if (widget.isStreaming)
-        ...AppStrings.recipeGenerationLoadingPhrasesStreamingExtras,
+        ...l10n.recipeGenerationLoadingPhrasesStreamingExtras,
     ];
-    return merged.isEmpty ? [AppStrings.sendingTastyRecipes] : merged;
+    return merged.isEmpty ? [l10n.sendingTastyRecipes] : merged;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    final messages = _activeMessages;
-    if (messages.length <= 1) return;
+  void _syncTimer() {
+    final messages = _activeMessages(context.l10n);
+    if (messages.length <= 1) {
+      _timer?.cancel();
+      _timer = null;
+      return;
+    }
+    if (_timer != null) return;
     _timer = Timer.periodic(_rotationInterval, (_) {
       if (!mounted) return;
       setState(() {
-        final len = _activeMessages.length;
+        final len = _activeMessages(context.l10n).length;
         _index = len <= 1 ? 0 : (_index + 1) % len;
       });
     });
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncTimer();
+  }
+
+  @override
   void didUpdateWidget(RotatingRecipeLoadingMessage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isStreaming != widget.isStreaming) {
-      final len = _activeMessages.length;
+      final len = _activeMessages(context.l10n).length;
       if (len <= 1) {
         _index = 0;
       } else if (_index >= len) {
@@ -73,7 +84,7 @@ class _RotatingRecipeLoadingMessageState
 
   @override
   Widget build(BuildContext context) {
-    final messages = _activeMessages;
+    final messages = _activeMessages(context.l10n);
     final text = messages[_index % messages.length];
 
     return Padding(

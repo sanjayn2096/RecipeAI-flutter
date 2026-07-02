@@ -236,37 +236,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: widget.onSignupTap,
                 child: const Text('Sign Up with Email'),
               ),
-              const SizedBox(height: 20),
-              Center(
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.primary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    textStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.2,
-                        ),
-                  ),
-                  onPressed: () async {
-                    widget.loginViewModel.clearError();
-                    await widget.loginViewModel.enterGuestMode();
-                    if (!context.mounted) return;
-                    context.go('/home');
-                  },
-                  child: const Text('Continue as guest'),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Browse recipes without an account. Sign up to save recipes.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                textAlign: TextAlign.center,
-              ),
             ],
           ),
         );

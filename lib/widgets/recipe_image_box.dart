@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../services/recipe_image_cache.dart';
+
 /// Recipe image: disk-backed network cache for http(s) URLs, else local placeholder.
 class RecipeImageBox extends StatelessWidget {
   const RecipeImageBox({
@@ -50,15 +52,23 @@ class RecipeImageBox extends StatelessWidget {
   Widget _buildInner(BuildContext context, {required double widthPx}) {
     if (_useNetwork) {
       final url = imageUrl.trim();
+      final dpr = MediaQuery.devicePixelRatioOf(context);
+      final memCacheWidth = recipeImageMemCachePx(widthPx, dpr);
+      final memCacheHeight = recipeImageMemCachePx(height, dpr);
       return SizedBox(
         width: widthPx,
         height: height,
         child: CachedNetworkImage(
           imageUrl: url,
+          cacheManager: RecipeImageCacheManager.instance,
           width: widthPx,
           height: height,
           fit: fit,
           alignment: Alignment.center,
+          memCacheWidth: memCacheWidth,
+          memCacheHeight: memCacheHeight,
+          maxWidthDiskCache: kRecipeImageMaxDiskCachePx,
+          maxHeightDiskCache: kRecipeImageMaxDiskCachePx,
           progressIndicatorBuilder: (context, _, __) => ColoredBox(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: const Center(

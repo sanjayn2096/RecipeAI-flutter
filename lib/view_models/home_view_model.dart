@@ -10,6 +10,7 @@ import '../core/telemetry/app_telemetry.dart';
 import '../core/telemetry/feature_ids.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/user_repository.dart';
+import '../services/recipe_image_prefetch.dart';
 import '../services/session_manager.dart';
 
 class HomeViewModel extends ChangeNotifier {
@@ -57,8 +58,19 @@ class HomeViewModel extends ChangeNotifier {
   bool _promptSuggestionsLoading = false;
   bool get promptSuggestionsLoading => _promptSuggestionsLoading;
 
+  List<Recipe> _dailyIdeas = const [];
+  List<Recipe> get dailyIdeas => _dailyIdeas;
+
+  bool _dailyIdeasLoading = false;
+  bool get dailyIdeasLoading => _dailyIdeasLoading;
+
+  Timer? _dailyIdeasPollTimer;
+  int _dailyIdeasPollCount = 0;
+  static const _dailyIdeasPollMax = 36;
+
   @override
   void dispose() {
+    _dailyIdeasPollTimer?.cancel();
     _savedFirestoreSub?.cancel();
     super.dispose();
   }
@@ -108,7 +120,91 @@ class HomeViewModel extends ChangeNotifier {
     } else {
       _startSavedFirestoreSync();
       unawaited(loadPromptSuggestions());
+      await _userRepo.recordAppOpen();
+      await _userRepo.syncDeviceTimezone();
+      await loadDailyIdeas();
     }
+  }
+
+  /// GET /daily-ideas — carousel when 5 display recipes; polls until today is ready.
+  Future<void> loadDailyIdeas({bool isPoll = false}) async {
+    if (_session.isGuestMode()) {
+      _cancelDailyIdeasPoll();
+      _dailyIdeas = const [];
+      _dailyIdeasLoading = false;
+      notifyListeners();
+      return;
+    }
+    final uid = _userRepo.readSessionProfile().userId;
+    if (uid == null || uid.isEmpty) {
+      _cancelDailyIdeasPoll();
+      _dailyIdeas = const [];
+      _dailyIdeasLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    if (!isPoll) {
+      _cancelDailyIdeasPoll();
+      _dailyIdeasLoading = true;
+      notifyListeners();
+    }
+    try {
+      if (!isPoll) {
+        await _telemetry.logFeatureInteraction(
+          featureId: FeatureIds.fetchDailyIdeas,
+        );
+      }
+      final resp = await _userRepo.fetchDailyIdeas();
+      if (resp.status == 'inactive' || !resp.hasDisplayRecipes) {
+        _dailyIdeas = const [];
+        _cancelDailyIdeasPoll();
+      } else {
+        _dailyIdeas = resp.recipes;
+        unawaited(warmRecipeHeroUrls(_dailyIdeas.map((r) => r.image)));
+        if (resp.isReady) {
+          _cancelDailyIdeasPoll();
+        } else if (_shouldPollDailyIdeas(resp.status)) {
+          _scheduleDailyIdeasPoll();
+        } else {
+          _cancelDailyIdeasPoll();
+        }
+      }
+      if (kDebugMode && resp.status != 'ready' && resp.status != 'inactive') {
+        debugPrint(
+          '[HomeViewModel] loadDailyIdeas status=${resp.status} '
+          'batch=${resp.batchId} fallback=${resp.isFallback} error=${resp.error}',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[HomeViewModel] loadDailyIdeas: $e');
+      }
+      _dailyIdeas = const [];
+      _cancelDailyIdeasPoll();
+    }
+    _dailyIdeasLoading = false;
+    notifyListeners();
+  }
+
+  bool _shouldPollDailyIdeas(String status) {
+    return status == 'generating' ||
+        status == 'pending' ||
+        status == 'missing';
+  }
+
+  void _scheduleDailyIdeasPoll() {
+    if (_dailyIdeasPollCount >= _dailyIdeasPollMax) return;
+    _dailyIdeasPollTimer?.cancel();
+    _dailyIdeasPollTimer = Timer(const Duration(seconds: 10), () {
+      _dailyIdeasPollCount += 1;
+      unawaited(loadDailyIdeas(isPoll: true));
+    });
+  }
+
+  void _cancelDailyIdeasPoll() {
+    _dailyIdeasPollTimer?.cancel();
+    _dailyIdeasPollCount = 0;
   }
 
   /// Fresh POST suggest-prompts (e.g. each app open via [loadUserDetails]).
@@ -172,6 +268,11 @@ class HomeViewModel extends ChangeNotifier {
     );
     notifyListeners();
   }
+
+  Future<void> syncLifestyleFromPrefs() => _userRepo.syncLifestyleFromPrefs();
+
+  /// Marks onboarding complete on the server (source of truth) and local cache.
+  Future<void> markOnboardingComplete() => _userRepo.markOnboardingComplete();
 
   /// Firestore/arrayRemove often fails to match stored objects (shape differs), so the server
   /// can end up with duplicate entries for the same [recipeId]. Keep one row per id for UI.

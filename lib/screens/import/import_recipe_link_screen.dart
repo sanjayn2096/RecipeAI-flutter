@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/app_strings.dart';
+import '../../core/l10n_context.dart';
 import '../../data/api/api_service.dart';
 import '../../view_models/grocery_list_view_model.dart';
 import '../../view_models/recipe_view_model.dart';
@@ -37,7 +37,7 @@ class _ImportRecipeLinkScreenState extends State<ImportRecipeLinkScreen> {
     final raw = _controller.text.trim();
     if (raw.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.importRecipeNeedUrl)),
+        SnackBar(content: Text(context.l10n.importRecipeNeedUrl)),
       );
       return;
     }
@@ -98,7 +98,7 @@ class _ImportRecipeLinkScreenState extends State<ImportRecipeLinkScreen> {
               textInputAction: TextInputAction.go,
               onSubmitted: (_) => _busy ? null : _extract(),
               decoration: InputDecoration(
-                hintText: AppStrings.importRecipeFromLinkHint,
+                hintText: context.l10n.importRecipeFromLinkHint,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -134,8 +134,8 @@ class _ImportRecipeLinkScreenState extends State<ImportRecipeLinkScreen> {
                   : const Icon(Icons.arrow_forward_rounded),
               label: Text(
                 _busy
-                    ? AppStrings.importRecipeBusy
-                    : AppStrings.importRecipeExtract,
+                    ? context.l10n.importRecipeBusy
+                    : context.l10n.importRecipeExtract,
               ),
             ),
           ],

@@ -39,4 +39,9 @@ abstract final class FeatureIds {
   static const mealPlanAddToGrocery = 'meal_plan_add_to_grocery';
   static const mealPlanInstacartSoon = 'meal_plan_instacart_soon';
   static const mealPlanCopyList = 'meal_plan_copy_list';
+  static const fetchDailyIdeas = 'fetch_daily_ideas';
+
+  static const onboardingComplete = 'onboarding_complete';
+  static const onboardingPaywallSkip = 'onboarding_paywall_skip';
+  static const onboardingPaywallSubscribe = 'onboarding_paywall_subscribe';
 }

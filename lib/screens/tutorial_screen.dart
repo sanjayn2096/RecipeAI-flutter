@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:recipe_ai/l10n/app_localizations.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
 
-/// On-demand walkthrough: tabs overview, creating recipes, pantry, favorites.
+/// On-demand walkthrough: tabs overview, creating recipes, pantry, import, favorites.
 class TutorialScreen extends StatefulWidget {
   const TutorialScreen({super.key});
 
@@ -15,24 +16,29 @@ class _TutorialScreenState extends State<TutorialScreen> {
   late final PageController _pageController;
   int _pageIndex = 0;
 
-  static const _pages = <({String title, String body})>[
-    (
-      title: AppStrings.tutorialOverviewTitle,
-      body: AppStrings.tutorialOverviewBody,
-    ),
-    (
-      title: AppStrings.tutorialCreateRecipesTitle,
-      body: AppStrings.tutorialCreateRecipesBody,
-    ),
-    (
-      title: AppStrings.tutorialPantryTitle,
-      body: AppStrings.tutorialPantryBody,
-    ),
-    (
-      title: AppStrings.tutorialFavoritesTitle,
-      body: AppStrings.tutorialFavoritesBody,
-    ),
-  ];
+  static List<({String title, String body})> _pages(AppLocalizations l10n) =>
+      [
+        (
+          title: l10n.tutorialOverviewTitle,
+          body: l10n.tutorialOverviewBody,
+        ),
+        (
+          title: l10n.tutorialCreateRecipesTitle,
+          body: l10n.tutorialCreateRecipesBody,
+        ),
+        (
+          title: l10n.tutorialPantryTitle,
+          body: l10n.tutorialPantryBody,
+        ),
+        (
+          title: l10n.tutorialImportTitle,
+          body: l10n.tutorialImportBody,
+        ),
+        (
+          title: l10n.tutorialFavoritesTitle,
+          body: l10n.tutorialFavoritesBody,
+        ),
+      ];
 
   @override
   void initState() {
@@ -46,8 +52,8 @@ class _TutorialScreenState extends State<TutorialScreen> {
     super.dispose();
   }
 
-  void _goNext() {
-    if (_pageIndex < _pages.length - 1) {
+  void _goNext(int pageCount) {
+    if (_pageIndex < pageCount - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
@@ -68,11 +74,13 @@ class _TutorialScreenState extends State<TutorialScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final pages = _pages(l10n);
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.tutorialScreenTitle),
+        title: Text(l10n.tutorialScreenTitle),
       ),
       body: SafeArea(
         child: Column(
@@ -81,10 +89,10 @@ class _TutorialScreenState extends State<TutorialScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                itemCount: _pages.length,
+                itemCount: pages.length,
                 onPageChanged: (i) => setState(() => _pageIndex = i),
                 itemBuilder: (_, i) {
-                  final p = _pages[i];
+                  final p = pages[i];
                   return SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
                     child: Column(
@@ -116,12 +124,12 @@ class _TutorialScreenState extends State<TutorialScreen> {
                   OutlinedButton.icon(
                     onPressed: () => context.pop(true),
                     icon: const Icon(Icons.touch_app_outlined),
-                    label: const Text(AppStrings.showMeInApp),
+                    label: Text(l10n.showMeInApp),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(_pages.length, (i) {
+                    children: List.generate(pages.length, (i) {
                       final selected = i == _pageIndex;
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -145,17 +153,17 @@ class _TutorialScreenState extends State<TutorialScreen> {
                       if (_pageIndex > 0)
                         TextButton(
                           onPressed: _goBack,
-                          child: const Text(AppStrings.back),
+                          child: Text(l10n.back),
                         )
                       else
                         const SizedBox(width: 64),
                       Expanded(
                         child: FilledButton(
-                          onPressed: _goNext,
+                          onPressed: () => _goNext(pages.length),
                           child: Text(
-                            _pageIndex < _pages.length - 1
-                                ? AppStrings.next
-                                : AppStrings.ok,
+                            _pageIndex < pages.length - 1
+                                ? l10n.next
+                                : l10n.ok,
                           ),
                         ),
                       ),

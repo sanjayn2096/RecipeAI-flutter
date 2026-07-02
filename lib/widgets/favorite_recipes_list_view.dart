@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
 import '../core/recipe_origin.dart';
 import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
@@ -62,6 +62,8 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return ListenableBuilder(
       listenable: widget.homeViewModel,
       builder: (_, __) {
@@ -125,16 +127,16 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: SegmentedButton<_SavedLibraryTab>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: _SavedLibraryTab.created,
-                    label: Text(AppStrings.savedListSegmentCreated),
-                    icon: Icon(Icons.auto_awesome_outlined, size: 18),
+                    label: Text(l10n.savedListSegmentCreated),
+                    icon: const Icon(Icons.auto_awesome_outlined, size: 18),
                   ),
                   ButtonSegment(
                     value: _SavedLibraryTab.imported,
-                    label: Text(AppStrings.savedListSegmentImported),
-                    icon: Icon(Icons.file_download_outlined, size: 18),
+                    label: Text(l10n.savedListSegmentImported),
+                    icon: const Icon(Icons.file_download_outlined, size: 18),
                   ),
                 ],
                 selected: {_libraryTab},
@@ -174,8 +176,8 @@ class _FavoriteRecipesListViewState extends State<FavoriteRecipesListView> {
                       ? Center(
                           child: Text(
                             _libraryTab == _SavedLibraryTab.created
-                                ? AppStrings.savedListEmptyCreated
-                                : AppStrings.savedListEmptyImported,
+                                ? l10n.savedListEmptyCreated
+                                : l10n.savedListEmptyImported,
                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                   color: Theme.of(context)
                                       .colorScheme

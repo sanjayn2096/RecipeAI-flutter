@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'dart:async' show unawaited;
 
+import 'package:flutter/material.dart';
+
+import '../navigation/post_auth_navigation.dart';
+import '../services/session_manager.dart';
 import '../view_models/login_view_model.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
@@ -10,10 +13,13 @@ class LoginHandlerScreen extends StatefulWidget {
   const LoginHandlerScreen({
     super.key,
     required this.loginViewModel,
+    required this.sessionManager,
     this.openSignup = false,
   });
 
   final LoginViewModel loginViewModel;
+  final SessionManager sessionManager;
+
   /// When true (e.g. route `extra` from guest flows), show sign-up instead of login.
   final bool openSignup;
 
@@ -38,10 +44,14 @@ class _LoginHandlerScreenState extends State<LoginHandlerScreen> {
   }
 
   void _onViewModelUpdate() {
-    // Only leave auth for a real login/signup. Guest mode still shows /login until
-    // Continue as guest explicitly navigates home (see LoginScreen).
     if (mounted && widget.loginViewModel.isLoggedIn) {
-      context.go('/home');
+      unawaited(
+        navigateAfterAuthentication(
+          context,
+          sessionManager: widget.sessionManager,
+          loginViewModel: widget.loginViewModel,
+        ),
+      );
     }
     if (mounted) setState(() {});
   }
@@ -53,7 +63,15 @@ class _LoginHandlerScreenState extends State<LoginHandlerScreen> {
       builder: (_, __) {
         if (widget.loginViewModel.isLoggedIn) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) context.go('/home');
+            if (mounted) {
+              unawaited(
+                navigateAfterAuthentication(
+                  context,
+                  sessionManager: widget.sessionManager,
+                  loginViewModel: widget.loginViewModel,
+                ),
+              );
+            }
           });
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -62,6 +80,7 @@ class _LoginHandlerScreenState extends State<LoginHandlerScreen> {
         if (widget.loginViewModel.needsEmailVerification) {
           return VerifyEmailScreen(
             loginViewModel: widget.loginViewModel,
+            sessionManager: widget.sessionManager,
           );
         }
         return Scaffold(

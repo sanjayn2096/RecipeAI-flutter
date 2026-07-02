@@ -103,6 +103,31 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(map));
   }
 
+  /// PATCH user-onboarding (Firebase ID token).
+  Future<Map<String, dynamic>> patchUserOnboarding(
+    PatchUserOnboardingRequest request, {
+    String? idToken,
+  }) async {
+    const metricPath = 'user-onboarding';
+    final url = _url('user-onboarding');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('PATCH', metricPath, () async {
+      return http.patch(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(request.toJson()),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return map as Map<String, dynamic>;
+    }
+    throw ApiException(r.statusCode, _extractError(map));
+  }
+
   /// PATCH user-lifestyle (Firebase ID token). Partial merge on Firestore user doc.
   Future<Map<String, dynamic>> patchUserLifestyle(
     UpdateUserLifestyleRequest request, {
@@ -722,6 +747,79 @@ class ApiService {
       code: map is Map ? map['code']?.toString() : null,
     );
   }
+
+  /// PATCH user-timezone — silent device IANA timezone sync.
+  Future<void> patchUserTimezone({
+    required String timezone,
+    String? idToken,
+  }) async {
+    const metricPath = 'user-timezone';
+    final url = _url('user-timezone');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('PATCH', metricPath, () async {
+      return http.patch(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode({'timezone': timezone.trim()}),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) return;
+    throw ApiException(r.statusCode, _extractError(map));
+  }
+
+  /// POST user-app-open — records local app-open day for daily-ideas eligibility.
+  Future<void> postUserAppOpen({String? idToken}) async {
+    const metricPath = 'user-app-open';
+    final url = _url('user-app-open');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(Uri.parse(url), headers: headers, body: '{}');
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) return;
+    throw ApiException(r.statusCode, _extractError(map));
+  }
+
+  /// GET daily-ideas — preloaded personalized recipe carousel (auth).
+  Future<DailyIdeasResponse> fetchDailyIdeas({
+    String? idToken,
+    String slot = 'dinner',
+    String? date,
+  }) async {
+    const metricPath = 'daily-ideas';
+    final q = <String, String>{'slot': slot};
+    if (date != null && date.trim().isNotEmpty) {
+      q['date'] = date.trim();
+    }
+    final url = Uri.parse(_url('daily-ideas')).replace(queryParameters: q);
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('GET', metricPath, () async {
+      return http.get(url, headers: headers);
+    });
+    if (r.statusCode == 304) {
+      throw ApiException(
+        304,
+        'Daily ideas response was not modified (cached). Retry without cache.',
+      );
+    }
+    final map = _decodeBody(r.body, url.toString());
+    if (r.statusCode == 200) {
+      return DailyIdeasResponse.fromJson(map as Map<String, dynamic>);
+    }
+    throw ApiException(r.statusCode, _extractError(map));
+  }
 }
 
 class ApiException implements Exception {
@@ -751,6 +849,55 @@ class ResolveRecipeHeroResponse {
       recipeImageUrl: (json['recipeImageUrl'] ?? '').toString(),
       source: (json['source'] ?? 'placeholder').toString(),
       bestScore: score,
+    );
+  }
+}
+
+class DailyIdeasResponse {
+  const DailyIdeasResponse({
+    required this.batchId,
+    required this.localDate,
+    required this.slot,
+    required this.status,
+    required this.recipes,
+    this.timezone = '',
+    this.error,
+    this.isFallback = false,
+    this.fallbackBatchId,
+  });
+
+  final String batchId;
+  final String localDate;
+  final String slot;
+  final String timezone;
+  final String status;
+  final List<Recipe> recipes;
+  final String? error;
+  final bool isFallback;
+  final String? fallbackBatchId;
+
+  bool get isReady => status == 'ready' && recipes.length == 5;
+
+  bool get hasDisplayRecipes => recipes.length == 5;
+
+  factory DailyIdeasResponse.fromJson(Map<String, dynamic> json) {
+    final raw = json['recipes'];
+    final list = raw is List
+        ? raw
+            .whereType<Map>()
+            .map((e) => Recipe.fromJson(Map<String, dynamic>.from(e)))
+            .toList()
+        : <Recipe>[];
+    return DailyIdeasResponse(
+      batchId: (json['batchId'] ?? '').toString(),
+      localDate: (json['localDate'] ?? '').toString(),
+      slot: (json['slot'] ?? 'dinner').toString(),
+      timezone: (json['timezone'] ?? '').toString(),
+      status: (json['status'] ?? 'missing').toString(),
+      recipes: list,
+      error: json['error']?.toString(),
+      isFallback: json['isFallback'] == true,
+      fallbackBatchId: json['fallbackBatchId']?.toString(),
     );
   }
 }

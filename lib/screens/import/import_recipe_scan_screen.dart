@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../core/app_strings.dart';
+import '../../core/l10n_context.dart';
 import '../../data/api/api_service.dart';
 import '../../view_models/grocery_list_view_model.dart';
 import '../../view_models/recipe_view_model.dart';
@@ -34,12 +34,12 @@ class _ImportRecipeScanScreenState extends State<ImportRecipeScanScreen> {
   Future<void> _pick(ImageSource source) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      setState(() => _error = AppStrings.importRecipeSignInRequired);
+      setState(() => _error = context.l10n.importRecipeSignInRequired);
       return;
     }
 
     if (kIsWeb) {
-      setState(() => _error = AppStrings.importRecipeWebScanUnsupported);
+      setState(() => _error = context.l10n.importRecipeWebScanUnsupported);
       return;
     }
 
@@ -61,7 +61,7 @@ class _ImportRecipeScanScreenState extends State<ImportRecipeScanScreen> {
       );
       if (ocrText == null || ocrText.trim().length < 15) {
         setState(() {
-          _error = AppStrings.importRecipeOcrEmpty;
+          _error = context.l10n.importRecipeOcrEmpty;
           _busy = false;
         });
         return;
@@ -149,7 +149,7 @@ class _ImportRecipeScanScreenState extends State<ImportRecipeScanScreen> {
             if (kIsWeb) ...[
               const SizedBox(height: 16),
               Text(
-                AppStrings.importRecipeWebScanUnsupported,
+                context.l10n.importRecipeWebScanUnsupported,
                 style: textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -161,7 +161,7 @@ class _ImportRecipeScanScreenState extends State<ImportRecipeScanScreen> {
               const Center(child: CircularProgressIndicator()),
               const SizedBox(height: 12),
               Text(
-                AppStrings.importRecipeBusy,
+                context.l10n.importRecipeBusy,
                 style: textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),

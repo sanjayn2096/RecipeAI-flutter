@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/l10n_context.dart';
 import '../core/recipe_generation_entry_point.dart';
 import '../core/recipe_search_context.dart';
 import '../services/session_manager.dart';
@@ -25,12 +26,14 @@ class RecipeSearchContextBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final ctx = generationEntryPoint != null
         ? RecipeSearchContext.fromSessionForEntryPoint(
             sessionManager,
             generationEntryPoint!,
+            l10n,
           )
-        : RecipeSearchContext.fromSession(sessionManager);
+        : RecipeSearchContext.fromSession(sessionManager, l10n);
     final scheme = Theme.of(context).colorScheme;
 
     Widget chip(String label, {Color? tint}) {

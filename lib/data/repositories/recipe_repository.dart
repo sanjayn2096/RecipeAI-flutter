@@ -1,14 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../core/app_strings.dart';
 import '../../core/constants.dart';
 import '../../core/feature_flags.dart';
+import '../../core/preference_options.dart';
 import '../../core/recipe_generation_entry_point.dart';
 import '../api/api_service.dart' show ApiService;
 import '../../core/recipe_origin.dart';
 import '../models/api_dtos.dart';
 import '../models/recipe.dart';
+import '../../onboarding/onboarding_session_extension.dart';
 import '../../services/session_manager.dart';
 
 /// Fetches recipes via backend `generate-recipe` only (no client-side LLM).
@@ -24,6 +25,9 @@ class RecipeRepository {
   final SessionManager _session;
   final ApiService? _api;
   final FirebaseAuth _firebaseAuth;
+
+  static const String _importSignInRequired =
+      'Sign in to import recipes from links, text, or photos.';
 
   /// Uses feature-flagged flow:
   /// - control: POST /generate-recipe
@@ -52,23 +56,23 @@ class RecipeRepository {
         _session.getPreference(AppConstants.prefsCustomPreference) ?? '';
 
     final bool fromHome = generationSource == RecipeGenerationEntryPoint.home;
-    final mood = fromHome
+    final moodKey = fromHome
         ? _session.getLifestyleMood()
         : _session.getCreateFlowMood();
-    final dietLine = fromHome
+    final dietKey = fromHome
         ? _session.getLifestyleDietRestrictions()
         : _session.getCreateFlowDietRestrictions();
-    final cuisine = fromHome
+    final cuisineKey = fromHome
         ? _resolvedCuisineForHomeGeneration()
         : _session.getCreateFlowCuisine();
-    final cooking = fromHome
+    final cookingKey = fromHome
         ? _session.getLifestyleCookingPreference()
         : _session.getCreateFlowCookingPreference();
 
     final RecipeGenerationMode recipeMode;
     if (customPreference.trim().isNotEmpty) {
       recipeMode = RecipeGenerationMode.custom;
-    } else if (mood == AppStrings.feelingLucky) {
+    } else if (PreferenceOptions.isFeelingLucky(moodKey)) {
       recipeMode = RecipeGenerationMode.lucky;
     } else {
       recipeMode = RecipeGenerationMode.preferences;
@@ -76,11 +80,8 @@ class RecipeRepository {
 
     var dietProfiles = List<String>.from(_session.getDietProfiles());
     if (dietProfiles.isEmpty) {
-      final dr = dietLine;
-      if (dr.isNotEmpty &&
-          dr != 'No Diet Restrictions' &&
-          dr != AppStrings.noRestrictions) {
-        dietProfiles = [dr];
+      if (!PreferenceOptions.isNoRestrictionsDiet(dietKey)) {
+        dietProfiles = [dietKey];
       }
     }
 
@@ -88,13 +89,24 @@ class RecipeRepository {
     final req = GenerateRecipeRequest(
       ingredients: List<String>.from(_session.getIngredients()),
       customPreference: customPreference,
-      mood: mood,
-      dietRestrictions: dietLine,
-      cuisine: cuisine,
-      cookingPreference: cooking,
+      mood: PreferenceOptions.moodToApiEnglish(moodKey),
+      dietRestrictions: PreferenceOptions.dietToApiEnglish(dietKey),
+      cuisine: fromHome
+          ? PreferenceOptions.cuisinesToApiEnglishJoined(
+              cuisineKey.contains(',')
+                  ? cuisineKey.split(',').map((s) => s.trim()).toList()
+                  : [cuisineKey],
+            )
+          : PreferenceOptions.cuisineToApiEnglish(cuisineKey),
+      cookingPreference: PreferenceOptions.cookingToApiEnglish(cookingKey),
       recipeMode: recipeMode,
-      dietProfiles: dietProfiles,
-      allergensAvoid: List<String>.from(_session.getAllergensAvoid()),
+      dietProfiles: dietProfiles
+          .map(PreferenceOptions.dietToApiEnglish)
+          .toList(),
+      allergensAvoid: _session
+          .getAllergensAvoid()
+          .map(PreferenceOptions.allergenToApiEnglish)
+          .toList(),
       allergyNotes: _session.getAllergyNotes(),
       anonymousId: anonymousId,
       excludeRecipeNames: List<String>.from(excludeRecipeNames),
@@ -130,6 +142,10 @@ class RecipeRepository {
       }
       if (user == null) {
         await _session.recordGuestRecipeGenerationSuccess();
+      } else if (!_session.isGuestMode()) {
+        await _session.recordSignedInFreeRecipeGenerationSuccess(
+          isPremium: _session.readSubscriptionCacheSync().isPremium,
+        );
       }
       return RecipeBatchResult(
         recipes: streamed,
@@ -143,6 +159,10 @@ class RecipeRepository {
     );
     if (user == null) {
       await _session.recordGuestRecipeGenerationSuccess();
+    } else if (!_session.isGuestMode()) {
+      await _session.recordSignedInFreeRecipeGenerationSuccess(
+        isPremium: _session.readSubscriptionCacheSync().isPremium,
+      );
     }
     return RecipeBatchResult(
       recipes: enriched,
@@ -175,23 +195,21 @@ class RecipeRepository {
   String _resolvedCuisineForHomeGeneration() {
     final usual = _session
         .getUsualCuisines()
-        .map((e) => e.trim())
         .where(
           (e) =>
               e.isNotEmpty &&
-              e != AppStrings.surpriseMe,
+              !PreferenceOptions.isSurpriseCuisine(e),
         )
         .toList();
     if (usual.isNotEmpty) {
-      return usual.join(', ');
+      return usual.join(',');
     }
-    final single = (_session.getLifestyleCuisine()).trim();
-    if (single.isNotEmpty &&
-        single != 'No Cuisine Selected' &&
-        single != AppStrings.surpriseMe) {
+    final single = _session.getLifestyleCuisine().trim();
+    if (single.isNotEmpty && !PreferenceOptions.isNoCuisineSelected(single) &&
+        !PreferenceOptions.isSurpriseCuisine(single)) {
       return single;
     }
-    return 'No Cuisine Selected';
+    return PreferenceOptions.noCuisineSelected;
   }
 
   /// POST /import-recipe — extract one structured recipe server-side (auth).
@@ -201,9 +219,9 @@ class RecipeRepository {
     String? plainText,
   }) async {
     final api = _api;
-    if (api == null) throw StateError(AppStrings.importRecipeSignInRequired);
+    if (api == null) throw StateError(_importSignInRequired);
     final user = _firebaseAuth.currentUser;
-    if (user == null) throw StateError(AppStrings.importRecipeSignInRequired);
+    if (user == null) throw StateError(_importSignInRequired);
     final token = await user.getIdToken();
     var raw = await api.importRecipe(
       mode: mode,

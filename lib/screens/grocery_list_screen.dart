@@ -1,10 +1,9 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
 import '../core/grocery_ingredient_display.dart';
 import '../core/grocery_ingredient_normalize.dart';
 import '../core/grocery_list_text_export.dart';
@@ -61,7 +60,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Text(
-                        AppStrings.groceryEmptyHint,
+                        context.l10n.groceryEmptyHint,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: Theme.of(context)
@@ -78,7 +77,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
         final fab = FloatingActionButton.extended(
           onPressed: () => _addItem(context, vm),
           icon: const Icon(Icons.add),
-          label: const Text(AppStrings.groceryAddItem),
+          label: Text(context.l10n.groceryAddItem),
         );
 
         if (widget.embedInShell) {
@@ -105,40 +104,35 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text(AppStrings.groceryListTitle),
+            title: Text(context.l10n.groceryListTitle),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () => context.pop(),
             ),
             actions: [
-              IconButton(
-                tooltip: AppStrings.groceryPantryScanTooltip,
-                icon: const Icon(Icons.camera_alt_outlined),
-                onPressed: () => _tryOpenPantryScan(context),
-              ),
               if (items.any((e) => e.isChecked))
                 TextButton(
                   onPressed: () async {
                     await vm.clearCheckedItems();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(AppStrings.groceryRemovedChecked),
+                        SnackBar(
+                          content: Text(context.l10n.groceryRemovedChecked),
                         ),
                       );
                     }
                   },
-                  child: const Text(AppStrings.groceryClearChecked),
+                  child: Text(context.l10n.groceryClearChecked),
                 ),
               IconButton(
-                tooltip: AppStrings.groceryCopyList,
+                tooltip: context.l10n.groceryCopyList,
                 icon: const Icon(Icons.copy_outlined),
                 onPressed: !canShare
                     ? null
                     : () => _copy(context, vm, onlyUnchecked: false),
               ),
               IconButton(
-                tooltip: AppStrings.groceryShareList,
+                tooltip: context.l10n.groceryShareList,
                 icon: const Icon(Icons.share_outlined),
                 onPressed: !canShare
                     ? null
@@ -148,13 +142,13 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                 enabled: canShare,
                 icon: const Icon(Icons.more_vert),
                 itemBuilder: (ctx) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'share_need',
-                    child: Text(AppStrings.groceryShareStillNeed),
+                    child: Text(context.l10n.groceryShareStillNeed),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'copy_need',
-                    child: Text(AppStrings.groceryCopyStillNeed),
+                    child: Text(context.l10n.groceryCopyStillNeed),
                   ),
                 ],
                 onSelected: (v) async {
@@ -186,14 +180,14 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
         child: SegmentedButton<_GroceryIngredientsViewMode>(
-          segments: const [
+          segments: [
             ButtonSegment(
               value: _GroceryIngredientsViewMode.allClubbed,
-              label: Text(AppStrings.groceryViewAllIngredients),
+              label: Text(context.l10n.groceryViewAllIngredients),
             ),
             ButtonSegment(
               value: _GroceryIngredientsViewMode.perRecipe,
-              label: Text(AppStrings.groceryViewPerRecipe),
+              label: Text(context.l10n.groceryViewPerRecipe),
             ),
           ],
           selected: {_viewMode},
@@ -218,7 +212,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       itemBuilder: (context, gi) {
         final key = order[gi];
         final groupItems = groups[key]!;
-        final heading = _groupTitle(key, groupItems);
+        final heading = _groupTitle(context, key, groupItems);
         return ExpansionTile(
           key: PageStorageKey<String>(key),
           title: Text(
@@ -387,33 +381,28 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       alignment: WrapAlignment.end,
       spacing: 4,
       children: [
-        IconButton(
-          tooltip: AppStrings.groceryPantryScanTooltip,
-          icon: const Icon(Icons.camera_alt_outlined),
-          onPressed: () => _tryOpenPantryScan(context),
-        ),
         if (items.any((e) => e.isChecked))
           TextButton(
             onPressed: () async {
               await vm.clearCheckedItems();
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(AppStrings.groceryRemovedChecked),
+                  SnackBar(
+                    content: Text(context.l10n.groceryRemovedChecked),
                   ),
                 );
               }
             },
-            child: const Text(AppStrings.groceryClearChecked),
+            child: Text(context.l10n.groceryClearChecked),
           ),
         IconButton(
-          tooltip: AppStrings.groceryCopyList,
+          tooltip: context.l10n.groceryCopyList,
           icon: const Icon(Icons.copy_outlined),
           onPressed:
               !canShare ? null : () => _copy(context, vm, onlyUnchecked: false),
         ),
         IconButton(
-          tooltip: AppStrings.groceryShareList,
+          tooltip: context.l10n.groceryShareList,
           icon: const Icon(Icons.share_outlined),
           onPressed: !canShare
               ? null
@@ -423,13 +412,13 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
           enabled: canShare,
           icon: const Icon(Icons.more_vert),
           itemBuilder: (ctx) => [
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'share_need',
-              child: Text(AppStrings.groceryShareStillNeed),
+              child: Text(context.l10n.groceryShareStillNeed),
             ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'copy_need',
-              child: Text(AppStrings.groceryCopyStillNeed),
+              child: Text(context.l10n.groceryCopyStillNeed),
             ),
           ],
           onSelected: (v) async {
@@ -509,28 +498,19 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     return m;
   }
 
-  String _groupTitle(String key, List<GroceryItem> groupItems) {
+  String _groupTitle(
+    BuildContext context,
+    String key,
+    List<GroceryItem> groupItems,
+  ) {
     if (key == '__manual__') {
-      return AppStrings.groceryGroupOther;
+      return context.l10n.groceryGroupOther;
     }
     final name = groupItems.first.sourceRecipeName?.trim();
     if (name != null && name.isNotEmpty) {
-      return AppStrings.groceryIngredientsForRecipe(name);
+      return context.l10n.groceryIngredientsForRecipe(name);
     }
-    return AppStrings.groceryGroupUnnamedRecipe;
-  }
-
-  void _tryOpenPantryScan(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(AppStrings.groceryPantryScanSignInRequired),
-        ),
-      );
-      return;
-    }
-    context.push('/pantry-scan');
+    return context.l10n.groceryGroupUnnamedRecipe;
   }
 
   Future<void> _share(
@@ -538,21 +518,22 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     GroceryListViewModel vm, {
     required bool onlyUnchecked,
   }) async {
+    final l10n = context.l10n;
     if (onlyUnchecked && !vm.items.any((e) => !e.isChecked)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.groceryNothingLeftToBuy)),
+        SnackBar(content: Text(l10n.groceryNothingLeftToBuy)),
       );
       return;
     }
     final text = _viewMode == _GroceryIngredientsViewMode.perRecipe
         ? GroceryListTextExport.formatPerRecipe(
             vm.items,
-            title: AppStrings.groceryShareSubject,
+            title: l10n.groceryShareSubject,
             onlyUnchecked: onlyUnchecked,
           )
         : GroceryListTextExport.formatAllClubbed(
             vm.items,
-            title: AppStrings.groceryShareSubject,
+            title: l10n.groceryShareSubject,
             onlyUnchecked: onlyUnchecked,
           );
     await widget.appTelemetry.logFeatureInteraction(
@@ -564,7 +545,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
         onlyUnchecked ? 'unchecked_only' : 'all',
       ].join('_'),
     );
-    await Share.share(text, subject: AppStrings.groceryShareSubject);
+    await Share.share(text, subject: l10n.groceryShareSubject);
   }
 
   Future<void> _copy(
@@ -574,19 +555,19 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
   }) async {
     if (onlyUnchecked && !vm.items.any((e) => !e.isChecked)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.groceryNothingLeftToBuy)),
+        SnackBar(content: Text(context.l10n.groceryNothingLeftToBuy)),
       );
       return;
     }
     final text = _viewMode == _GroceryIngredientsViewMode.perRecipe
         ? GroceryListTextExport.formatPerRecipe(
             vm.items,
-            title: AppStrings.groceryShareSubject,
+            title: context.l10n.groceryShareSubject,
             onlyUnchecked: onlyUnchecked,
           )
         : GroceryListTextExport.formatAllClubbed(
             vm.items,
-            title: AppStrings.groceryShareSubject,
+            title: context.l10n.groceryShareSubject,
             onlyUnchecked: onlyUnchecked,
           );
     await Clipboard.setData(ClipboardData(text: text));
@@ -601,7 +582,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.groceryCopied)),
+        SnackBar(content: Text(context.l10n.groceryCopied)),
       );
     }
   }

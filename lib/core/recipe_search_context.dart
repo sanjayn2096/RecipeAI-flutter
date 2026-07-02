@@ -1,13 +1,12 @@
-import 'package:flutter/foundation.dart';
+import 'package:recipe_ai/l10n/app_localizations.dart';
 
-import 'app_strings.dart';
 import 'constants.dart';
+import 'preference_options.dart';
 import 'recipe_generation_entry_point.dart';
 import '../services/session_manager.dart';
 
 /// Human-readable summary of inputs that drive `POST generate-recipe`
 /// (mirrors [RecipeRepository.fetchRecipesFromBackend]).
-@immutable
 class RecipeSearchContext {
   const RecipeSearchContext({
     required this.headline,
@@ -25,63 +24,22 @@ class RecipeSearchContext {
   final List<String> allergenLabels;
   final String? allergyNotes;
 
-  static RecipeSearchContext fromSession(SessionManager session) {
-    final custom =
-        session.getPreference(AppConstants.prefsCustomPreference)?.trim() ?? '';
-    final mood = session.getMood() ?? '';
-    final dietLine =
-        session.getDietRestrictions() ?? 'No Diet Restrictions';
-    final cuisine = session.getCuisine() ?? 'No Cuisine Selected';
-    final cooking = session.getCookingPreference() ?? 'No Cooking Preferences';
-    final ingredients = session.getIngredients();
-    final dietProfiles = session.getDietProfiles();
-    final allergens = session.getAllergensAvoid();
-    final notes = session.getAllergyNotes()?.trim();
-    final hasNotes = notes != null && notes.isNotEmpty;
-
-    final headline = () {
-      if (custom.isNotEmpty) return 'Based on what you asked for';
-      if (mood.trim() == AppStrings.feelingLucky) return 'Variety picks (lucky mode)';
-      return 'Using your questionnaire and pantry choices';
-    }();
-
-    final lines = <String>[];
-
-    if (custom.isNotEmpty) {
-      lines.add(custom.length > 200 ? '${custom.substring(0, 197)}…' : custom);
-    }
-
-    if (custom.isEmpty && mood.trim().isNotEmpty &&
-        mood.trim() != AppStrings.feelingLucky) {
-      lines.add('Mood: $mood');
-    }
-
-    if (_meaningfulDiet(dietLine)) {
-      lines.add('Diet: $dietLine');
-    }
-
-    if (_meaningfulCuisine(cuisine)) {
-      lines.add('Cuisine: $cuisine');
-    }
-
-    if (_meaningfulCooking(cooking)) {
-      lines.add('Time: $cooking');
-    }
-
-    return RecipeSearchContext(
-      headline: headline,
-      detailLines: lines,
-      ingredientLabels: List<String>.from(ingredients),
-      dietProfileLabels: List<String>.from(dietProfiles),
-      allergenLabels: List<String>.from(allergens),
-      allergyNotes: hasNotes ? notes : null,
+  static RecipeSearchContext fromSession(
+    SessionManager session,
+    AppLocalizations l10n,
+  ) {
+    return fromSessionForEntryPoint(
+      session,
+      RecipeGenerationEntryPoint.createRecipes,
+      l10n,
     );
   }
 
-  /// Summarizes inputs for the given generation entry point (Create flow vs Home vs legacy).
+  /// Summarizes inputs for the given generation entry point (Create flow vs Home).
   static RecipeSearchContext fromSessionForEntryPoint(
     SessionManager session,
     RecipeGenerationEntryPoint entryPoint,
+    AppLocalizations l10n,
   ) {
     final custom =
         session.getPreference(AppConstants.prefsCustomPreference)?.trim() ?? '';
@@ -93,7 +51,7 @@ class RecipeSearchContext {
         ? session.getLifestyleDietRestrictions()
         : session.getCreateFlowDietRestrictions();
     final cuisine = entryPoint == RecipeGenerationEntryPoint.home
-        ? (_homePreferredCuisinesJoined(session))
+        ? _homePreferredCuisinesJoined(session, l10n)
         : session.getCreateFlowCuisine();
     final cooking = entryPoint == RecipeGenerationEntryPoint.home
         ? session.getLifestyleCookingPreference()
@@ -106,14 +64,17 @@ class RecipeSearchContext {
     final hasNotes = notes != null && notes.isNotEmpty;
 
     final headline = () {
-      if (custom.isNotEmpty) return 'Based on what you asked for';
+      if (custom.isNotEmpty) return l10n.searchHeadlineBasedOnCustom;
       if (entryPoint == RecipeGenerationEntryPoint.createRecipes) {
-        return 'Using your Create Recipes preferences';
+        return l10n.searchHeadlineCreateRecipes;
       }
-      if (mood.trim() == AppStrings.feelingLucky) {
-        return 'Variety picks (lucky mode)';
+      if (PreferenceOptions.isFeelingLucky(mood)) {
+        return l10n.searchHeadlineLuckyMode;
       }
-      return 'Using your saved preferences';
+      if (entryPoint == RecipeGenerationEntryPoint.home) {
+        return l10n.searchHeadlineSavedPreferences;
+      }
+      return l10n.searchHeadlineQuestionnaire;
     }();
 
     final lines = <String>[];
@@ -124,8 +85,8 @@ class RecipeSearchContext {
 
     if (custom.isEmpty &&
         mood.trim().isNotEmpty &&
-        mood.trim() != AppStrings.feelingLucky) {
-      lines.add('Mood: $mood');
+        !PreferenceOptions.isFeelingLucky(mood)) {
+      lines.add(l10n.searchDetailMood(PreferenceOptions.moodLabel(mood, l10n)));
     }
 
     if (_meaningfulDiet(dietLine)) {
@@ -133,23 +94,27 @@ class RecipeSearchContext {
               RecipeGenerationEntryPoint.home &&
           dietProfiles.isNotEmpty;
       if (!homeUsesProfileDiets) {
-        lines.add('Diet: $dietLine');
+        lines.add(l10n.searchDetailDiet(PreferenceOptions.dietLabel(dietLine, l10n)));
       }
     }
 
-    if (_meaningfulCuisine(cuisine)) {
+    if (_meaningfulCuisine(cuisine, entryPoint)) {
+      final cuisineLabel = entryPoint == RecipeGenerationEntryPoint.home
+          ? _formatCuisineList(cuisine, l10n)
+          : PreferenceOptions.cuisineLabel(cuisine, l10n);
       if (entryPoint == RecipeGenerationEntryPoint.home) {
-        lines.add('Preferred cuisines: $cuisine');
+        lines.add(l10n.searchDetailPreferredCuisines(cuisineLabel));
       } else {
-        lines.add('Cuisine: $cuisine');
+        lines.add(l10n.searchDetailCuisine(cuisineLabel));
       }
     }
 
     if (_meaningfulCooking(cooking)) {
+      final cookLabel = PreferenceOptions.cookingLabel(cooking, l10n);
       if (entryPoint == RecipeGenerationEntryPoint.home) {
-        lines.add('Cooking proficiency: $cooking');
+        lines.add(l10n.searchDetailCookingProficiency(cookLabel));
       } else {
-        lines.add('Time: $cooking');
+        lines.add(l10n.searchDetailTime(cookLabel));
       }
     }
 
@@ -157,53 +122,57 @@ class RecipeSearchContext {
       headline: headline,
       detailLines: lines,
       ingredientLabels: List<String>.from(ingredients),
-      dietProfileLabels: List<String>.from(dietProfiles),
-      allergenLabels: List<String>.from(allergens),
+      dietProfileLabels: dietProfiles
+          .map((k) => PreferenceOptions.dietLabel(k, l10n))
+          .toList(),
+      allergenLabels: allergens
+          .map((k) => PreferenceOptions.allergenLabel(k, l10n))
+          .toList(),
       allergyNotes: hasNotes ? notes : null,
     );
   }
 
-  /// Mirrors [RecipeRepository] home resolution: preferred list, then legacy single field.
-  static String _homePreferredCuisinesJoined(SessionManager session) {
+  static String _homePreferredCuisinesJoined(
+    SessionManager session,
+    AppLocalizations l10n,
+  ) {
     final usual = session
         .getUsualCuisines()
-        .map((e) => e.trim())
         .where(
           (e) =>
               e.isNotEmpty &&
-              e != AppStrings.surpriseMe,
+              !PreferenceOptions.isSurpriseCuisine(e),
         )
         .toList();
     if (usual.isNotEmpty) {
-      return usual.join(', ');
+      return usual.map((k) => PreferenceOptions.cuisineLabel(k, l10n)).join(', ');
     }
     return session.getLifestyleCuisine();
   }
 
-  static bool _meaningfulDiet(String s) {
-    final t = s.trim();
-    if (t.isEmpty) return false;
-    if (t == 'No Diet Restrictions' ||
-        t == AppStrings.noRestrictions ||
-        t == 'No Restrictions') {
-      return false;
+  static String _formatCuisineList(String cuisine, AppLocalizations l10n) {
+    if (cuisine.contains(',')) {
+      return cuisine
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .map((k) => PreferenceOptions.cuisineLabel(k, l10n))
+          .join(', ');
     }
-    return true;
+    return PreferenceOptions.cuisineLabel(cuisine, l10n);
   }
 
-  static bool _meaningfulCuisine(String s) {
-    final t = s.trim();
-    if (t.isEmpty || t == 'No Cuisine Selected') return false;
-    return true;
+  static bool _meaningfulDiet(String key) =>
+      !PreferenceOptions.isNoRestrictionsDiet(key);
+
+  static bool _meaningfulCuisine(String key, RecipeGenerationEntryPoint ep) {
+    if (key.trim().isEmpty) return false;
+    if (ep == RecipeGenerationEntryPoint.home && key.contains(',')) {
+      return true;
+    }
+    return !PreferenceOptions.isNoCuisineSelected(key);
   }
 
-  static bool _meaningfulCooking(String s) {
-    final t = s.trim();
-    if (t.isEmpty ||
-        t == 'No Cooking Preferences' ||
-        t == AppStrings.notParticular) {
-      return false;
-    }
-    return true;
-  }
+  static bool _meaningfulCooking(String key) =>
+      !PreferenceOptions.isNotParticularCooking(key);
 }

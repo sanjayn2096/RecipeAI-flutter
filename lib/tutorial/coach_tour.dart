@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
 
 /// One spotlight step: measure [targetKey] after layout; optional [tabIndex] to select shell tab first.
 class CoachTourStep {
@@ -200,6 +200,7 @@ class _TooltipCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final inset = hole.inflate(padding);
     const gap = 12.0;
     final safe = MediaQuery.paddingOf(context);
@@ -262,18 +263,18 @@ class _TooltipCard extends StatelessWidget {
                     children: [
                       TextButton(
                         onPressed: onSkip,
-                        child: const Text(AppStrings.skip),
+                        child: Text(l10n.skip),
                       ),
                       const Spacer(),
                       if (onBack != null)
                         TextButton(
                           onPressed: onBack,
-                          child: const Text(AppStrings.back),
+                          child: Text(l10n.back),
                         ),
                       const SizedBox(width: 8),
                       FilledButton(
                         onPressed: onNext,
-                        child: Text(isLast ? AppStrings.ok : AppStrings.next),
+                        child: Text(isLast ? l10n.ok : l10n.next),
                       ),
                     ],
                   ),

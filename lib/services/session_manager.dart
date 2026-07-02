@@ -4,7 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/constants.dart';
+import '../core/preference_options.dart';
 import '../data/models/subscription_status.dart';
+import '../onboarding/onboarding_prefs.dart';
 
 /// Single source for session and user preferences (injected, no duplicate instances).
 class SessionManager {
@@ -31,6 +33,11 @@ class SessionManager {
     await p.remove(_prefix + AppConstants.prefsLastName);
     await p.remove(_prefix + AppConstants.prefsIngredients);
     await p.remove(_prefix + AppConstants.prefsUsualCuisines);
+    await p.remove(_prefix + AppConstants.prefsDietProfiles);
+    await p.remove(_prefix + AppConstants.prefsAllergensAvoid);
+    await p.remove(_prefix + AppConstants.prefsAllergyNotes);
+    await p.remove(_prefix + OnboardingPrefs.onboardingComplete);
+    await p.remove(_prefix + OnboardingPrefs.onboardingCompleteUserId);
     await p.remove(_prefix + AppConstants.prefsGuestMode);
     await p.remove(_prefix + AppConstants.prefsAnonymousId);
     await p.remove(_prefix + AppConstants.prefsGuestGenDayKey);
@@ -104,28 +111,35 @@ class SessionManager {
   }
 
   /// Legacy mood field — prefer [getLifestyleMood] / [getCreateFlowMood] by flow.
-  String? getMood() => getPreference(AppConstants.prefsMood) ?? 'lucky';
+  String? getMood() =>
+      PreferenceOptions.normalizeMoodKey(
+        getPreference(AppConstants.prefsMood) ?? PreferenceOptions.moodFeelingLucky,
+      );
 
   /// Global lifestyle default for Home generation and PATCH sync (falls back to legacy [prefsMood] once).
-  String getLifestyleMood() =>
-      getPreference(AppConstants.prefsLifestyleMood) ??
-      getPreference(AppConstants.prefsMood) ??
-      'lucky';
+  String getLifestyleMood() => PreferenceOptions.normalizeMoodKey(
+        getPreference(AppConstants.prefsLifestyleMood) ??
+            getPreference(AppConstants.prefsMood) ??
+            PreferenceOptions.moodFeelingLucky,
+      );
 
-  String getLifestyleCuisine() =>
-      getPreference(AppConstants.prefsLifestyleCuisine) ??
-      getPreference(AppConstants.prefsCuisine) ??
-      'No Cuisine Selected';
+  String getLifestyleCuisine() => PreferenceOptions.normalizeCuisineKey(
+        getPreference(AppConstants.prefsLifestyleCuisine) ??
+            getPreference(AppConstants.prefsCuisine) ??
+            PreferenceOptions.noCuisineSelected,
+      );
 
-  String getLifestyleCookingPreference() =>
-      getPreference(AppConstants.prefsLifestyleCookingPreference) ??
-      getPreference(AppConstants.prefsCookingPreference) ??
-      'No Cooking Preferences';
+  String getLifestyleCookingPreference() => PreferenceOptions.normalizeCookingKey(
+        getPreference(AppConstants.prefsLifestyleCookingPreference) ??
+            getPreference(AppConstants.prefsCookingPreference) ??
+            PreferenceOptions.noCookingPreference,
+      );
 
-  String getLifestyleDietRestrictions() =>
-      getPreference(AppConstants.prefsLifestyleDietRestrictions) ??
-      getPreference(AppConstants.prefsDietRestrictions) ??
-      'No Diet Restrictions';
+  String getLifestyleDietRestrictions() => PreferenceOptions.normalizeDietKey(
+        getPreference(AppConstants.prefsLifestyleDietRestrictions) ??
+            getPreference(AppConstants.prefsDietRestrictions) ??
+            PreferenceOptions.noDietRestrictions,
+      );
 
   void saveLifestyleMoodSync(String value) =>
       savePreferenceSync(AppConstants.prefsLifestyleMood, value);
@@ -140,25 +154,29 @@ class SessionManager {
       savePreferenceSync(AppConstants.prefsLifestyleDietRestrictions, value);
 
   /// Create Recipes questionnaire only (falls back to legacy keys until user re-saves).
-  String getCreateFlowMood() =>
-      getPreference(AppConstants.prefsCreateFlowMood) ??
-      getPreference(AppConstants.prefsMood) ??
-      'lucky';
+  String getCreateFlowMood() => PreferenceOptions.normalizeMoodKey(
+        getPreference(AppConstants.prefsCreateFlowMood) ??
+            getPreference(AppConstants.prefsMood) ??
+            PreferenceOptions.moodFeelingLucky,
+      );
 
-  String getCreateFlowCuisine() =>
-      getPreference(AppConstants.prefsCreateFlowCuisine) ??
-      getPreference(AppConstants.prefsCuisine) ??
-      'No Cuisine Selected';
+  String getCreateFlowCuisine() => PreferenceOptions.normalizeCuisineKey(
+        getPreference(AppConstants.prefsCreateFlowCuisine) ??
+            getPreference(AppConstants.prefsCuisine) ??
+            PreferenceOptions.noCuisineSelected,
+      );
 
-  String getCreateFlowCookingPreference() =>
-      getPreference(AppConstants.prefsCreateFlowCookingPreference) ??
-      getPreference(AppConstants.prefsCookingPreference) ??
-      'No Cooking Preferences';
+  String getCreateFlowCookingPreference() => PreferenceOptions.normalizeCookingKey(
+        getPreference(AppConstants.prefsCreateFlowCookingPreference) ??
+            getPreference(AppConstants.prefsCookingPreference) ??
+            PreferenceOptions.noCookingPreference,
+      );
 
-  String getCreateFlowDietRestrictions() =>
-      getPreference(AppConstants.prefsCreateFlowDietRestrictions) ??
-      getPreference(AppConstants.prefsDietRestrictions) ??
-      'No Diet Restrictions';
+  String getCreateFlowDietRestrictions() => PreferenceOptions.normalizeDietKey(
+        getPreference(AppConstants.prefsCreateFlowDietRestrictions) ??
+            getPreference(AppConstants.prefsDietRestrictions) ??
+            PreferenceOptions.noDietRestrictions,
+      );
 
   void saveCreateFlowMoodSync(String value) =>
       savePreferenceSync(AppConstants.prefsCreateFlowMood, value);
@@ -172,13 +190,22 @@ class SessionManager {
   void saveCreateFlowDietRestrictionsSync(String value) =>
       savePreferenceSync(AppConstants.prefsCreateFlowDietRestrictions, value);
 
-  String? getCuisine() => getPreference(AppConstants.prefsCuisine) ?? 'No Cuisine Selected';
-  String? getCookingPreference() => getPreference(AppConstants.prefsCookingPreference) ?? 'No Cooking Preferences';
-  String? getDietRestrictions() => getPreference(AppConstants.prefsDietRestrictions) ?? 'No Diet Restrictions';
+  String? getCuisine() => PreferenceOptions.normalizeCuisineKey(
+        getPreference(AppConstants.prefsCuisine) ??
+            PreferenceOptions.noCuisineSelected,
+      );
+  String? getCookingPreference() => PreferenceOptions.normalizeCookingKey(
+        getPreference(AppConstants.prefsCookingPreference) ??
+            PreferenceOptions.noCookingPreference,
+      );
+  String? getDietRestrictions() => PreferenceOptions.normalizeDietKey(
+        getPreference(AppConstants.prefsDietRestrictions) ??
+            PreferenceOptions.noDietRestrictions,
+      );
 
   List<String> getDietProfiles() {
     final list = _prefs?.getStringList(_prefix + AppConstants.prefsDietProfiles);
-    return list ?? const [];
+    return PreferenceOptions.normalizeDietProfileKeys(list ?? const []);
   }
 
   Future<void> saveDietProfiles(List<String> values) async {
@@ -190,7 +217,7 @@ class SessionManager {
 
   List<String> getAllergensAvoid() {
     final list = _prefs?.getStringList(_prefix + AppConstants.prefsAllergensAvoid);
-    return list ?? const [];
+    return PreferenceOptions.normalizeAllergenKeys(list ?? const []);
   }
 
   Future<void> saveAllergensAvoid(List<String> values) async {
@@ -213,11 +240,12 @@ class SessionManager {
   }
 
   /// Hydrates lifestyle fields from GET get_user_profile after sign-in.
-  /// Pass `null` for list fields when the API omitted them so local prefs are not wiped.
+  /// Omitted list fields are stored as empty so stale device prefs do not skip onboarding.
   /// Set [applyAllergyNotes] when the user document includes `allergyNotes` (even if empty).
   Future<void> persistLifestyleFromBackend({
     List<String>? dietProfiles,
     List<String>? allergensAvoid,
+    List<String>? preferredCuisines,
     String? allergyNotes,
     bool applyAllergyNotes = false,
   }) async {
@@ -234,9 +262,23 @@ class SessionManager {
         List<String>.from(allergensAvoid),
       );
     }
+    if (preferredCuisines != null) {
+      await p.setStringList(
+        _prefix + AppConstants.prefsUsualCuisines,
+        PreferenceOptions.normalizeCuisineKeys(preferredCuisines),
+      );
+    }
     if (applyAllergyNotes) {
       await saveAllergyNotes(allergyNotes);
     }
+  }
+
+  /// Clears structured lifestyle prefs (e.g. when switching accounts on one device).
+  void clearLifestylePrefsSync() {
+    _prefs?.remove(_prefix + AppConstants.prefsDietProfiles);
+    _prefs?.remove(_prefix + AppConstants.prefsAllergensAvoid);
+    _prefs?.remove(_prefix + AppConstants.prefsAllergyNotes);
+    _prefs?.remove(_prefix + AppConstants.prefsUsualCuisines);
   }
 
   /// Chosen pantry / ingredient labels sent to POST generate-recipe.
@@ -249,7 +291,7 @@ class SessionManager {
   List<String> getUsualCuisines() {
     final list =
         _prefs?.getStringList(_prefix + AppConstants.prefsUsualCuisines);
-    return list ?? const [];
+    return PreferenceOptions.normalizeCuisineKeys(list ?? const []);
   }
 
   Future<void> saveIngredients(List<String> ingredients) async {

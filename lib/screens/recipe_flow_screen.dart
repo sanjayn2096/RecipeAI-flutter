@@ -5,10 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
+import '../core/l10n_extensions.dart';
+import '../core/monetization_navigation.dart';
+import '../core/preference_options.dart';
 import '../core/diet_allergy_options.dart';
 import '../core/recipe_generation_entry_point.dart';
 import '../data/models/user_data.dart';
+import '../onboarding/onboarding_session_extension.dart';
 import '../services/session_manager.dart';
 import '../widgets/cartoon_outlined_card.dart';
 import '../widgets/guest_signup_prompt.dart';
@@ -58,7 +62,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
   final TextEditingController _fetchMorePreferenceController =
       TextEditingController();
 
-  List<Widget> _embedShellMenuActions() {
+  List<Widget> _embedShellMenuActions(BuildContext context) {
     if (!widget.embedInTab || widget.onOpenAppMenu == null) {
       return const <Widget>[];
     }
@@ -67,7 +71,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
         padding: const EdgeInsets.only(right: 4),
         child: Center(
           child: SousChefMenuButton(
-            tooltip: AppStrings.appMenuTooltip,
+            tooltip: context.l10n.appMenuTooltip,
             onPressed: widget.onOpenAppMenu!,
           ),
         ),
@@ -85,36 +89,24 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
   }
 
   Future<void> _bootstrapInitialRoute() async {
-    if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
-      if (!await _ensureGuestCanGenerate(popRouteWhenBlocked: !widget.embedInTab)) {
+    final isHomePushedFlow = !widget.embedInTab &&
+        widget.generationEntryPoint == RecipeGenerationEntryPoint.home;
+    final prompt = widget.initialPrompt?.trim() ?? '';
+
+    if (isHomePushedFlow || prompt.isNotEmpty) {
+      // Quota is enforced on Home before navigation; avoid popping this route here.
+      if (!isHomePushedFlow &&
+          !await _ensureGuestCanGenerate(popRouteWhenBlocked: false)) {
         return;
       }
       if (!mounted) return;
       if (kDebugMode) {
         debugPrint(
-          '[RecipeFlowScreen] bootstrap: saving "${widget.initialPrompt}" as customPreference, then calling BACKEND',
+          '[RecipeFlowScreen] bootstrap: home generation '
+          '(prompt="${prompt.isEmpty ? '(lifestyle/pantry)' : prompt}")',
         );
       }
-      widget.sessionManager
-          .savePreferenceSync('customPreference', widget.initialPrompt!);
-      setState(() => _currentRoute = 'recipeActivity');
-      widget.recipeViewModel.fetchRecipesFromPrompt(
-        entryPoint: widget.generationEntryPoint,
-      );
-      return;
-    }
-    if (!widget.embedInTab &&
-        widget.sessionManager.getIngredients().isNotEmpty) {
-      if (!await _ensureGuestCanGenerate(popRouteWhenBlocked: !widget.embedInTab)) {
-        return;
-      }
-      if (!mounted) return;
-      if (kDebugMode) {
-        debugPrint(
-          '[RecipeFlowScreen] bootstrap: ingredients only -> backend generate-recipe',
-        );
-      }
-      widget.sessionManager.savePreferenceSync('customPreference', '');
+      widget.sessionManager.savePreferenceSync('customPreference', prompt);
       setState(() => _currentRoute = 'recipeActivity');
       widget.recipeViewModel.fetchRecipesFromPrompt(
         entryPoint: widget.generationEntryPoint,
@@ -128,35 +120,54 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
     }
   }
 
-  /// Returns false if guest is over quota (dialog; optional pop for blocked entry from Home).
+  /// Returns false if guest or free tier is over quota.
   Future<bool> _ensureGuestCanGenerate({bool popRouteWhenBlocked = false}) async {
-    final sm = widget.sessionManager;
-    if (!sm.isGuestMode()) return true;
-    if (!(await sm.isGuestRecipeQuotaExceededForToday())) return true;
-    if (!mounted) return false;
-    final action = await showGuestRecipeLimitReachedDialog(context);
-    if (!mounted) return false;
-    if (action == GuestLimitAction.signUp) goToSignup(context);
-    if (popRouteWhenBlocked && !widget.embedInTab && context.mounted) {
-      context.pop();
+    final sm = widget.sessionManager as SessionManager;
+    if (sm.isGuestMode()) {
+      if (!(await sm.isGuestRecipeQuotaExceededForToday())) return true;
+      if (!mounted) return false;
+      final action = await showGuestRecipeLimitReachedDialog(context);
+      if (!mounted) return false;
+      if (action == GuestLimitAction.signUp) goToSignup(context);
+      if (popRouteWhenBlocked && !widget.embedInTab && context.mounted) {
+        context.pop();
+      }
+      return false;
     }
-    return false;
+    final isPremium = sm.readSubscriptionCacheSync().isPremium;
+    if (!isPremium &&
+        await sm.isSignedInFreeRecipeQuotaExceededForToday(
+          isPremium: isPremium,
+        )) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.freeTierQuotaMessage)),
+      );
+      openPremiumPaywall(
+        context,
+        source: 'free_quota',
+        appTelemetry: (widget.recipeViewModel as RecipeViewModel).appTelemetry,
+      );
+      return false;
+    }
+    return true;
   }
   String? _selectedMood;
   String? _selectedDiet;
   String? _selectedCuisine;
   String? _selectedCooking;
 
-  List<String> get _optionsForRoute {
+  List<String> _optionsForRoute(BuildContext context) {
+    final l10n = context.l10n;
     switch (_currentRoute) {
       case 'mood':
-        return AppStrings.moodOptions;
+        return l10n.moodOptionKeys;
       case 'dietRestrictions':
-        return AppStrings.dietOptions;
+        return l10n.dietOptionKeys;
       case 'cuisinePreferences':
-        return AppStrings.cuisineOptions;
+        return l10n.cuisineOptionKeys;
       case 'cookingPreferences':
-        return AppStrings.cookingTimeOptions;
+        return l10n.cookingTimeOptionKeys;
       default:
         return [];
     }
@@ -219,11 +230,11 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
 
   void _next() {
     if (_currentRoute == 'mood' &&
-        _selectedMood == AppStrings.feelingLucky) {
+        PreferenceOptions.isFeelingLucky(_selectedMood)) {
       _goToRecipeActivity();
       return;
     }
-    final nextRoute = AppStrings.nextRoute(_currentRoute);
+    final nextRoute = context.l10n.nextRoute(_currentRoute);
     if (nextRoute == 'recipeActivity') {
       _goToRecipeActivity();
       return;
@@ -323,14 +334,14 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
   }
 
   void _goToPreviousQuestionnaireStep() {
-    final prev = AppStrings.previousRoute(_currentRoute);
+    final prev = context.l10n.previousRoute(_currentRoute);
     if (prev != null) {
       setState(() => _currentRoute = prev);
     }
   }
 
   VoidCallback? get _promptOnBack {
-    if (AppStrings.previousRoute(_currentRoute) != null) {
+    if (context.l10n.previousRoute(_currentRoute) != null) {
       return _goToPreviousQuestionnaireStep;
     }
     if (!widget.embedInTab) {
@@ -383,8 +394,8 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                     ?.trim();
             return Scaffold(
               appBar: AppBar(
-                title: const Text(AppStrings.fetchRecipes),
-                actions: _embedShellMenuActions(),
+                title: Text(context.l10n.fetchRecipes),
+                actions: _embedShellMenuActions(context),
               ),
               body: Center(
                 child: SingleChildScrollView(
@@ -430,8 +441,8 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
             final isError = err != null && err.isNotEmpty;
             return Scaffold(
               appBar: AppBar(
-                title: const Text(AppStrings.fetchRecipes),
-                actions: _embedShellMenuActions(),
+                title: Text(context.l10n.fetchRecipes),
+                actions: _embedShellMenuActions(context),
               ),
               body: Center(
                 child: SingleChildScrollView(
@@ -484,7 +495,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                                 widget.generationEntryPoint,
                           );
                         },
-                        child: const Text(AppStrings.refresh),
+                        child: Text(context.l10n.refresh),
                       ),
                     ],
                   ),
@@ -504,7 +515,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                     ? _resetFlowToStart
                     : () => context.pop(),
               ),
-              actions: _embedShellMenuActions(),
+              actions: _embedShellMenuActions(context),
             ),
             bottomNavigationBar: SafeArea(
               minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -513,7 +524,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                 children: [
                   if (widget.sessionManager.isGuestMode()) ...[
                     Text(
-                      AppStrings.guestQuotaEachGenerationCounts,
+                      context.l10n.guestQuotaEachGenerationCounts,
                       style:
                           Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Theme.of(context)
@@ -526,7 +537,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                   ],
                   FilledButton.icon(
                     icon: const Icon(Icons.restaurant_menu),
-                    label: const Text(AppStrings.getDifferentRecipes),
+                    label: Text(context.l10n.getDifferentRecipes),
                     onPressed: isLoading
                         ? null
                         : _showFetchMoreRecipesSheet,
@@ -693,12 +704,12 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
 
     return PromptScreen(
       route: _currentRoute,
-      options: _optionsForRoute,
+      options: _optionsForRoute(context),
       selectedOption: _selectedForRoute,
       onOptionSelected: _selectOption,
       onNext: _next,
       onBack: _promptOnBack,
-      appBarActions: _embedShellMenuActions(),
+      appBarActions: _embedShellMenuActions(context),
     );
   }
 }
@@ -750,6 +761,7 @@ class _FetchMoreRecipesSheetState extends State<_FetchMoreRecipesSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
@@ -771,7 +783,7 @@ class _FetchMoreRecipesSheetState extends State<_FetchMoreRecipesSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              AppStrings.fetchMoreRecipes,
+              l10n.fetchMoreRecipes,
               style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
@@ -806,7 +818,7 @@ class _FetchMoreRecipesSheetState extends State<_FetchMoreRecipesSheet> {
                             border: InputBorder.none,
                             focusedBorder: InputBorder.none,
                             enabledBorder: InputBorder.none,
-                            hintText: AppStrings.recipePreferencesOptionalHint,
+                            hintText: l10n.recipePreferencesOptionalHint,
                             hintStyle: TextStyle(
                               color: scheme.onSurfaceVariant,
                               fontWeight: FontWeight.w400,
@@ -841,7 +853,7 @@ class _FetchMoreRecipesSheetState extends State<_FetchMoreRecipesSheet> {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: _submitAppend,
-              child: Text(AppStrings.keepAndAddRecipes),
+              child: Text(l10n.keepAndAddRecipes),
             ),
             const SizedBox(height: 4),
             TextButton(
@@ -849,7 +861,7 @@ class _FetchMoreRecipesSheetState extends State<_FetchMoreRecipesSheet> {
                 FocusScope.of(context).unfocus();
                 Navigator.pop(context);
               },
-              child: const Text('Dismiss'),
+              child: Text(l10n.dismiss),
             ),
           ],
         ),
@@ -901,8 +913,13 @@ class _CreateRecipesSearchSettingsSheetState
     await widget.onSaved();
   }
 
-  Widget _radioRow(String title, List<String> options, String groupValue,
-      ValueChanged<String> onChanged) {
+  Widget _radioRow(
+    String title,
+    List<String> optionKeys,
+    String groupValue,
+    String Function(String key) labelForKey,
+    ValueChanged<String> onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -913,11 +930,11 @@ class _CreateRecipesSearchSettingsSheetState
               ),
         ),
         const SizedBox(height: 6),
-        ...options.map(
-          (opt) => RadioListTile<String>(
+        ...optionKeys.map(
+          (key) => RadioListTile<String>(
             dense: true,
-            title: Text(opt, style: const TextStyle(fontSize: 14)),
-            value: opt,
+            title: Text(labelForKey(key), style: const TextStyle(fontSize: 14)),
+            value: key,
             groupValue: groupValue,
             onChanged: (v) {
               if (v != null) setState(() => onChanged(v));
@@ -931,6 +948,7 @@ class _CreateRecipesSearchSettingsSheetState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final kb = MediaQuery.viewInsetsOf(context).bottom;
     final safe = MediaQuery.paddingOf(context).bottom;
 
@@ -949,42 +967,46 @@ class _CreateRecipesSearchSettingsSheetState
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Create Recipes preferences',
+              l10n.createRecipesPreferencesTitle,
               style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             _radioRow(
-              AppStrings.titleForRoute('mood'),
-              AppStrings.moodOptions,
+              l10n.titleForRoute('mood'),
+              l10n.moodOptionKeys,
               _mood,
+              l10n.moodLabel,
               (v) => _mood = v,
             ),
             _radioRow(
-              AppStrings.titleForRoute('dietRestrictions'),
-              AppStrings.dietOptions,
+              l10n.titleForRoute('dietRestrictions'),
+              l10n.dietOptionKeys,
               _diet,
+              l10n.dietLabel,
               (v) => _diet = v,
             ),
             _radioRow(
-              AppStrings.titleForRoute('cuisinePreferences'),
-              AppStrings.cuisineOptions,
+              l10n.titleForRoute('cuisinePreferences'),
+              l10n.cuisineOptionKeys,
               _cuisine,
+              l10n.cuisineLabel,
               (v) => _cuisine = v,
             ),
             _radioRow(
-              AppStrings.titleForRoute('cookingPreferences'),
-              AppStrings.cookingTimeOptions,
+              l10n.titleForRoute('cookingPreferences'),
+              l10n.cookingTimeOptionKeys,
               _cooking,
+              l10n.cookingLabel,
               (v) => _cooking = v,
             ),
             FilledButton(
               onPressed: _save,
-              child: const Text(AppStrings.ok),
+              child: Text(l10n.ok),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(AppStrings.back),
+              child: Text(l10n.back),
             ),
           ],
         ),
@@ -1016,10 +1038,6 @@ class _HomeLifestyleSearchSettingsSheetState
   late Set<String> _usualCuisines;
   late String _cookingProficiency;
 
-  List<String> get _preferredCuisineOptions => AppStrings.cuisineOptions
-      .where((c) => c != AppStrings.surpriseMe)
-      .toList();
-
   @override
   void initState() {
     super.initState();
@@ -1030,9 +1048,12 @@ class _HomeLifestyleSearchSettingsSheetState
       text: sm.getAllergyNotes() ?? '',
     );
     _usualCuisines = sm.getUsualCuisines().toSet();
-    final cook = sm.getLifestyleCookingPreference();
-    _cookingProficiency =
-        AppStrings.cookingTimeOptions.contains(cook) ? cook : AppStrings.notParticular;
+    final cook = PreferenceOptions.normalizeCookingKey(
+      sm.getLifestyleCookingPreference(),
+    );
+    _cookingProficiency = PreferenceOptions.cookingKeys.contains(cook)
+        ? cook
+        : PreferenceOptions.cookingNotParticular;
   }
 
   @override
@@ -1041,32 +1062,32 @@ class _HomeLifestyleSearchSettingsSheetState
     super.dispose();
   }
 
-  void _toggleDietProfile(String label) {
+  void _toggleDietProfile(String key) {
     setState(() {
-      if (_dietProfiles.contains(label)) {
-        _dietProfiles.remove(label);
+      if (_dietProfiles.contains(key)) {
+        _dietProfiles.remove(key);
       } else {
-        _dietProfiles.add(label);
+        _dietProfiles.add(key);
       }
     });
   }
 
-  void _toggleAllergen(String label) {
+  void _toggleAllergen(String key) {
     setState(() {
-      if (_allergensAvoid.contains(label)) {
-        _allergensAvoid.remove(label);
+      if (_allergensAvoid.contains(key)) {
+        _allergensAvoid.remove(key);
       } else {
-        _allergensAvoid.add(label);
+        _allergensAvoid.add(key);
       }
     });
   }
 
-  void _toggleUsualCuisine(String cuisine) {
+  void _toggleUsualCuisine(String cuisineKey) {
     setState(() {
-      if (_usualCuisines.contains(cuisine)) {
-        _usualCuisines.remove(cuisine);
+      if (_usualCuisines.contains(cuisineKey)) {
+        _usualCuisines.remove(cuisineKey);
       } else {
-        _usualCuisines.add(cuisine);
+        _usualCuisines.add(cuisineKey);
       }
     });
   }
@@ -1074,7 +1095,7 @@ class _HomeLifestyleSearchSettingsSheetState
   Future<void> _save() async {
     final sm = widget.sessionManager;
     await sm.saveDietProfiles(_dietProfiles.toList());
-    sm.saveLifestyleDietRestrictionsSync(AppStrings.noRestrictions);
+    sm.saveLifestyleDietRestrictionsSync(PreferenceOptions.dietNoRestrictions);
     await sm.saveAllergensAvoid(_allergensAvoid.toList());
     final notes = _allergyNotesController.text.trim();
     await sm.saveAllergyNotes(notes.isEmpty ? null : notes);
@@ -1109,28 +1130,32 @@ class _HomeLifestyleSearchSettingsSheetState
   }
 
   Widget _cookingRadios() {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          AppStrings.homeSearchSettingsCookingProficiencyHeading,
+          l10n.homeSearchSettingsCookingProficiencyHeading,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
         ),
         const SizedBox(height: 6),
         Text(
-          AppStrings.homeSearchSettingsCookingProficiencyHint,
+          l10n.homeSearchSettingsCookingProficiencyHint,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
         const SizedBox(height: 6),
-        ...AppStrings.cookingTimeOptions.map(
-          (opt) => RadioListTile<String>(
+        ...l10n.cookingTimeOptionKeys.map(
+          (key) => RadioListTile<String>(
             dense: true,
-            title: Text(opt, style: const TextStyle(fontSize: 14)),
-            value: opt,
+            title: Text(
+              l10n.cookingLabel(key),
+              style: const TextStyle(fontSize: 14),
+            ),
+            value: key,
             groupValue: _cookingProficiency,
             onChanged: (v) {
               if (v != null) setState(() => _cookingProficiency = v);
@@ -1143,6 +1168,8 @@ class _HomeLifestyleSearchSettingsSheetState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final preferredCuisineKeys = l10n.preferredCuisineOptionKeys;
     final kb = MediaQuery.viewInsetsOf(context).bottom;
     final safe = MediaQuery.paddingOf(context).bottom;
     final cs = Theme.of(context).colorScheme;
@@ -1162,44 +1189,44 @@ class _HomeLifestyleSearchSettingsSheetState
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              AppStrings.homeSearchSettingsSheetTitle,
+              l10n.homeSearchSettingsSheetTitle,
               style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
             _sectionHeading(
-              AppStrings.homeSearchSettingsDietsHeading,
-              hint: AppStrings.homeSearchSettingsDietsHint,
+              l10n.homeSearchSettingsDietsHeading,
+              hint: l10n.homeSearchSettingsDietsHint,
             ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: DietAllergyOptions.dietMultiSelectOptions
+              children: DietAllergyOptions.dietMultiSelectOptionKeys
                   .map(
-                    (label) => FilterChip(
-                      label: Text(label),
-                      selected: _dietProfiles.contains(label),
-                      onSelected: (_) => _toggleDietProfile(label),
+                    (key) => FilterChip(
+                      label: Text(l10n.dietLabel(key)),
+                      selected: _dietProfiles.contains(key),
+                      onSelected: (_) => _toggleDietProfile(key),
                     ),
                   )
                   .toList(),
             ),
             const SizedBox(height: 12),
             _sectionHeading(
-              AppStrings.homeSearchSettingsAllergensHeading,
-              hint: AppStrings.homeSearchSettingsAllergensHint,
+              l10n.homeSearchSettingsAllergensHeading,
+              hint: l10n.homeSearchSettingsAllergensHint,
             ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: DietAllergyOptions.commonAllergens
+              children: DietAllergyOptions.commonAllergenKeys
                   .map(
-                    (label) => FilterChip(
-                      label: Text(label),
-                      selected: _allergensAvoid.contains(label),
-                      onSelected: (_) => _toggleAllergen(label),
+                    (key) => FilterChip(
+                      label: Text(l10n.allergenLabel(key)),
+                      selected: _allergensAvoid.contains(key),
+                      onSelected: (_) => _toggleAllergen(key),
                     ),
                   )
                   .toList(),
@@ -1207,27 +1234,27 @@ class _HomeLifestyleSearchSettingsSheetState
             const SizedBox(height: 12),
             TextField(
               controller: _allergyNotesController,
-              decoration: const InputDecoration(
-                labelText: AppStrings.homeSearchSettingsAllergenNotesLabel,
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.homeSearchSettingsAllergenNotesLabel,
+                border: const OutlineInputBorder(),
               ),
               maxLines: 2,
             ),
             const SizedBox(height: 16),
             _sectionHeading(
-              AppStrings.homeSearchSettingsPreferredCuisinesHeading,
-              hint: AppStrings.homeSearchSettingsPreferredCuisinesHint,
+              l10n.homeSearchSettingsPreferredCuisinesHeading,
+              hint: l10n.homeSearchSettingsPreferredCuisinesHint,
             ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _preferredCuisineOptions
+              children: preferredCuisineKeys
                   .map(
-                    (cuisine) => FilterChip(
-                      label: Text(cuisine),
-                      selected: _usualCuisines.contains(cuisine),
-                      onSelected: (_) => _toggleUsualCuisine(cuisine),
+                    (key) => FilterChip(
+                      label: Text(l10n.cuisineLabel(key)),
+                      selected: _usualCuisines.contains(key),
+                      onSelected: (_) => _toggleUsualCuisine(key),
                     ),
                   )
                   .toList(),
@@ -1236,7 +1263,7 @@ class _HomeLifestyleSearchSettingsSheetState
             _cookingRadios(),
             const SizedBox(height: 8),
             Text(
-              DietAllergyOptions.medicalDisclaimer,
+              l10n.medicalDisclaimer,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: cs.onSurfaceVariant,
                     fontSize: 11,
@@ -1245,11 +1272,11 @@ class _HomeLifestyleSearchSettingsSheetState
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _save,
-              child: const Text(AppStrings.ok),
+              child: Text(l10n.ok),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(AppStrings.back),
+              child: Text(l10n.back),
             ),
           ],
         ),

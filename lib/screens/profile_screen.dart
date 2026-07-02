@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../core/auth_error_message.dart';
 import '../core/diet_allergy_options.dart';
+import '../core/l10n_context.dart';
+import '../core/l10n_extensions.dart';
 import '../core/monetization_config.dart';
 import '../core/monetization_navigation.dart';
 import '../core/telemetry/app_telemetry.dart';
@@ -189,12 +191,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: DietAllergyOptions.dietMultiSelectOptions
+                children: DietAllergyOptions.dietMultiSelectOptionKeys
                     .map(
-                      (label) => FilterChip(
-                        label: Text(label),
-                        selected: _dietSelections.contains(label),
-                        onSelected: (_) => _toggleDiet(label),
+                      (key) => FilterChip(
+                        label: Text(context.l10n.dietLabel(key)),
+                        selected: _dietSelections.contains(key),
+                        onSelected: (_) => _toggleDiet(key),
                       ),
                     )
                     .toList(),
@@ -213,12 +215,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: DietAllergyOptions.commonAllergens
+                children: DietAllergyOptions.commonAllergenKeys
                     .map(
-                      (label) => FilterChip(
-                        label: Text(label),
-                        selected: _allergenSelections.contains(label),
-                        onSelected: (_) => _toggleAllergen(label),
+                      (key) => FilterChip(
+                        label: Text(context.l10n.allergenLabel(key)),
+                        selected: _allergenSelections.contains(key),
+                        onSelected: (_) => _toggleAllergen(key),
                       ),
                     )
                     .toList(),
@@ -260,7 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        DietAllergyOptions.medicalDisclaimer,
+                        context.l10n.medicalDisclaimer,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],

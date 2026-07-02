@@ -222,6 +222,17 @@ class RecipeBatchResult {
   final String? assistantMessage;
 }
 
+/// PATCH /user-onboarding — persist onboarding funnel completion on the user doc.
+class PatchUserOnboardingRequest {
+  PatchUserOnboardingRequest({required this.onboardingComplete});
+
+  final bool onboardingComplete;
+
+  Map<String, dynamic> toJson() => {
+        'onboardingComplete': onboardingComplete,
+      };
+}
+
 /// PATCH /user-lifestyle — omit fields you do not want to change.
 class UpdateUserLifestyleRequest {
   UpdateUserLifestyleRequest({
@@ -297,8 +308,10 @@ class UserProfileResponse {
     this.lastName,
     this.dietProfiles,
     this.allergensAvoid,
+    this.preferredCuisines,
     this.allergyNotes,
     this.hasAllergyNotesField = false,
+    this.onboardingComplete = false,
     this.subscription,
   });
   final String userId;
@@ -306,11 +319,12 @@ class UserProfileResponse {
   final String? firstName;
   final String? lastName;
   final Map<String, dynamic>? subscription;
-  /// Present when GET user document includes structured fields (`null` = omit key — do not wipe local prefs).
   final List<String>? dietProfiles;
   final List<String>? allergensAvoid;
+  final List<String>? preferredCuisines;
   final String? allergyNotes;
   final bool hasAllergyNotesField;
+  final bool onboardingComplete;
 
   static List<String> _stringList(dynamic v) {
     if (v is! List) return const [];
@@ -353,8 +367,12 @@ class UserProfileResponse {
       allergensAvoid: json.containsKey('allergensAvoid')
           ? _stringList(json['allergensAvoid'])
           : null,
+      preferredCuisines: json.containsKey('preferredCuisines')
+          ? _stringList(json['preferredCuisines'])
+          : null,
       allergyNotes: allergyNotes,
       hasAllergyNotesField: hasAllergyNotesField,
+      onboardingComplete: json['onboardingComplete'] == true,
       subscription: subscription,
     );
   }

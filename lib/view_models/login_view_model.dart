@@ -67,22 +67,33 @@ class LoginViewModel extends ChangeNotifier {
       _clearVerificationPending();
       if (_session.isGuestMode()) {
         _isLoggedIn = false;
-        _isLoading = false;
-        notifyListeners();
         return;
       }
-      _isLoggedIn = await _auth.checkSession();
+      _isLoggedIn = await _auth.checkSession().timeout(
+        const Duration(seconds: 50),
+        onTimeout: () {
+          if (kDebugMode) {
+            debugPrint('[LoginViewModel] checkSession timed out');
+          }
+          return false;
+        },
+      );
       if (_isLoggedIn) {
         _session.clearGuestModeSync();
         _session.clearAnonymousAndGuestQuotaSync();
       } else if (_auth.hasUnverifiedFirebaseUser) {
         _setVerificationPending(_auth.currentUserEmail);
       }
-    } catch (_) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[LoginViewModel] checkSession failed: $e');
+        debugPrint(st.toString());
+      }
       _isLoggedIn = false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<void> login(String email, String password) async {
@@ -112,6 +123,12 @@ class LoginViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _telemetry.logFeatureInteraction(featureId: FeatureIds.signInGoogle);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[LoginViewModel] telemetry skipped: $e');
+      }
+    }
+    try {
       final ok = await _auth.signInWithGoogle();
       if (!ok) {
         notifyListeners();
@@ -216,4 +233,7 @@ class LoginViewModel extends ChangeNotifier {
     _clearVerificationPending();
     notifyListeners();
   }
+
+  Future<void> prepareOnboardingRoutingState() =>
+      _auth.prepareOnboardingRoutingState();
 }

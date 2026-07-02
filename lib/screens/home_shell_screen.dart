@@ -1,10 +1,16 @@
+import 'dart:async' show unawaited;
 import 'dart:math' show max, min, pi, sin;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/app_strings.dart';
+import 'package:recipe_ai/l10n/app_localizations.dart';
+
+import '../core/l10n_context.dart';
+import '../core/l10n_extensions.dart';
 import '../core/recipe_generation_entry_point.dart';
+import '../data/models/recipe.dart';
 import '../data/models/session_profile.dart';
 import '../data/models/user_data.dart';
 import '../tutorial/coach_tour.dart';
@@ -16,9 +22,12 @@ import '../widgets/favorite_recipes_list_view.dart';
 import '../widgets/sous_chef_brand.dart';
 import '../widgets/sous_chef_menu_button.dart';
 import '../widgets/guest_signup_prompt.dart';
+import '../widgets/recipe_image_box.dart';
 import '../widgets/bottom_ad_banner.dart';
 import '../core/monetization_navigation.dart';
 import '../core/telemetry/app_telemetry.dart';
+import '../onboarding/onboarding_session_extension.dart';
+import '../services/session_manager.dart';
 import '../view_models/subscription_view_model.dart';
 import 'grocery_list_screen.dart';
 import 'import/import_hub_screen.dart';
@@ -58,7 +67,7 @@ class _SousHomeAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: const SousChefInlineTitle(markSize: 44),
       leading: Center(
         child: SousChefMenuButton(
-          tooltip: AppStrings.appMenuTooltip,
+          tooltip: context.l10n.appMenuTooltip,
           onPressed: onOpenMenu,
         ),
       ),
@@ -154,8 +163,9 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   final GlobalKey _coachImportLinksKey = GlobalKey();
   final GlobalKey _coachImportPasteKey = GlobalKey();
   final GlobalKey _coachImportScanKey = GlobalKey();
-  late final CoachTourController _coachTour;
-  late final CoachTourController _importHubCoachTour;
+  late CoachTourController _coachTour;
+  late CoachTourController _importHubCoachTour;
+  bool _coachToursReady = false;
 
   int _currentIndex = 0;
 
@@ -243,7 +253,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   void _onCoachNext() {
     if (!_coachTour.isActive) return;
     if (_coachTour.isLastStep) {
-      _coachTour.finish();
+      _finishMainCoachTour();
       return;
     }
     final nextIdx = _coachTour.currentIndex + 1;
@@ -272,35 +282,63 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
 
   void _onCoachSkip() {
     _coachTour.skip();
+    _markImportHubCoachSeenAfterMainTour();
   }
 
-  @override
-  void initState() {
-    super.initState();
+  void _finishMainCoachTour() {
+    _coachTour.finish();
+    _markImportHubCoachSeenAfterMainTour();
+  }
+
+  void _markImportHubCoachSeenAfterMainTour() {
+    widget.sessionManager.setImportHubCoachSeenSync(true);
+  }
+
+  void _ensureCoachTours(BuildContext context) {
+    if (_coachToursReady) return;
+    final l10n = context.l10n;
     _coachTour = CoachTourController(
       steps: [
         CoachTourStep(
           targetKey: _coachNavKey,
-          title: AppStrings.coachStepNavTitle,
-          body: AppStrings.coachStepNavBody,
+          title: l10n.coachStepNavTitle,
+          body: l10n.coachStepNavBody,
           tabIndex: 0,
         ),
         CoachTourStep(
           targetKey: _coachGetRecipesKey,
-          title: AppStrings.coachStepGetRecipesTitle,
-          body: AppStrings.coachStepGetRecipesBody,
+          title: l10n.coachStepGetRecipesTitle,
+          body: l10n.coachStepGetRecipesBody,
           tabIndex: 0,
         ),
         CoachTourStep(
           targetKey: _coachAddPantryKey,
-          title: AppStrings.coachStepAddPantryTitle,
-          body: AppStrings.coachStepAddPantryBody,
+          title: l10n.coachStepAddPantryTitle,
+          body: l10n.coachStepAddPantryBody,
           tabIndex: 0,
         ),
         CoachTourStep(
+          targetKey: _coachImportLinksKey,
+          title: l10n.coachStepImportLinksTitle,
+          body: l10n.coachStepImportLinksBody,
+          tabIndex: 3,
+        ),
+        CoachTourStep(
+          targetKey: _coachImportPasteKey,
+          title: l10n.coachStepImportPasteTitle,
+          body: l10n.coachStepImportPasteBody,
+          tabIndex: 3,
+        ),
+        CoachTourStep(
+          targetKey: _coachImportScanKey,
+          title: l10n.coachStepImportScanTitle,
+          body: l10n.coachStepImportScanBody,
+          tabIndex: 3,
+        ),
+        CoachTourStep(
           targetKey: _coachFavoritesKey,
-          title: AppStrings.coachStepFavoritesTitle,
-          body: AppStrings.coachStepFavoritesBody,
+          title: l10n.coachStepFavoritesTitle,
+          body: l10n.coachStepFavoritesBody,
           tabIndex: 4,
         ),
       ],
@@ -309,33 +347,47 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       steps: [
         CoachTourStep(
           targetKey: _coachImportLinksKey,
-          title: AppStrings.coachStepImportLinksTitle,
-          body: AppStrings.coachStepImportLinksBody,
+          title: l10n.coachStepImportLinksTitle,
+          body: l10n.coachStepImportLinksBody,
           tabIndex: 3,
         ),
         CoachTourStep(
           targetKey: _coachImportPasteKey,
-          title: AppStrings.coachStepImportPasteTitle,
-          body: AppStrings.coachStepImportPasteBody,
+          title: l10n.coachStepImportPasteTitle,
+          body: l10n.coachStepImportPasteBody,
           tabIndex: 3,
         ),
         CoachTourStep(
           targetKey: _coachImportScanKey,
-          title: AppStrings.coachStepImportScanTitle,
-          body: AppStrings.coachStepImportScanBody,
+          title: l10n.coachStepImportScanTitle,
+          body: l10n.coachStepImportScanBody,
           tabIndex: 3,
         ),
       ],
     );
+    _coachToursReady = true;
+  }
+
+  @override
+  void initState() {
+    super.initState();
     widget.homeViewModel.addListener(_onHomeUpdate);
     widget.homeViewModel.loadUserDetails();
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ensureCoachTours(context);
+  }
+
+  @override
   void dispose() {
     widget.homeViewModel.removeListener(_onHomeUpdate);
-    _coachTour.dispose();
-    _importHubCoachTour.dispose();
+    if (_coachToursReady) {
+      _coachTour.dispose();
+      _importHubCoachTour.dispose();
+    }
     super.dispose();
   }
 
@@ -391,9 +443,11 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _ensureCoachTours(context);
     return ListenableBuilder(
       listenable: widget.homeViewModel,
       builder: (_, __) {
+        final l10n = context.l10n;
         final userData = widget.homeViewModel.userData;
         final isGuest = widget.sessionManager.isGuestMode();
         final colorScheme = Theme.of(context).colorScheme;
@@ -430,12 +484,12 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             Text(
-                              AppStrings.appName,
+                              l10n.appName,
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              AppStrings.tutorialDrawerSubtitle,
+                              l10n.tutorialDrawerSubtitle,
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyMedium
@@ -450,7 +504,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                       ),
                       ListTile(
                         leading: const Icon(Icons.menu_book_outlined),
-                        title: const Text(AppStrings.howToUse),
+                        title: Text(l10n.howToUse),
                         onTap: () async {
                           Navigator.of(context).pop();
                           final startCoach =
@@ -461,7 +515,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                       ),
                       ListTile(
                         leading: const Icon(Icons.touch_app_outlined),
-                        title: const Text(AppStrings.showMeAround),
+                        title: Text(l10n.showMeAround),
                         onTap: () {
                           Navigator.of(context).pop();
                           _startCoachTour();
@@ -508,7 +562,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                       ),
                       ListTile(
                         leading: const Icon(Icons.calendar_month_outlined),
-                        title: const Text(AppStrings.mealPlanDrawer),
+                        title: Text(l10n.mealPlanDrawer),
                         onTap: () {
                           Navigator.of(context).pop();
                           context.push('/meal-plan');
@@ -516,7 +570,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                       ),
                       ListTile(
                         leading: const Icon(Icons.shopping_cart_outlined),
-                        title: const Text(AppStrings.groceryListDrawer),
+                        title: Text(l10n.groceryListDrawer),
                         onTap: () {
                           Navigator.of(context).pop();
                           setState(() => _currentIndex = 2);
@@ -548,13 +602,13 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                             child: Align(
                               alignment: Alignment.center,
                               child: SousChefMenuButton(
-                                tooltip: AppStrings.appMenuTooltip,
+                                tooltip: l10n.appMenuTooltip,
                                 onPressed: _openAppDrawer,
                               ),
                             ),
                           ),
                           leadingWidth: 56,
-                          title: Text(_appBarTitle),
+                          title: Text(_appBarTitle(l10n)),
                         ),
               body: _buildActiveTab(userData: userData, isGuest: isGuest),
               bottomNavigationBar: Column(
@@ -691,18 +745,18 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     }
   }
 
-  String get _appBarTitle {
+  String _appBarTitle(AppLocalizations l10n) {
     switch (_currentIndex) {
       case 0:
-        return AppStrings.appName;
+        return l10n.appName;
       case 2:
-        return AppStrings.groceryListTitle;
+        return l10n.groceryListTitle;
       case 3:
-        return AppStrings.importRecipeTabTitle;
+        return l10n.importRecipeTabTitle;
       case 4:
         return 'Saved';
       default:
-        return AppStrings.appName;
+        return l10n.appName;
     }
   }
 }
@@ -843,16 +897,23 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     setState(() {});
   }
 
+  void _openPantryScan() {
+    context.push('/pantry-scan').then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
   void _showPantryStaplesInfoDialog() {
+    final l10n = context.l10n;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(AppStrings.pantryStaplesDialogTitle),
-        content: const Text(AppStrings.pantryStaplesInfo),
+        title: Text(l10n.pantryStaplesDialogTitle),
+        content: Text(l10n.pantryStaplesInfo),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(AppStrings.ok),
+            child: Text(l10n.ok),
           ),
         ],
       ),
@@ -869,7 +930,20 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
       setState(() {});
       _persistPrompt();
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowFirstPromptHint());
   }
+
+  void _maybeShowFirstPromptHint() {
+    if (!mounted) return;
+    if (widget.sessionManager.getFirstPromptHintSeenSync()) return;
+    widget.sessionManager.setFirstPromptHintSeenSync(true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.onboardingFirstPromptHint)),
+    );
+    setState(() => _highlightFirstPrompt = true);
+  }
+
+  bool _highlightFirstPrompt = false;
 
   @override
   void dispose() {
@@ -889,51 +963,101 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     _customPreferenceController.selection = TextSelection.collapsed(
       offset: phrase.length,
     );
+    unawaited(_startRecipeFlow(promptOverride: phrase));
+  }
+
+  bool _canStartHomeRecipeFlow(String freeText, bool hasIngredients) {
+    if (freeText.isNotEmpty || hasIngredients) return true;
+    final sm = widget.sessionManager as SessionManager;
+    if (sm.isGuestMode()) return false;
+    // Signed-in users can generate from saved lifestyle prefs / feeling-lucky defaults.
+    return true;
+  }
+
+  void _showHomeRecipeInputRequired() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add a little context'),
+        content: const Text(
+          'Describe what you feel like eating, pick a quick filter above, '
+          'or add pantry items — then tap the arrow to generate recipes.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(context.l10n.ok),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _startRecipeFlow({String? promptOverride}) async {
-    final freeText =
-        (promptOverride ?? _customPreferenceController.text).trim();
-    final hasIngredients = widget.sessionManager.getIngredients().isNotEmpty;
-    if (freeText.isEmpty && !hasIngredients) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Enter what you feel like eating, pick pantry items, or use the Create Recipes tab for preferences.',
-          ),
-        ),
-      );
-      return;
-    }
-    if (widget.sessionManager.isGuestMode() &&
-        !widget.subscriptionViewModel.isPremium) {
-      final exceeded =
-          await widget.sessionManager.isGuestRecipeQuotaExceededForToday();
-      if (!mounted) return;
-      if (exceeded) {
-        final action = await showGuestRecipeLimitReachedDialog(
-          context,
-          appTelemetry: widget.appTelemetry,
-        );
-        if (!mounted) return;
-        if (action == GuestLimitAction.signUp) {
-          goToSignup(context);
-        } else if (action == GuestLimitAction.premium) {
-          openPremiumPaywall(
-            context,
-            source: 'guest_quota',
-            appTelemetry: widget.appTelemetry,
-          );
-        }
+    try {
+      final freeText =
+          (promptOverride ?? _customPreferenceController.text).trim();
+      final hasIngredients = widget.sessionManager.getIngredients().isNotEmpty;
+      if (!_canStartHomeRecipeFlow(freeText, hasIngredients)) {
+        _showHomeRecipeInputRequired();
         return;
       }
+      if (widget.sessionManager.isGuestMode() &&
+          !widget.subscriptionViewModel.isPremium) {
+        final exceeded =
+            await widget.sessionManager.isGuestRecipeQuotaExceededForToday();
+        if (!mounted) return;
+        if (exceeded) {
+          final action = await showGuestRecipeLimitReachedDialog(
+            context,
+            appTelemetry: widget.appTelemetry,
+          );
+          if (!mounted) return;
+          if (action == GuestLimitAction.signUp) {
+            goToSignup(context);
+          } else if (action == GuestLimitAction.premium) {
+            openPremiumPaywall(
+              context,
+              source: 'guest_quota',
+              appTelemetry: widget.appTelemetry,
+            );
+          }
+          return;
+        }
+      }
+      if (!widget.sessionManager.isGuestMode() &&
+          !widget.subscriptionViewModel.isPremium) {
+        final sm = widget.sessionManager as SessionManager;
+        final exceeded = await sm.isSignedInFreeRecipeQuotaExceededForToday(
+          isPremium: false,
+        );
+        if (!mounted) return;
+        if (exceeded) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.freeTierQuotaMessage)),
+          );
+          openPremiumPaywall(
+            context,
+            source: 'free_quota',
+            appTelemetry: widget.appTelemetry,
+          );
+          return;
+        }
+      }
+      if (!mounted) return;
+      context.push('/recipe-flow', extra: {
+        'generationEntryPoint': RecipeGenerationEntryPoint.home.name,
+        if (freeText.isNotEmpty) 'initialPrompt': freeText,
+      });
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[HomeTab] _startRecipeFlow failed: $e\n$st');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not start recipe generation: $e')),
+      );
     }
-    if (!mounted) return;
-    context.push('/recipe-flow', extra: {
-      'userData': widget.homeViewModel.userData,
-      'generationEntryPoint': RecipeGenerationEntryPoint.home,
-      if (freeText.isNotEmpty) 'initialPrompt': freeText,
-    });
   }
 
   Future<void> _onGetRecipesPressed() => _startRecipeFlow();
@@ -962,6 +1086,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 controller: _customPreferenceController,
                 onGo: _onGetRecipesPressed,
                 coachGetRecipesKey: widget.coachGetRecipesKey,
+                highlightFirstPrompt: _highlightFirstPrompt,
               ),
               const SizedBox(height: 16),
               _HomeFilterChips(
@@ -973,6 +1098,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 colorScheme: colorScheme,
                 onInfo: _showPantryStaplesInfoDialog,
                 onAddPantry: _showPantryPickerBottomSheet,
+                onScanPantry: _openPantryScan,
               ),
               if (selectedSorted.isNotEmpty) ...[
                 const SizedBox(height: 16),
@@ -1001,6 +1127,24 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 ),
               ],
               const SizedBox(height: 20),
+              ListenableBuilder(
+                listenable: widget.homeViewModel,
+                builder: (context, _) {
+                  final ideas = widget.homeViewModel.dailyIdeas;
+                  if (ideas.length != 5) return const SizedBox.shrink();
+                  return Column(
+                    children: [
+                      _DailyIdeasStrip(
+                        recipes: ideas,
+                        onRecipeTap: (recipe) {
+                          context.push('/show-recipe', extra: {'recipe': recipe});
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  );
+                },
+              ),
               _MealPlannerPromoCard(
                 onTap: () => context.push('/meal-plan'),
               ),
@@ -1045,7 +1189,7 @@ class _HomeHeroRow extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '${AppStrings.letsCookSomethingNice}',
+          context.l10n.letsCookSomethingNice,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             color: onSurface,
             shadows: [Shadow(color: halo, blurRadius: 8)],
@@ -1061,11 +1205,13 @@ class _HomeSearchField extends StatefulWidget {
     required this.controller,
     required this.onGo,
     required this.coachGetRecipesKey,
+    this.highlightFirstPrompt = false,
   });
 
   final TextEditingController controller;
   final Future<void> Function() onGo;
   final GlobalKey coachGetRecipesKey;
+  final bool highlightFirstPrompt;
 
   @override
   State<_HomeSearchField> createState() => _HomeSearchFieldState();
@@ -1093,6 +1239,11 @@ class _HomeSearchFieldState extends State<_HomeSearchField>
       oldWidget.controller.removeListener(_onText);
       widget.controller.addListener(_onText);
     }
+    if (widget.highlightFirstPrompt && !oldWidget.highlightFirstPrompt) {
+      _borderGlowCtrl
+        ..reset()
+        ..repeat();
+    }
   }
 
   @override
@@ -1115,7 +1266,7 @@ class _HomeSearchFieldState extends State<_HomeSearchField>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          AppStrings.whatDoYouFeelLikeEating,
+          context.l10n.whatDoYouFeelLikeEating,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: onSurface,
                 fontWeight: FontWeight.w600,
@@ -1127,8 +1278,11 @@ class _HomeSearchFieldState extends State<_HomeSearchField>
           builder: (context, _) {
             final dark = Theme.of(context).brightness == Brightness.dark;
             final pulse = sin(_borderGlowCtrl.value * 2 * pi) * 0.5 + 0.5;
+            final boost = widget.highlightFirstPrompt ? 0.22 : 0.0;
             final auraAlpha =
-                dark ? (0.12 + pulse * 0.18) : (0.10 + pulse * 0.16);
+                dark
+                    ? (0.12 + pulse * 0.18 + boost)
+                    : (0.10 + pulse * 0.16 + boost);
             return Container(
               key: widget.coachGetRecipesKey,
               padding: const EdgeInsets.all(2),
@@ -1182,6 +1336,8 @@ class _HomeSearchFieldState extends State<_HomeSearchField>
                             controller: widget.controller,
                             minLines: 1,
                             maxLines: 3,
+                            textInputAction: TextInputAction.go,
+                            onSubmitted: (_) => unawaited(widget.onGo()),
                             onChanged: (_) => setState(() {}),
                             style:
                                 Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -1207,21 +1363,14 @@ class _HomeSearchFieldState extends State<_HomeSearchField>
                             ),
                           ),
                         ),
-                        Material(
-                          color: scheme.primary,
-                          shape: const CircleBorder(),
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: () => widget.onGo(),
-                            child: SizedBox(
-                              width: 44,
-                              height: 44,
-                              child: Icon(
-                                Icons.arrow_forward,
-                                color: scheme.onPrimary,
-                              ),
-                            ),
+                        IconButton.filled(
+                          tooltip: 'Get recipes',
+                          style: IconButton.styleFrom(
+                            fixedSize: const Size(44, 44),
+                            padding: EdgeInsets.zero,
                           ),
+                          onPressed: () => unawaited(widget.onGo()),
+                          icon: const Icon(Icons.arrow_forward),
                         ),
                         const SizedBox(width: 4),
                       ],
@@ -1325,15 +1474,18 @@ class _PantryHintBar extends StatelessWidget {
     required this.colorScheme,
     required this.onInfo,
     required this.onAddPantry,
+    required this.onScanPantry,
   });
 
   final Key coachAddPantryKey;
   final ColorScheme colorScheme;
   final VoidCallback onInfo;
   final VoidCallback onAddPantry;
+  final VoidCallback onScanPantry;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
@@ -1359,13 +1511,13 @@ class _PantryHintBar extends StatelessWidget {
                           color: colorScheme.onSurface,
                         ),
                     children: [
-                      const TextSpan(text: AppStrings.pantryStaples),
+                      TextSpan(text: l10n.pantryStaples),
                       WidgetSpan(
                         alignment: PlaceholderAlignment.middle,
                         child: Transform.translate(
                           offset: const Offset(2, -2),
                           child: Tooltip(
-                            message: AppStrings.pantryStaplesInfoIconTooltip,
+                            message: l10n.pantryStaplesInfoIconTooltip,
                             child: InkWell(
                               onTap: onInfo,
                               child: Padding(
@@ -1399,13 +1551,122 @@ class _PantryHintBar extends StatelessWidget {
             icon: const Icon(Icons.add, size: 20),
             label: const Text('Add Pantry Items'),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: onScanPantry,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colorScheme.onSurface,
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.8),
+              ),
+              backgroundColor: colorScheme.surface,
+            ),
+            icon: const Icon(Icons.photo_camera_outlined, size: 20),
+            label: Text(l10n.groceryPantryScanScanFromPhoto),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Home promo for the AI meal planner (replaces former "Ideas for you" strip).
+/// Horizontal carousel of preloaded daily recipe ideas (backend batch).
+class _DailyIdeasStrip extends StatelessWidget {
+  const _DailyIdeasStrip({
+    required this.recipes,
+    required this.onRecipeTap,
+  });
+
+  final List<Recipe> recipes;
+  final void Function(Recipe recipe) onRecipeTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ideas for you',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 168,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: recipes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final recipe = recipes[index];
+              return _DailyIdeaCard(
+                recipe: recipe,
+                colorScheme: scheme,
+                onTap: () => onRecipeTap(recipe),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DailyIdeaCard extends StatelessWidget {
+  const _DailyIdeaCard({
+    required this.recipe,
+    required this.colorScheme,
+    required this.onTap,
+  });
+
+  final Recipe recipe;
+  final ColorScheme colorScheme;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 140,
+      child: Material(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              RecipeImageBox(
+                imageUrl: recipe.image,
+                height: 96,
+                width: 140,
+                borderRadius: BorderRadius.zero,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                  child: Text(
+                    recipe.recipeName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                        ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Home promo for the AI meal planner.
 class _MealPlannerPromoCard extends StatelessWidget {
   const _MealPlannerPromoCard({required this.onTap});
 
@@ -1413,6 +1674,7 @@ class _MealPlannerPromoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
     return Material(
       color: scheme.primaryContainer.withValues(alpha: 0.55),
@@ -1436,7 +1698,7 @@ class _MealPlannerPromoCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppStrings.mealPlanHomePrompt,
+                      l10n.mealPlanHomePrompt,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: scheme.onSurface,
@@ -1446,7 +1708,7 @@ class _MealPlannerPromoCard extends StatelessWidget {
                     const SizedBox(height: 12),
                     FilledButton.tonal(
                       onPressed: onTap,
-                      child: const Text(AppStrings.mealPlanHomeCta),
+                      child: Text(l10n.mealPlanHomeCta),
                     ),
                   ],
                 ),
@@ -1475,12 +1737,6 @@ class _PantryPickerSheet extends StatefulWidget {
 class _PantryPickerSheetState extends State<_PantryPickerSheet> {
   late final TextEditingController _controller;
   late final Set<String> _selected;
-
-  List<String> get _cuisineOptionsForUsualCuisines {
-    return AppStrings.cuisineOptions
-        .where((c) => c != AppStrings.surpriseMe)
-        .toList();
-  }
 
   @override
   void initState() {
@@ -1525,12 +1781,12 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
     setState(() {});
   }
 
-  void _toggleUsualCuisine(String cuisine) {
+  void _toggleUsualCuisine(String cuisineKey) {
     final current = widget.sessionManager.getUsualCuisines().toSet();
-    if (current.contains(cuisine)) {
-      current.remove(cuisine);
+    if (current.contains(cuisineKey)) {
+      current.remove(cuisineKey);
     } else {
-      current.add(cuisine);
+      current.add(cuisineKey);
     }
     widget.sessionManager.saveUsualCuisinesSync(current.toList());
     setState(() {});
@@ -1538,6 +1794,8 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final preferredCuisineKeys = l10n.preferredCuisineOptionKeys;
     final query = _controller.text.trim();
     final filtered = query.isEmpty
         ? const <String>[]
@@ -1679,7 +1937,7 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                           .copyWith(dividerColor: Colors.transparent),
                       child: ExpansionTile(
                         title: Text(
-                          AppStrings.pantrySuggestionsTitle,
+                          l10n.pantrySuggestionsTitle,
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w700,
@@ -1687,8 +1945,10 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                         ),
                         subtitle: Text(
                           usualCuisines.isEmpty
-                              ? AppStrings.suggestionsTapToChooseCuisines
-                              : usualCuisines.join(', '),
+                              ? l10n.suggestionsTapToChooseCuisines
+                              : usualCuisines
+                                  .map(l10n.cuisineLabel)
+                                  .join(', '),
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: colorScheme.onSurfaceVariant,
@@ -1702,13 +1962,13 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
-                                  AppStrings.usualCuisinesHeading,
+                                  l10n.usualCuisinesHeading,
                                   style: Theme.of(context).textTheme.labelLarge,
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  AppStrings.usualCuisinesPickerHint,
+                                  l10n.usualCuisinesPickerHint,
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall
@@ -1718,14 +1978,13 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 8),
-                                for (final cuisine
-                                    in _cuisineOptionsForUsualCuisines)
+                                for (final cuisineKey in preferredCuisineKeys)
                                   CheckboxListTile(
                                     dense: true,
-                                    value: usualCuisines.contains(cuisine),
-                                    title: Text(cuisine),
+                                    value: usualCuisines.contains(cuisineKey),
+                                    title: Text(l10n.cuisineLabel(cuisineKey)),
                                     onChanged: (_) =>
-                                        _toggleUsualCuisine(cuisine),
+                                        _toggleUsualCuisine(cuisineKey),
                                   ),
                               ],
                             ),

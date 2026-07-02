@@ -3,15 +3,22 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../navigation/post_auth_navigation.dart';
+import '../services/session_manager.dart';
 import '../view_models/login_view_model.dart';
 
 const Duration _verifyResumeDebounce = Duration(milliseconds: 400);
 const Duration _verifyPollInterval = Duration(seconds: 5);
 
 class VerifyEmailScreen extends StatefulWidget {
-  const VerifyEmailScreen({super.key, required this.loginViewModel});
+  const VerifyEmailScreen({
+    super.key,
+    required this.loginViewModel,
+    required this.sessionManager,
+  });
 
   final LoginViewModel loginViewModel;
+  final SessionManager sessionManager;
 
   @override
   State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
@@ -62,7 +69,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
   void _onVm() {
     if (!mounted) return;
     if (widget.loginViewModel.isLoggedIn) {
-      context.go('/home');
+      unawaited(
+        navigateAfterAuthentication(
+          context,
+          sessionManager: widget.sessionManager,
+          loginViewModel: widget.loginViewModel,
+        ),
+      );
     }
     setState(() {});
   }

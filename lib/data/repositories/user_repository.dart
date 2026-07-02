@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 
-import '../../core/app_strings.dart';
+import '../../core/preference_options.dart';
 import '../../core/firestore_paths.dart';
+import '../../onboarding/onboarding_session_extension.dart';
 import '../api/api_service.dart';
 import '../firestore/favorites_firestore_mapper.dart';
 import '../local/saved_recipes_hive_store.dart';
@@ -126,6 +129,9 @@ class UserRepository {
   Future<void> togglePublicFavorite(Recipe recipe, {required bool favorited}) async {
     final token = await _firebaseAuth.currentUser?.getIdToken();
     if (token == null) return;
+    if (favorited) {
+      await mergeRecipeDocument(recipe);
+    }
     await _api.togglePublicFavorite(
       recipeId: recipe.recipeId,
       favorited: favorited,
@@ -171,6 +177,18 @@ class UserRepository {
     );
   }
 
+  /// Persists onboarding completion to Firestore and local session cache.
+  Future<void> markOnboardingComplete() async {
+    if (_session.isGuestMode()) return;
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) return;
+    await _api.patchUserOnboarding(
+      PatchUserOnboardingRequest(onboardingComplete: true),
+      idToken: token,
+    );
+    _session.setOnboardingCompleteSync(true);
+  }
+
   /// PATCH user-lifestyle from local session prefs (no-op for guests / no token).
   Future<void> syncLifestyleFromPrefs() async {
     if (_session.isGuestMode()) return;
@@ -182,8 +200,8 @@ class UserRepository {
       final merged = <String>{...usual};
       final c = cuisine.trim();
       if (c.isNotEmpty &&
-          c != 'No Cuisine Selected' &&
-          c != AppStrings.surpriseMe) {
+          !PreferenceOptions.isNoCuisineSelected(c) &&
+          !PreferenceOptions.isSurpriseCuisine(c)) {
         merged.add(c);
       }
       await _api.patchUserLifestyle(
@@ -222,5 +240,61 @@ class UserRepository {
       clientRequestId: clientRequestId,
     );
     return resp.suggestions;
+  }
+
+  /// POST /user-app-open — no-op for guests.
+  Future<void> recordAppOpen() async {
+    if (_session.isGuestMode()) return;
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) return;
+    try {
+      await _api.postUserAppOpen(idToken: token);
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[UserRepository] recordAppOpen failed: $e');
+        debugPrint(st.toString());
+      }
+    }
+  }
+
+  /// PATCH /user-timezone from device IANA name (no-op for guests).
+  Future<void> syncDeviceTimezone() async {
+    if (_session.isGuestMode()) return;
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) return;
+    try {
+      final iana = (await FlutterTimezone.getLocalTimezone()).trim();
+      if (iana.isEmpty) return;
+      await _api.patchUserTimezone(timezone: iana, idToken: token);
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[UserRepository] syncDeviceTimezone failed: $e');
+        debugPrint(st.toString());
+      }
+    }
+  }
+
+  /// GET /daily-ideas — empty when guest, not ready, or signed out.
+  Future<DailyIdeasResponse> fetchDailyIdeas({String slot = 'dinner'}) async {
+    if (_session.isGuestMode()) {
+      return const DailyIdeasResponse(
+        batchId: '',
+        localDate: '',
+        slot: 'dinner',
+        status: 'guest',
+        recipes: [],
+      );
+    }
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) {
+      return const DailyIdeasResponse(
+        batchId: '',
+        localDate: '',
+        slot: 'dinner',
+        status: 'signed_out',
+        recipes: [],
+      );
+    }
+    return _api.fetchDailyIdeas(idToken: token, slot: slot);
   }
 }

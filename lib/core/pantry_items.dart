@@ -6,7 +6,7 @@ abstract class PantryItems {
   PantryItems._();
 
   /// Fallback pack if the user hasn't chosen cuisines yet.
-  static const String cuisinePopular = 'Popular';
+  static const String cuisinePopular = 'popular';
 
   static const List<String> _indian = [
     'Basmati Rice',
@@ -131,17 +131,16 @@ abstract class PantryItems {
     'Milk',
   ];
 
-  /// Suggested pantry staples grouped by cuisine.
-  /// Keys should match the user-facing cuisine strings (e.g. `AppStrings.indian`).
+  /// Suggested pantry staples grouped by cuisine key ([PreferenceOptions]).
   static const Map<String, List<String>> staplesByCuisine = {
     cuisinePopular: _popular,
-    'Indian': _indian,
-    'Mexican': _mexican,
-    'Chinese': _chinese,
-    'Thai': _thai,
-    'Korean': _korean,
-    'Italian': _italian,
-    'American': _american,
+    'indian': _indian,
+    'mexican': _mexican,
+    'chinese': _chinese,
+    'thai': _thai,
+    'korean': _korean,
+    'italian': _italian,
+    'american': _american,
   };
 
   /// Backwards-compatible list used by the chip UI (defaults to the Indian list).

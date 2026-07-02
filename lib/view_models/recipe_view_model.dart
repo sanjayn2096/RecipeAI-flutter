@@ -42,6 +42,7 @@ class RecipeViewModel extends ChangeNotifier {
   final RecipeRepository _recipeRepo;
   final UserRepository _userRepo;
   final AppTelemetry _telemetry;
+  AppTelemetry get appTelemetry => _telemetry;
   final VoidCallback? _onPrivateSavedListChanged;
 
   List<Recipe> _recipes = [];

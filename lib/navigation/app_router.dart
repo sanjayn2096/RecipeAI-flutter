@@ -15,6 +15,7 @@ import '../screens/trending_recipes_screen.dart';
 import '../screens/latest_recipes_screen.dart';
 import '../screens/premium_paywall_screen.dart';
 import '../screens/tutorial_screen.dart';
+import '../onboarding/onboarding_flow_screen.dart';
 import '../screens/grocery_list_screen.dart';
 import '../screens/pantry_scan_screen.dart';
 import '../screens/meal_plan_hub_screen.dart';
@@ -29,6 +30,7 @@ import '../view_models/grocery_list_view_model.dart';
 import '../view_models/home_view_model.dart';
 import '../view_models/subscription_view_model.dart';
 import '../view_models/meal_plan_view_model.dart';
+import '../onboarding/onboarding_session_extension.dart';
 import '../services/session_manager.dart';
 
 class AppRouter {
@@ -65,7 +67,10 @@ class AppRouter {
     routes: [
       GoRoute(
         path: '/',
-        builder: (_, __) => SplashScreen(loginViewModel: loginViewModel),
+        builder: (_, __) => SplashScreen(
+          loginViewModel: loginViewModel,
+          sessionManager: sessionManager as SessionManager,
+        ),
       ),
       GoRoute(
         path: '/login',
@@ -75,17 +80,51 @@ class AppRouter {
               extra == true || extra == 'signup' || extra == 'Signup';
           return LoginHandlerScreen(
             loginViewModel: loginViewModel,
+            sessionManager: sessionManager as SessionManager,
             openSignup: openSignup,
           );
         },
       ),
       GoRoute(
         path: '/verify-email',
-        builder: (_, __) =>
-            VerifyEmailScreen(loginViewModel: loginViewModel as LoginViewModel),
+        builder: (_, __) => VerifyEmailScreen(
+          loginViewModel: loginViewModel as LoginViewModel,
+          sessionManager: sessionManager as SessionManager,
+        ),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        redirect: (context, state) {
+          final sm = sessionManager as SessionManager;
+          if (sm.isGuestMode() || sm.getOnboardingCompleteSync()) {
+            return '/home';
+          }
+          if (loginViewModel.isLoggedIn != true) {
+            return '/login';
+          }
+          return null;
+        },
+        builder: (_, __) => OnboardingFlowScreen(
+          sessionManager: sessionManager as SessionManager,
+          homeViewModel: homeViewModel,
+          subscriptionViewModel: subscriptionViewModel,
+          appTelemetry: appTelemetry,
+        ),
       ),
       GoRoute(
         path: '/home',
+        redirect: (context, state) {
+          final sm = sessionManager as SessionManager;
+          if (sm.isGuestMode()) return null;
+          if (loginViewModel.isLoggedIn == true &&
+              !sm.getOnboardingCompleteSync()) {
+            sm.migrateOnboardingCompleteIfExistingUser();
+            if (!sm.getOnboardingCompleteSync()) {
+              return '/onboarding';
+            }
+          }
+          return null;
+        },
         builder: (_, __) => HomeShellScreen(
           homeViewModel: homeViewModel,
           loginViewModel: loginViewModel,
@@ -205,7 +244,7 @@ class AppRouter {
         path: '/pantry-scan',
         builder: (context, __) => PantryScanScreen(
           apiService: apiService,
-          groceryListViewModel: groceryListViewModel,
+          sessionManager: sessionManager as SessionManager,
           appTelemetry: appTelemetry,
         ),
       ),

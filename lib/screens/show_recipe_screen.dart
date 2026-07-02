@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
 import '../core/recipe_parsing.dart';
 import '../data/models/recipe.dart';
 import '../view_models/grocery_list_view_model.dart';
@@ -202,7 +202,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    AppStrings.nutritionalValueOfDish,
+                    context.l10n.nutritionalValueOfDish,
                     style: Theme.of(
                       context,
                     ).textTheme.titleMedium?.copyWith(fontSize: 19),
@@ -243,7 +243,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
                   _buildIngredientsSection(),
                   const SizedBox(height: 16),
                   Text(
-                    AppStrings.recipeInstructions,
+                    context.l10n.recipeInstructions,
                     style: Theme.of(
                       context,
                     ).textTheme.titleMedium?.copyWith(fontSize: 19),

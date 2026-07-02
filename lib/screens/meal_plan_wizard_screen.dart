@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
 import '../core/monetization_navigation.dart';
 import '../core/pantry_items.dart';
 import '../core/telemetry/app_telemetry.dart';
@@ -58,14 +58,14 @@ class _MealPlanWizardScreenState extends State<MealPlanWizardScreen> {
     'Japanese',
   ];
 
-  static const _weekdayMeta = [
-    (1, AppStrings.mealPlanMon),
-    (2, AppStrings.mealPlanTue),
-    (3, AppStrings.mealPlanWed),
-    (4, AppStrings.mealPlanThu),
-    (5, AppStrings.mealPlanFri),
-    (6, AppStrings.mealPlanSat),
-    (7, AppStrings.mealPlanSun),
+  List<(int, String)> _weekdayMeta(BuildContext context) => [
+    (1, context.l10n.mealPlanMon),
+    (2, context.l10n.mealPlanTue),
+    (3, context.l10n.mealPlanWed),
+    (4, context.l10n.mealPlanThu),
+    (5, context.l10n.mealPlanFri),
+    (6, context.l10n.mealPlanSat),
+    (7, context.l10n.mealPlanSun),
   ];
 
   @override
@@ -152,20 +152,20 @@ class _MealPlanWizardScreenState extends State<MealPlanWizardScreen> {
         final loading = widget.mealPlanViewModel.loading;
         return Scaffold(
           appBar: AppBar(
-            title: const Text(AppStrings.mealPlanWizardTitle),
+            title: Text(context.l10n.mealPlanWizardTitle),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: loading ? null : () => context.pop(),
             ),
           ),
           body: loading
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text(AppStrings.mealPlanGenerating),
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(context.l10n.mealPlanGenerating),
                     ],
                   ),
                 )
@@ -206,7 +206,7 @@ class _MealPlanWizardScreenState extends State<MealPlanWizardScreen> {
                   },
                   steps: [
                     Step(
-                      title: const Text(AppStrings.mealPlanStepDiet),
+                      title: Text(context.l10n.mealPlanStepDiet),
                       isActive: _step >= 0,
                       content: _chipSection(
                         _dietChips,
@@ -227,7 +227,7 @@ class _MealPlanWizardScreenState extends State<MealPlanWizardScreen> {
                       ),
                     ),
                     Step(
-                      title: const Text(AppStrings.mealPlanStepCuisines),
+                      title: Text(context.l10n.mealPlanStepCuisines),
                       isActive: _step >= 1,
                       content: _chipSection(
                         _cuisineChips,
@@ -242,19 +242,19 @@ class _MealPlanWizardScreenState extends State<MealPlanWizardScreen> {
                       ),
                     ),
                     Step(
-                      title: const Text(AppStrings.mealPlanStepMeals),
+                      title: Text(context.l10n.mealPlanStepMeals),
                       isActive: _step >= 2,
                       content: Wrap(
                         spacing: 8,
                         children: [
-                          _mealChip(AppStrings.mealPlanBreakfast, 'breakfast'),
-                          _mealChip(AppStrings.mealPlanLunch, 'lunch'),
-                          _mealChip(AppStrings.mealPlanDinner, 'dinner'),
+                          _mealChip(context.l10n.mealPlanBreakfast, 'breakfast'),
+                          _mealChip(context.l10n.mealPlanLunch, 'lunch'),
+                          _mealChip(context.l10n.mealPlanDinner, 'dinner'),
                         ],
                       ),
                     ),
                     Step(
-                      title: const Text(AppStrings.mealPlanStepDays),
+                      title: Text(context.l10n.mealPlanStepDays),
                       isActive: _step >= 3,
                       content: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,7 +263,7 @@ class _MealPlanWizardScreenState extends State<MealPlanWizardScreen> {
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Text(
-                                AppStrings.mealPlanFreeDayLimit,
+                                context.l10n.mealPlanFreeDayLimit,
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
@@ -276,7 +276,7 @@ class _MealPlanWizardScreenState extends State<MealPlanWizardScreen> {
                             ),
                           Wrap(
                             spacing: 8,
-                            children: _weekdayMeta.map((e) {
+                            children: _weekdayMeta(context).map((e) {
                               final selected = _weekdays.contains(e.$1);
                               return FilterChip(
                                 label: Text(e.$2),
@@ -308,7 +308,7 @@ class _MealPlanWizardScreenState extends State<MealPlanWizardScreen> {
                       ),
                     ),
                     Step(
-                      title: const Text(AppStrings.mealPlanStepPantry),
+                      title: Text(context.l10n.mealPlanStepPantry),
                       isActive: _step >= 4,
                       content: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -360,7 +360,7 @@ class _MealPlanWizardScreenState extends State<MealPlanWizardScreen> {
                       ),
                     ),
                     Step(
-                      title: const Text(AppStrings.mealPlanStepBudget),
+                      title: Text(context.l10n.mealPlanStepBudget),
                       isActive: _step >= 5,
                       content: TextField(
                         controller: _budgetController,

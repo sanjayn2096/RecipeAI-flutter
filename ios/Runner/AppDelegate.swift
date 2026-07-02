@@ -24,5 +24,6 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    PantryVisionChannel.register(messenger: engineBridge.applicationRegistrar.messenger())
   }
 }

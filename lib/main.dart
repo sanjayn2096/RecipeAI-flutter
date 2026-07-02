@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,6 +16,7 @@ import 'firebase_options.dart';
 import 'core/telemetry/api_call_context.dart';
 import 'core/telemetry/app_telemetry.dart';
 import 'core/theme.dart';
+import 'l10n/app_localizations.dart';
 import 'data/api/api_service.dart';
 import 'data/local/saved_recipes_hive_store.dart';
 import 'data/local/grocery_hive_store.dart';
@@ -194,6 +196,7 @@ void main() async {
       sessionManager: sessionManager,
       appTelemetry: appTelemetry,
       subscriptionViewModel: subscriptionViewModel,
+      homeViewModel: homeViewModel,
     ));
   } catch (e, st) {
     if (kDebugMode) {
@@ -212,6 +215,14 @@ class _ErrorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      onGenerateTitle: (context) => AppLocalizations.of(context).appName,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: appLightTheme,
       darkTheme: appDarkTheme,
       themeMode: ThemeMode.system,
@@ -232,7 +243,7 @@ class _ErrorApp extends StatelessWidget {
                         size: 48, color: colorScheme.error),
                     const SizedBox(height: 16),
                     Text(
-                      'Something went wrong',
+                      AppLocalizations.of(context).somethingWentWrong,
                       style: textTheme.titleLarge
                           ?.copyWith(fontWeight: FontWeight.bold),
                     ),
@@ -256,12 +267,14 @@ class RecipeAiApp extends StatefulWidget {
     required this.sessionManager,
     required this.appTelemetry,
     required this.subscriptionViewModel,
+    required this.homeViewModel,
   });
 
   final GoRouter router;
   final SessionManager sessionManager;
   final AppTelemetry appTelemetry;
   final SubscriptionViewModel subscriptionViewModel;
+  final HomeViewModel homeViewModel;
 
   @override
   State<RecipeAiApp> createState() => _RecipeAiAppState();
@@ -278,6 +291,9 @@ class _RecipeAiAppState extends State<RecipeAiApp> {
         FirebaseAuth.instance.authStateChanges().listen((_) {
       unawaited(widget.appTelemetry.syncUserIdentity(widget.sessionManager));
       unawaited(widget.subscriptionViewModel.refreshFromApi());
+      if (!widget.sessionManager.isGuestMode()) {
+        unawaited(widget.homeViewModel.loadUserDetails());
+      }
     });
   }
 
@@ -290,7 +306,14 @@ class _RecipeAiAppState extends State<RecipeAiApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Sous Chef',
+      onGenerateTitle: (context) => AppLocalizations.of(context).appName,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: appLightTheme,
       darkTheme: appDarkTheme,
       themeMode: ThemeMode.system,

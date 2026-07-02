@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../core/app_strings.dart';
+import '../core/l10n_context.dart';
 import '../core/grocery_retailer_handoff.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../core/telemetry/feature_ids.dart';
@@ -45,14 +45,14 @@ class _MealPlanReviewScreenState extends State<MealPlanReviewScreen> {
     }
   }
 
-  String _mealLabel(String meal) {
+  String _mealLabel(BuildContext context, String meal) {
     switch (meal) {
       case 'breakfast':
-        return AppStrings.mealPlanBreakfast;
+        return context.l10n.mealPlanBreakfast;
       case 'lunch':
-        return AppStrings.mealPlanLunch;
+        return context.l10n.mealPlanLunch;
       default:
-        return AppStrings.mealPlanDinner;
+        return context.l10n.mealPlanDinner;
     }
   }
 
@@ -87,7 +87,7 @@ class _MealPlanReviewScreenState extends State<MealPlanReviewScreen> {
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(AppStrings.recipeAddedToGroceryList)),
+      SnackBar(content: Text(context.l10n.recipeAddedToGroceryList)),
     );
   }
 
@@ -99,17 +99,17 @@ class _MealPlanReviewScreenState extends State<MealPlanReviewScreen> {
         final plan = widget.mealPlanViewModel.plan;
         if (widget.mealPlanViewModel.loading && plan == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text(AppStrings.mealPlanTitle)),
+            appBar: AppBar(title: Text(context.l10n.mealPlanTitle)),
             body: const Center(child: CircularProgressIndicator()),
           );
         }
         if (plan == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text(AppStrings.mealPlanTitle)),
+            appBar: AppBar(title: Text(context.l10n.mealPlanTitle)),
             body: Center(
               child: TextButton(
                 onPressed: () => context.go('/meal-plan/wizard'),
-                child: const Text(AppStrings.mealPlanStartNew),
+                child: Text(context.l10n.mealPlanStartNew),
               ),
             ),
           );
@@ -120,7 +120,7 @@ class _MealPlanReviewScreenState extends State<MealPlanReviewScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text(AppStrings.mealPlanTitle),
+            title: Text(context.l10n.mealPlanTitle),
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh),
@@ -149,7 +149,7 @@ class _MealPlanReviewScreenState extends State<MealPlanReviewScreen> {
                     ...plan.days.map((day) => _DaySection(
                           day: day,
                           formatDate: _formatDate,
-                          mealLabel: _mealLabel,
+                          mealLabel: (meal) => _mealLabel(context, meal),
                           onRegenerate: _regenerate,
                           onViewRecipe: (recipe) {
                             context.push('/show-recipe', extra: {
@@ -159,7 +159,7 @@ class _MealPlanReviewScreenState extends State<MealPlanReviewScreen> {
                         )),
                     const SizedBox(height: 16),
                     Text(
-                      AppStrings.mealPlanMissingTitle,
+                      context.l10n.mealPlanMissingTitle,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
@@ -186,7 +186,7 @@ class _MealPlanReviewScreenState extends State<MealPlanReviewScreen> {
                 children: [
                   FilledButton(
                     onPressed: _addToGrocery,
-                    child: const Text(AppStrings.mealPlanAddToGrocery),
+                    child: Text(context.l10n.mealPlanAddToGrocery),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -202,7 +202,7 @@ class _MealPlanReviewScreenState extends State<MealPlanReviewScreen> {
                               featureId: FeatureIds.mealPlanCopyList,
                             );
                           },
-                          child: const Text(AppStrings.mealPlanCopyList),
+                          child: Text(context.l10n.mealPlanCopyList),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -214,7 +214,7 @@ class _MealPlanReviewScreenState extends State<MealPlanReviewScreen> {
                               featureId: FeatureIds.mealPlanInstacartSoon,
                             );
                           },
-                          child: const Text(AppStrings.mealPlanShopInstacart),
+                          child: Text(context.l10n.mealPlanShopInstacart),
                         ),
                       ),
                     ],
@@ -246,7 +246,7 @@ class _BudgetBanner extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              AppStrings.mealPlanBudgetSummary,
+              context.l10n.mealPlanBudgetSummary,
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 4),
@@ -259,7 +259,7 @@ class _BudgetBanner extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  AppStrings.mealPlanOverBudget,
+                  context.l10n.mealPlanOverBudget,
                   style: TextStyle(color: scheme.onErrorContainer),
                 ),
               ),
@@ -310,13 +310,13 @@ class _DaySection extends StatelessWidget {
                 }
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'view',
-                  child: Text(AppStrings.mealPlanViewRecipe),
+                  child: Text(context.l10n.mealPlanViewRecipe),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'regen',
-                  child: Text(AppStrings.mealPlanRegenerate),
+                  child: Text(context.l10n.mealPlanRegenerate),
                 ),
               ],
             ),
