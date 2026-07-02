@@ -18,12 +18,14 @@ import '../core/pantry_items.dart';
 import '../view_models/home_view_model.dart';
 import '../view_models/recipe_view_model.dart';
 import '../view_models/grocery_list_view_model.dart';
+import '../widgets/brand_outlined_surface.dart';
 import '../widgets/favorite_recipes_list_view.dart';
 import '../widgets/sous_chef_brand.dart';
 import '../widgets/sous_chef_menu_button.dart';
 import '../widgets/guest_signup_prompt.dart';
 import '../widgets/recipe_image_box.dart';
 import '../widgets/bottom_ad_banner.dart';
+import '../widgets/daily_credits_indicator.dart';
 import '../core/monetization_navigation.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../onboarding/onboarding_session_extension.dart';
@@ -43,12 +45,18 @@ class _SousHomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.firstNameLetter,
     required this.isGuest,
     required this.onSignOut,
+    required this.sessionManager,
+    required this.subscriptionViewModel,
+    required this.appTelemetry,
   });
 
   final VoidCallback onOpenMenu;
   final String firstNameLetter;
   final bool isGuest;
   final VoidCallback onSignOut;
+  final SessionManager sessionManager;
+  final SubscriptionViewModel subscriptionViewModel;
+  final AppTelemetry appTelemetry;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -73,6 +81,11 @@ class _SousHomeAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       leadingWidth: 60,
       actions: [
+        DailyCreditsIndicator(
+          sessionManager: sessionManager,
+          subscriptionViewModel: subscriptionViewModel,
+          appTelemetry: appTelemetry,
+        ),
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: PopupMenuButton<String>(
@@ -97,18 +110,7 @@ class _SousHomeAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: scheme.primary,
-                    child: Text(
-                      firstNameLetter,
-                      style: TextStyle(
-                        color: scheme.onPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ),
+                  BrandOutlinedAvatar(label: firstNameLetter),
                   const SizedBox(width: 2),
                   Icon(Icons.expand_more, color: onSurface, size: 20),
                 ],
@@ -591,6 +593,9 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                               widget.homeViewModel.sessionProfile,
                             ),
                       onSignOut: () => widget.homeViewModel.signOut(),
+                      sessionManager: widget.sessionManager,
+                      subscriptionViewModel: widget.subscriptionViewModel,
+                      appTelemetry: widget.appTelemetry,
                     )
                   : _currentIndex == 1
                       ? null
@@ -726,6 +731,8 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       case 3:
         return ImportHubScreen(
           sessionManager: widget.sessionManager,
+          subscriptionViewModel: widget.subscriptionViewModel,
+          appTelemetry: widget.appTelemetry,
           recipeViewModel: widget.recipeViewModel,
           groceryListViewModel: widget.groceryListViewModel,
           coachImportLinksKey: _coachImportLinksKey,
@@ -898,6 +905,14 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
   }
 
   void _openPantryScan() {
+    if (!widget.subscriptionViewModel.isPremium) {
+      openPremiumPaywall(
+        context,
+        source: 'pantry_scan',
+        appTelemetry: widget.appTelemetry,
+      );
+      return;
+    }
     context.push('/pantry-scan').then((_) {
       if (mounted) setState(() {});
     });
@@ -1429,37 +1444,10 @@ class _HomeFilterChips extends StatelessWidget {
         children: [
           for (var i = 0; i < _options.length; i++) ...[
             if (i > 0) const SizedBox(width: 8),
-            Material(
-              color: Theme.of(context).colorScheme.primary,
-              borderRadius: BorderRadius.circular(24),
-              child: InkWell(
-                onTap: () => onSelect(_options[i].phrase),
-                borderRadius: BorderRadius.circular(24),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _options[i].icon,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _options[i].label,
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            BrandOutlinedChip(
+              label: _options[i].label,
+              icon: _options[i].icon,
+              onTap: () => onSelect(_options[i].phrase),
             ),
           ],
         ],

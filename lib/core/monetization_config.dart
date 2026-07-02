@@ -2,6 +2,12 @@
 class MonetizationConfig {
   MonetizationConfig._();
 
+  /// Shelve ads by default; pass `--dart-define=ADS_ENABLED=true` to re-enable.
+  static const bool adsEnabled = bool.fromEnvironment(
+    'ADS_ENABLED',
+    defaultValue: false,
+  );
+
   static const String standardProductId = String.fromEnvironment(
     'PREMIUM_PRODUCT_ID',
     defaultValue: 'sous_chef_standard_monthly',

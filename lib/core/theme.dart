@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Brand yellow (filled buttons, menu tile, accents). Same in light and dark.
+/// Brand yellow. Solid fill = primary action buttons only ([FilledButton], [FAB]).
+/// Secondary surfaces (chips, avatars, cards) use outlined yellow via [BorderSide].
+/// Same in light and dark.
 const Color kSousChefPrimaryYellow = Color(0xFFFFD54F);
 
 /// Light shell / scaffold background (warm cream).

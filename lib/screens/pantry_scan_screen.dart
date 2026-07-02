@@ -10,11 +10,13 @@ import 'pantry/pantry_captured_photo.dart';
 import 'pantry/pantry_pick_photo.dart';
 import 'pantry/pantry_scan_review.dart';
 import '../core/l10n_context.dart';
+import '../core/monetization_navigation.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../core/telemetry/feature_ids.dart';
 import '../data/api/api_service.dart';
 import '../services/pantry/pantry_image_analyzer.dart';
 import '../services/session_manager.dart';
+import '../view_models/subscription_view_model.dart';
 
 /// Photo of pantry/fridge → on-device vision → review → user's Home pantry staples.
 class PantryScanScreen extends StatefulWidget {
@@ -22,11 +24,13 @@ class PantryScanScreen extends StatefulWidget {
     super.key,
     required this.apiService,
     required this.sessionManager,
+    required this.subscriptionViewModel,
     required this.appTelemetry,
   });
 
   final ApiService apiService;
   final SessionManager sessionManager;
+  final SubscriptionViewModel subscriptionViewModel;
   final AppTelemetry appTelemetry;
 
   @override
@@ -47,7 +51,40 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
 
   bool get _showReview => _photo != null && _selections.isNotEmpty && !_busy;
 
+  @override
+  void initState() {
+    super.initState();
+    widget.subscriptionViewModel.addListener(_onSubscriptionChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _guardPremiumAccess());
+  }
+
+  @override
+  void dispose() {
+    widget.subscriptionViewModel.removeListener(_onSubscriptionChanged);
+    super.dispose();
+  }
+
+  void _onSubscriptionChanged() {
+    if (!widget.subscriptionViewModel.isPremium && mounted) {
+      _guardPremiumAccess();
+    }
+  }
+
+  void _guardPremiumAccess() {
+    if (!mounted || widget.subscriptionViewModel.isPremium) return;
+    openPremiumPaywall(
+      context,
+      source: 'pantry_scan',
+      appTelemetry: widget.appTelemetry,
+    );
+    context.pop();
+  }
+
   Future<void> _pick(ImageSource source) async {
+    if (!widget.subscriptionViewModel.isPremium) {
+      _guardPremiumAccess();
+      return;
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (!_usesOnDevice && user == null) {
       setState(() => _error = context.l10n.groceryPantryScanSignInRequired);

@@ -357,9 +357,9 @@
   "onboardingSummaryPreviewHint": "Esta noche Sous Chef podría sugerir…",
   "onboardingSummaryPreviewPlaceholder": "Una receta personalizada para ti",
   "onboardingPaywallTitle": "¿Listo para cocinar?",
-  "onboardingPaywallSubtitle": "Premium desbloquea recetas ilimitadas, sin anuncios y planificación completa.",
+  "onboardingPaywallSubtitle": "Premium desbloquea recetas ilimitadas, escaneo de despensa y planificación completa.",
   "onboardingPaywallBenefitUnlimited": "Generaciones de recetas IA ilimitadas",
-  "onboardingPaywallBenefitNoAds": "Sin anuncios mientras navegas",
+  "onboardingPaywallBenefitNoAds": "Escanear despensa desde fotos",
   "onboardingPaywallBenefitMealPlan": "Planificador semanal completo",
   "onboardingPaywallSubscribe": "Premium — {price}/mes",
   "@onboardingPaywallSubscribe": {
@@ -368,5 +368,13 @@
   "onboardingPaywallSkip": "Continuar con plan gratuito",
   "onboardingPaywallRestore": "Restaurar compras",
   "onboardingFirstPromptHint": "Toca la barra de búsqueda para pedir tu primera receta",
-  "freeTierQuotaMessage": "El plan gratuito incluye hasta 3 generaciones de recetas al día. Mejora para recetas ilimitadas."
+  "freeTierQuotaMessage": "El plan gratuito incluye hasta 3 generaciones de recetas al día. Mejora para recetas ilimitadas.",
+  "freeTierImportQuotaMessage": "El plan gratuito incluye 1 importación de receta al día. Mejora para importaciones ilimitadas.",
+  "dailyCreditsUsed": "{used}/{total} créditos usados",
+  "@dailyCreditsUsed": {
+    "placeholders": {
+      "used": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  }
 }

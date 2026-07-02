@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/monetization_config.dart';
 import '../navigation/post_auth_navigation.dart';
 import '../services/mobile_ads_initializer.dart';
 import '../services/session_manager.dart';
@@ -88,7 +89,9 @@ class _SplashScreenState extends State<SplashScreen> {
       _navigateOnce(() => context.go('/verify-email'));
     } else if (widget.loginViewModel.isLoggedIn ||
         widget.loginViewModel.isGuestMode) {
-      unawaited(MobileAdsInitializer.ensureInitialized());
+      if (MonetizationConfig.adsEnabled) {
+        unawaited(MobileAdsInitializer.ensureInitialized());
+      }
       _navigateOnce(() => unawaited(_navigateAfterAuth()));
     } else {
       _navigateOnce(() => context.go('/login'));

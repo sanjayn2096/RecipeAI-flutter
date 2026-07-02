@@ -934,14 +934,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get onboardingPaywallSubtitle =>
-      'Premium desbloquea recetas ilimitadas, sin anuncios y planificación completa.';
+      'Premium desbloquea recetas ilimitadas, escaneo de despensa y planificación completa.';
 
   @override
   String get onboardingPaywallBenefitUnlimited =>
       'Generaciones de recetas IA ilimitadas';
 
   @override
-  String get onboardingPaywallBenefitNoAds => 'Sin anuncios mientras navegas';
+  String get onboardingPaywallBenefitNoAds => 'Escanear despensa desde fotos';
 
   @override
   String get onboardingPaywallBenefitMealPlan =>
@@ -965,4 +965,13 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get freeTierQuotaMessage =>
       'El plan gratuito incluye hasta 3 generaciones de recetas al día. Mejora para recetas ilimitadas.';
+
+  @override
+  String get freeTierImportQuotaMessage =>
+      'El plan gratuito incluye 1 importación de receta al día. Mejora para importaciones ilimitadas.';
+
+  @override
+  String dailyCreditsUsed(int used, int total) {
+    return '$used/$total créditos usados';
+  }
 }

@@ -1769,7 +1769,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingPaywallSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Premium unlocks unlimited recipes, no ads, and full meal planning.'**
+  /// **'Premium unlocks unlimited recipes, pantry scan, and full meal planning.'**
   String get onboardingPaywallSubtitle;
 
   /// No description provided for @onboardingPaywallBenefitUnlimited.
@@ -1781,7 +1781,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingPaywallBenefitNoAds.
   ///
   /// In en, this message translates to:
-  /// **'No ads while you browse'**
+  /// **'Pantry scan from photos'**
   String get onboardingPaywallBenefitNoAds;
 
   /// No description provided for @onboardingPaywallBenefitMealPlan.
@@ -1819,6 +1819,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Free plan includes up to 3 recipe generations per day. Upgrade for unlimited recipes.'**
   String get freeTierQuotaMessage;
+
+  /// No description provided for @freeTierImportQuotaMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Free plan includes 1 recipe import per day. Upgrade for unlimited imports.'**
+  String get freeTierImportQuotaMessage;
+
+  /// No description provided for @dailyCreditsUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'{used}/{total} Credits used'**
+  String dailyCreditsUsed(int used, int total);
 }
 
 class _AppLocalizationsDelegate

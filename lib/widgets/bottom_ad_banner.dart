@@ -65,7 +65,11 @@ class _BottomAdBannerState extends State<BottomAdBanner> {
   }
 
   Future<void> _loadAd() async {
-    if (kIsWeb || widget.subscriptionViewModel.isPremium) return;
+    if (kIsWeb ||
+        !MonetizationConfig.adsEnabled ||
+        widget.subscriptionViewModel.isPremium) {
+      return;
+    }
 
     await MobileAdsInitializer.ensureInitialized();
     if (!mounted) return;
@@ -113,7 +117,9 @@ class _BottomAdBannerState extends State<BottomAdBanner> {
     return ListenableBuilder(
       listenable: widget.subscriptionViewModel,
       builder: (context, _) {
-        if (kIsWeb || widget.subscriptionViewModel.isPremium) {
+        if (kIsWeb ||
+            !MonetizationConfig.adsEnabled ||
+            widget.subscriptionViewModel.isPremium) {
           return const SizedBox.shrink();
         }
 

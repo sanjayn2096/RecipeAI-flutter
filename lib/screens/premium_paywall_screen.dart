@@ -174,15 +174,22 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
                     ),
                     const SizedBox(height: 24),
                     _BenefitRow(
-                      icon: Icons.block,
-                      title: 'Remove ads',
-                      subtitle: 'Cook without bottom banner distractions.',
+                      icon: Icons.all_inclusive,
+                      title: 'Unlimited recipes',
+                      subtitle:
+                          'No daily cap on AI recipe generations.',
                     ),
                     _BenefitRow(
-                      icon: Icons.all_inclusive,
-                      title: 'Unlimited usage',
+                      icon: Icons.camera_alt_outlined,
+                      title: 'Pantry scan',
                       subtitle:
-                          'No daily caps on recipe generation, import, or pantry scan.',
+                          'Scan pantry or fridge photos to add staples instantly.',
+                    ),
+                    _BenefitRow(
+                      icon: Icons.download_for_offline_outlined,
+                      title: 'Unlimited imports',
+                      subtitle:
+                          'Import recipes from links, text, or photos without daily limits.',
                     ),
                     _BenefitRow(
                       icon: Icons.new_releases_outlined,

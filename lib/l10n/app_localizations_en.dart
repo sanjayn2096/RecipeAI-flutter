@@ -934,14 +934,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingPaywallSubtitle =>
-      'Premium unlocks unlimited recipes, no ads, and full meal planning.';
+      'Premium unlocks unlimited recipes, pantry scan, and full meal planning.';
 
   @override
   String get onboardingPaywallBenefitUnlimited =>
       'Unlimited AI recipe generations';
 
   @override
-  String get onboardingPaywallBenefitNoAds => 'No ads while you browse';
+  String get onboardingPaywallBenefitNoAds => 'Pantry scan from photos';
 
   @override
   String get onboardingPaywallBenefitMealPlan => 'Full-week meal planner';
@@ -964,4 +964,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get freeTierQuotaMessage =>
       'Free plan includes up to 3 recipe generations per day. Upgrade for unlimited recipes.';
+
+  @override
+  String get freeTierImportQuotaMessage =>
+      'Free plan includes 1 recipe import per day. Upgrade for unlimited imports.';
+
+  @override
+  String dailyCreditsUsed(int used, int total) {
+    return '$used/$total Credits used';
+  }
 }

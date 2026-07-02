@@ -2,9 +2,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/l10n_context.dart';
+import '../../core/monetization_navigation.dart';
+import '../../core/telemetry/app_telemetry.dart';
+import '../../onboarding/onboarding_session_extension.dart';
 import '../../services/session_manager.dart';
 import '../../view_models/grocery_list_view_model.dart';
 import '../../view_models/recipe_view_model.dart';
+import '../../view_models/subscription_view_model.dart';
 import '../../widgets/guest_signup_prompt.dart';
 import 'import_recipe_link_screen.dart';
 import 'import_recipe_scan_screen.dart';
@@ -15,6 +19,8 @@ class ImportHubScreen extends StatelessWidget {
   const ImportHubScreen({
     super.key,
     required this.sessionManager,
+    required this.subscriptionViewModel,
+    required this.appTelemetry,
     required this.recipeViewModel,
     required this.groceryListViewModel,
     this.coachImportLinksKey,
@@ -23,6 +29,8 @@ class ImportHubScreen extends StatelessWidget {
   });
 
   final SessionManager sessionManager;
+  final SubscriptionViewModel subscriptionViewModel;
+  final AppTelemetry appTelemetry;
   final RecipeViewModel recipeViewModel;
   final GroceryListViewModel groceryListViewModel;
 
@@ -44,6 +52,24 @@ class ImportHubScreen extends StatelessWidget {
         SnackBar(content: Text(context.l10n.importRecipeSignInRequired)),
       );
       return false;
+    }
+    if (!subscriptionViewModel.isPremium) {
+      final exceeded =
+          await sessionManager.isSignedInFreeImportQuotaExceededForToday(
+        isPremium: false,
+      );
+      if (!context.mounted) return false;
+      if (exceeded) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.freeTierImportQuotaMessage)),
+        );
+        openPremiumPaywall(
+          context,
+          source: 'import_quota',
+          appTelemetry: appTelemetry,
+        );
+        return false;
+      }
     }
     return true;
   }

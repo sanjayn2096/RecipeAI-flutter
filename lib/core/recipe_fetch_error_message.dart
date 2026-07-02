@@ -74,17 +74,24 @@ String _fromApiException(ApiException e) {
       return 'We couldn’t verify your account for recipe generation. Try signing out and signing in again.';
     case 403:
       if (rawLower.contains('free limit') ||
-          rawLower.contains('create an account')) {
+          rawLower.contains('create an account') ||
+          rawLower.contains('daily recipe limit')) {
         if (raw.isNotEmpty && raw.length <= 220 && !_looksTooTechnical(raw)) {
           return raw;
         }
         return 'Free limit reached for today. Create an account to keep generating recipes.';
+      }
+      if (rawLower.contains('premium') || rawLower.contains('pantry scan')) {
+        return 'This feature requires Premium. Upgrade to unlock pantry scan and more.';
       }
       return 'We couldn’t verify your account for recipe generation. Try signing out and signing in again.';
     case 404:
       return 'The recipe endpoint wasn’t found. The service may be unavailable or misconfigured. Try again later.';
     case 408:
     case 429:
+      if (rawLower.contains('import')) {
+        return 'Free plan includes 1 recipe import per day. Upgrade for unlimited imports.';
+      }
       return 'The service is busy or you’ve hit a limit. Wait a moment, then tap Refresh.';
     case 500:
     case 502:

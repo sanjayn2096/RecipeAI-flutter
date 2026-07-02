@@ -64,16 +64,20 @@ extension OnboardingSessionManager on SessionManager {
     }
   }
 
+  int getSignedInFreeRecipeCountForTodaySync() {
+    if (isGuestMode()) return 0;
+    final day = SessionManager.guestQuotaUtcDayKeyNow();
+    final storedDay = getPreference(OnboardingPrefs.freeGenDayKey);
+    if (storedDay != day) return 0;
+    return int.tryParse(getPreference(OnboardingPrefs.freeGenCount) ?? '') ?? 0;
+  }
+
   Future<bool> isSignedInFreeRecipeQuotaExceededForToday({
     required bool isPremium,
   }) async {
     if (isPremium || isGuestMode()) return false;
-    final day = SessionManager.guestQuotaUtcDayKeyNow();
-    final storedDay = getPreference(OnboardingPrefs.freeGenDayKey);
-    if (storedDay != day) return false;
-    final raw = getPreference(OnboardingPrefs.freeGenCount);
-    final n = int.tryParse(raw ?? '') ?? 0;
-    return n >= OnboardingPrefs.freeTierDailyRecipeLimit;
+    return getSignedInFreeRecipeCountForTodaySync() >=
+        OnboardingPrefs.freeTierDailyRecipeLimit;
   }
 
   Future<void> recordSignedInFreeRecipeGenerationSuccess({
@@ -84,12 +88,48 @@ extension OnboardingSessionManager on SessionManager {
     final storedDay = getPreference(OnboardingPrefs.freeGenDayKey);
     var count = 0;
     if (storedDay == day) {
-      count = int.tryParse(getPreference(OnboardingPrefs.freeGenCount) ?? '') ?? 0;
+      count =
+          int.tryParse(getPreference(OnboardingPrefs.freeGenCount) ?? '') ?? 0;
     }
     savePreferenceSync(OnboardingPrefs.freeGenDayKey, day);
     savePreferenceSync(
       OnboardingPrefs.freeGenCount,
       '${count + 1}',
     );
+    notifyUsageQuotaChanged();
+  }
+
+  int getSignedInFreeImportCountForTodaySync() {
+    if (isGuestMode()) return 0;
+    final day = SessionManager.guestQuotaUtcDayKeyNow();
+    final storedDay = getPreference(OnboardingPrefs.importDayKey);
+    if (storedDay != day) return 0;
+    return int.tryParse(getPreference(OnboardingPrefs.importCount) ?? '') ?? 0;
+  }
+
+  Future<bool> isSignedInFreeImportQuotaExceededForToday({
+    required bool isPremium,
+  }) async {
+    if (isPremium || isGuestMode()) return false;
+    return getSignedInFreeImportCountForTodaySync() >=
+        OnboardingPrefs.freeTierDailyImportLimit;
+  }
+
+  Future<void> recordSignedInFreeImportSuccess({
+    required bool isPremium,
+  }) async {
+    if (isPremium || isGuestMode()) return;
+    final day = SessionManager.guestQuotaUtcDayKeyNow();
+    final storedDay = getPreference(OnboardingPrefs.importDayKey);
+    var count = 0;
+    if (storedDay == day) {
+      count = int.tryParse(getPreference(OnboardingPrefs.importCount) ?? '') ?? 0;
+    }
+    savePreferenceSync(OnboardingPrefs.importDayKey, day);
+    savePreferenceSync(
+      OnboardingPrefs.importCount,
+      '${count + 1}',
+    );
+    notifyUsageQuotaChanged();
   }
 }

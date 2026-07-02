@@ -245,6 +245,7 @@ class AppRouter {
         builder: (context, __) => PantryScanScreen(
           apiService: apiService,
           sessionManager: sessionManager as SessionManager,
+          subscriptionViewModel: subscriptionViewModel,
           appTelemetry: appTelemetry,
         ),
       ),

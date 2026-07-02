@@ -230,6 +230,11 @@ class RecipeRepository {
       idToken: token,
     );
     raw = await _resolveHeroImage(raw, idToken: token);
+    if (!_session.isGuestMode()) {
+      await _session.recordSignedInFreeImportSuccess(
+        isPremium: _session.readSubscriptionCacheSync().isPremium,
+      );
+    }
     return raw.copyWith(recipeOrigin: RecipeOrigin.imported);
   }
 

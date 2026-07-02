@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -14,6 +15,13 @@ class SessionManager {
 
   SharedPreferences? _prefs;
   static const String _prefix = 'recipe_ai_';
+
+  /// Bumped when client-side usage quotas change (recipe gen, import).
+  final ValueNotifier<int> usageQuotaRevision = ValueNotifier<int>(0);
+
+  void notifyUsageQuotaChanged() {
+    usageQuotaRevision.value++;
+  }
 
   Future<SharedPreferences> get _p async =>
       _prefs ??= await SharedPreferences.getInstance();

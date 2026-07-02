@@ -355,9 +355,9 @@
   "onboardingSummaryPreviewHint": "Tonight Sous Chef might suggest…",
   "onboardingSummaryPreviewPlaceholder": "A personalized recipe just for you",
   "onboardingPaywallTitle": "Ready to cook?",
-  "onboardingPaywallSubtitle": "Premium unlocks unlimited recipes, no ads, and full meal planning.",
+  "onboardingPaywallSubtitle": "Premium unlocks unlimited recipes, pantry scan, and full meal planning.",
   "onboardingPaywallBenefitUnlimited": "Unlimited AI recipe generations",
-  "onboardingPaywallBenefitNoAds": "No ads while you browse",
+  "onboardingPaywallBenefitNoAds": "Pantry scan from photos",
   "onboardingPaywallBenefitMealPlan": "Full-week meal planner",
   "onboardingPaywallSubscribe": "Start Premium — {price}/mo",
   "@onboardingPaywallSubscribe": {
@@ -366,5 +366,13 @@
   "onboardingPaywallSkip": "Continue with free plan",
   "onboardingPaywallRestore": "Restore purchases",
   "onboardingFirstPromptHint": "Tap the search bar to ask for your first recipe",
-  "freeTierQuotaMessage": "Free plan includes up to 3 recipe generations per day. Upgrade for unlimited recipes."
+  "freeTierQuotaMessage": "Free plan includes up to 3 recipe generations per day. Upgrade for unlimited recipes.",
+  "freeTierImportQuotaMessage": "Free plan includes 1 recipe import per day. Upgrade for unlimited imports.",
+  "dailyCreditsUsed": "{used}/{total} Credits used",
+  "@dailyCreditsUsed": {
+    "placeholders": {
+      "used": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  }
 }
