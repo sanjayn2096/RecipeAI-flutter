@@ -73,7 +73,8 @@ String _fromApiException(ApiException e) {
     case 401:
       return 'We couldn’t verify your account for recipe generation. Try signing out and signing in again.';
     case 403:
-      if (rawLower.contains('free limit') ||
+      if (e.code == 'recipe_quota_exceeded' ||
+          rawLower.contains('free limit') ||
           rawLower.contains('create an account') ||
           rawLower.contains('daily recipe limit')) {
         if (raw.isNotEmpty && raw.length <= 220 && !_looksTooTechnical(raw)) {
@@ -89,6 +90,11 @@ String _fromApiException(ApiException e) {
       return 'The recipe endpoint wasn’t found. The service may be unavailable or misconfigured. Try again later.';
     case 408:
     case 429:
+      if (e.code == 'rate_limit_exceeded' ||
+          rawLower.contains('too many requests') ||
+          rawLower.contains('rate_limit')) {
+        return 'Too many requests from your network. Wait a minute and try again.';
+      }
       if (rawLower.contains('import')) {
         return 'Free plan includes 1 recipe import per day. Upgrade for unlimited imports.';
       }

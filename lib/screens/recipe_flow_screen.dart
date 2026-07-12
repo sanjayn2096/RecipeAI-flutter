@@ -11,8 +11,8 @@ import '../core/monetization_navigation.dart';
 import '../core/preference_options.dart';
 import '../core/diet_allergy_options.dart';
 import '../core/recipe_generation_entry_point.dart';
+import '../core/recipe_quota_errors.dart';
 import '../data/models/user_data.dart';
-import '../onboarding/onboarding_session_extension.dart';
 import '../services/session_manager.dart';
 import '../widgets/cartoon_outlined_card.dart';
 import '../widgets/guest_signup_prompt.dart';
@@ -39,15 +39,19 @@ class RecipeFlowScreen extends StatefulWidget {
   });
 
   final UserData? userData;
+
   /// When set (e.g. from Home "What do you feel like eating?"), skip mood/diet/cuisine and call generate-recipe API.
   final String? initialPrompt;
   final dynamic recipeViewModel;
   final GroceryListViewModel groceryListViewModel;
   final dynamic sessionManager;
+
   /// When true (bottom tab), back from recipe list resets the flow instead of popping a route.
   final bool embedInTab;
+
   /// Opens the parent [HomeShellScreen] drawer (nested scaffolds cannot use [Scaffold.of] for the shell).
   final VoidCallback? onOpenAppMenu;
+
   /// Generation started from Home (pushed flow) vs Create Recipes tab.
   final RecipeGenerationEntryPoint generationEntryPoint;
 
@@ -61,6 +65,9 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
   String _currentRoute = 'mood';
   final TextEditingController _fetchMorePreferenceController =
       TextEditingController();
+  bool _handlingQuotaDialog = false;
+
+  RecipeViewModel get _recipeVm => widget.recipeViewModel as RecipeViewModel;
 
   List<Widget> _embedShellMenuActions(BuildContext context) {
     if (!widget.embedInTab || widget.onOpenAppMenu == null) {
@@ -83,9 +90,70 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
   void initState() {
     super.initState();
     _hydrateQuestionnaireSelectionsFromSession();
+    _recipeVm.addListener(_onRecipeViewModelChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _bootstrapInitialRoute();
     });
+  }
+
+  @override
+  void dispose() {
+    _recipeVm.removeListener(_onRecipeViewModelChanged);
+    _fetchMorePreferenceController.dispose();
+    super.dispose();
+  }
+
+  void _onRecipeViewModelChanged() {
+    if (!mounted || _handlingQuotaDialog) return;
+    if (_recipeVm.isLoading) return;
+    final err = _recipeVm.lastFetchThrowable;
+    if (err == null || !isRecipeGenerationQuotaError(err)) return;
+    _handlingQuotaDialog = true;
+    unawaited(
+      _presentQuotaDialogFromApiError().whenComplete(() {
+        _handlingQuotaDialog = false;
+      }),
+    );
+  }
+
+  Future<void> _presentQuotaDialogFromApiError() async {
+    _recipeVm.clearLastFetchThrowable();
+    if (!mounted) return;
+    await _showRecipeQuotaLimitDialog();
+  }
+
+  Future<void> _showRecipeQuotaLimitDialog() async {
+    final sm = widget.sessionManager as SessionManager;
+    final telemetry = _recipeVm.appTelemetry;
+    if (sm.isGuestMode()) {
+      final action = await showGuestRecipeLimitReachedDialog(
+        context,
+        appTelemetry: telemetry,
+      );
+      if (!mounted) return;
+      if (action == GuestLimitAction.signUp) {
+        goToSignup(context);
+      } else if (action == GuestLimitAction.premium) {
+        openPremiumPaywall(
+          context,
+          source: 'guest_quota',
+          appTelemetry: telemetry,
+        );
+      }
+      return;
+    }
+    final action = await showFreeTierRecipeLimitReachedDialog(
+      context,
+      appTelemetry: telemetry,
+    );
+    if (!mounted) return;
+    if (action == FreeTierLimitAction.premium) {
+      openPremiumPaywall(
+        context,
+        source: 'free_quota',
+        appTelemetry: telemetry,
+      );
+    }
   }
 
   Future<void> _bootstrapInitialRoute() async {
@@ -120,38 +188,22 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
     }
   }
 
-  /// Returns false if guest or free tier is over quota.
-  Future<bool> _ensureGuestCanGenerate({bool popRouteWhenBlocked = false}) async {
+  /// Returns false if guest quota is over the local device mirror.
+  Future<bool> _ensureGuestCanGenerate(
+      {bool popRouteWhenBlocked = false}) async {
     final sm = widget.sessionManager as SessionManager;
     if (sm.isGuestMode()) {
       if (!(await sm.isGuestRecipeQuotaExceededForToday())) return true;
       if (!mounted) return false;
-      final action = await showGuestRecipeLimitReachedDialog(context);
-      if (!mounted) return false;
-      if (action == GuestLimitAction.signUp) goToSignup(context);
+      await _showRecipeQuotaLimitDialog();
       if (popRouteWhenBlocked && !widget.embedInTab && context.mounted) {
         context.pop();
       }
       return false;
     }
-    final isPremium = sm.readSubscriptionCacheSync().isPremium;
-    if (!isPremium &&
-        await sm.isSignedInFreeRecipeQuotaExceededForToday(
-          isPremium: isPremium,
-        )) {
-      if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.freeTierQuotaMessage)),
-      );
-      openPremiumPaywall(
-        context,
-        source: 'free_quota',
-        appTelemetry: (widget.recipeViewModel as RecipeViewModel).appTelemetry,
-      );
-      return false;
-    }
     return true;
   }
+
   String? _selectedMood;
   String? _selectedDiet;
   String? _selectedCuisine;
@@ -352,12 +404,6 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
     return null;
   }
 
-  @override
-  void dispose() {
-    _fetchMorePreferenceController.dispose();
-    super.dispose();
-  }
-
   Future<void> _showFetchMoreRecipesSheet() async {
     if (!await _ensureGuestCanGenerate()) return;
     if (!mounted) return;
@@ -389,9 +435,9 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
           final isStreaming = widget.recipeViewModel.isStreamingFlow == true;
 
           if (isLoading && recipes.isEmpty) {
-            final loadingReply =
-                (widget.recipeViewModel as RecipeViewModel).assistantMessage
-                    ?.trim();
+            final loadingReply = (widget.recipeViewModel as RecipeViewModel)
+                .assistantMessage
+                ?.trim();
             return Scaffold(
               appBar: AppBar(
                 title: Text(context.l10n.fetchRecipes),
@@ -511,9 +557,8 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
               title: const Text('Recipes'),
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: widget.embedInTab
-                    ? _resetFlowToStart
-                    : () => context.pop(),
+                onPressed:
+                    widget.embedInTab ? _resetFlowToStart : () => context.pop(),
               ),
               actions: _embedShellMenuActions(context),
             ),
@@ -525,12 +570,10 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                   if (widget.sessionManager.isGuestMode()) ...[
                     Text(
                       context.l10n.guestQuotaEachGenerationCounts,
-                      style:
-                          Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
@@ -538,9 +581,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                   FilledButton.icon(
                     icon: const Icon(Icons.restaurant_menu),
                     label: Text(context.l10n.getDifferentRecipes),
-                    onPressed: isLoading
-                        ? null
-                        : _showFetchMoreRecipesSheet,
+                    onPressed: isLoading ? null : _showFetchMoreRecipesSheet,
                   ),
                 ],
               ),
@@ -553,12 +594,10 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                       const LinearProgressIndicator(minHeight: 2),
                     if (isLoading && isStreaming)
                       Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                         child: Text(
                           'Loading more recipes...',
-                          style:
-                              Theme.of(context).textTheme.bodySmall ??
+                          style: Theme.of(context).textTheme.bodySmall ??
                               const TextStyle(fontSize: 13),
                         ),
                       ),
@@ -578,8 +617,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                       child: AbsorbPointer(
                         absorbing: batchRefreshOverlay,
                         child: ListView.builder(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                           itemCount: recipes.length,
                           itemBuilder: (_, i) {
                             final recipe = recipes[i];
@@ -668,8 +706,7 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                                     '/show-recipe',
                                     extra: {
                                       'recipe': recipe,
-                                      'recipeViewModel':
-                                          widget.recipeViewModel,
+                                      'recipeViewModel': widget.recipeViewModel,
                                       'groceryListViewModel':
                                           widget.groceryListViewModel,
                                     },
@@ -686,10 +723,9 @@ class _RecipeFlowScreenState extends State<RecipeFlowScreen> {
                 if (batchRefreshOverlay)
                   Positioned.fill(
                     child: ColoredBox(
-                      color:
-                          Theme.of(context).colorScheme.scrim.withValues(
-                                alpha: 0.32,
-                              ),
+                      color: Theme.of(context).colorScheme.scrim.withValues(
+                            alpha: 0.32,
+                          ),
                       child: const Center(
                         child: CircularProgressIndicator(),
                       ),
@@ -722,8 +758,7 @@ class _FetchMoreRecipesSheet extends StatefulWidget {
   final TextEditingController preferenceController;
 
   @override
-  State<_FetchMoreRecipesSheet> createState() =>
-      _FetchMoreRecipesSheetState();
+  State<_FetchMoreRecipesSheet> createState() => _FetchMoreRecipesSheetState();
 }
 
 class _FetchMoreRecipesSheetState extends State<_FetchMoreRecipesSheet> {
@@ -805,13 +840,11 @@ class _FetchMoreRecipesSheetState extends State<_FetchMoreRecipesSheet> {
                           minLines: 1,
                           maxLines: 5,
                           textInputAction: TextInputAction.newline,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyLarge
-                              ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: onSurface,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: onSurface,
+                                  ),
                           cursorColor: onSurface,
                           decoration: InputDecoration(
                             isDense: true,

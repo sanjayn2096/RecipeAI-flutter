@@ -1,6 +1,11 @@
-/// Ad units, subscription SKU, and legal URLs (override via --dart-define).
+/// Ad units, subscription SKU, legal URLs, and developer identity (override via --dart-define).
 class MonetizationConfig {
   MonetizationConfig._();
+
+  static const String developerName = String.fromEnvironment(
+    'DEVELOPER_NAME',
+    defaultValue: 'Sublime Developers',
+  );
 
   /// Shelve ads by default; pass `--dart-define=ADS_ENABLED=true` to re-enable.
   static const bool adsEnabled = bool.fromEnvironment(

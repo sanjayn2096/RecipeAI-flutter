@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/l10n_context.dart';
 import '../core/telemetry/app_telemetry.dart';
 
 enum GuestLimitAction { dismiss, signUp, premium }
+
+enum FreeTierLimitAction { dismiss, premium }
 
 /// Shown when a guest hits the daily free recipe generation cap.
 Future<GuestLimitAction?> showGuestRecipeLimitReachedDialog(
@@ -80,6 +83,64 @@ Future<bool?> showGuestFavoriteSignupDialog(BuildContext context) {
         FilledButton(
           onPressed: () => Navigator.of(ctx).pop(true),
           child: const Text('Sign up'),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Shown when a signed-in free user hits the daily recipe generation cap.
+Future<FreeTierLimitAction?> showFreeTierRecipeLimitReachedDialog(
+  BuildContext context, {
+  AppTelemetry? appTelemetry,
+}) {
+  final l10n = context.l10n;
+  return showDialog<FreeTierLimitAction>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(l10n.freeTierQuotaDialogTitle),
+      content: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: Text(l10n.freeTierQuotaMessage)),
+          const SizedBox(width: 8),
+          Tooltip(
+            message: l10n.freeTierQuotaResetInfo,
+            child: IconButton(
+              tooltip: l10n.freeTierQuotaResetInfo,
+              icon: const Icon(Icons.info_outline),
+              onPressed: () {
+                showDialog<void>(
+                  context: ctx,
+                  builder: (infoCtx) => AlertDialog(
+                    title: Text(l10n.freeTierQuotaResetTitle),
+                    content: Text(l10n.freeTierQuotaResetInfo),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(infoCtx).pop(),
+                        child: Text(l10n.ok),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(FreeTierLimitAction.dismiss),
+          child: Text(l10n.notNow),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (appTelemetry != null) {
+              appTelemetry.logPremiumCtaTap(source: 'free_quota_dialog');
+            }
+            Navigator.of(ctx).pop(FreeTierLimitAction.premium);
+          },
+          child: Text(l10n.goPremium),
         ),
       ],
     ),

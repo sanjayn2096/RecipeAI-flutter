@@ -10,6 +10,7 @@ import 'package:recipe_ai/l10n/app_localizations.dart';
 import '../core/l10n_context.dart';
 import '../core/l10n_extensions.dart';
 import '../core/recipe_generation_entry_point.dart';
+import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
 import '../data/models/session_profile.dart';
 import '../data/models/user_data.dart';
@@ -28,7 +29,6 @@ import '../widgets/bottom_ad_banner.dart';
 import '../widgets/daily_credits_indicator.dart';
 import '../core/monetization_navigation.dart';
 import '../core/telemetry/app_telemetry.dart';
-import '../onboarding/onboarding_session_extension.dart';
 import '../services/session_manager.dart';
 import '../view_models/subscription_view_model.dart';
 import 'grocery_list_screen.dart';
@@ -140,6 +140,7 @@ class HomeShellScreen extends StatefulWidget {
     required this.recipeViewModel,
     required this.groceryListViewModel,
     required this.subscriptionViewModel,
+    required this.apiService,
     required this.appTelemetry,
     required this.sessionManager,
   });
@@ -149,6 +150,7 @@ class HomeShellScreen extends StatefulWidget {
   final RecipeViewModel recipeViewModel;
   final GroceryListViewModel groceryListViewModel;
   final SubscriptionViewModel subscriptionViewModel;
+  final ApiService apiService;
   final AppTelemetry appTelemetry;
   final dynamic sessionManager;
 
@@ -236,7 +238,8 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   }
 
   void _onImportCoachBack() {
-    if (!_importHubCoachTour.isActive || _importHubCoachTour.currentIndex <= 0) {
+    if (!_importHubCoachTour.isActive ||
+        _importHubCoachTour.currentIndex <= 0) {
       return;
     }
     final prevIdx = _importHubCoachTour.currentIndex - 1;
@@ -732,6 +735,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
         return ImportHubScreen(
           sessionManager: widget.sessionManager,
           subscriptionViewModel: widget.subscriptionViewModel,
+          apiService: widget.apiService,
           appTelemetry: widget.appTelemetry,
           recipeViewModel: widget.recipeViewModel,
           groceryListViewModel: widget.groceryListViewModel,
@@ -945,7 +949,8 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
       setState(() {});
       _persistPrompt();
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowFirstPromptHint());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _maybeShowFirstPromptHint());
   }
 
   void _maybeShowFirstPromptHint() {
@@ -978,7 +983,6 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     _customPreferenceController.selection = TextSelection.collapsed(
       offset: phrase.length,
     );
-    unawaited(_startRecipeFlow(promptOverride: phrase));
   }
 
   bool _canStartHomeRecipeFlow(String freeText, bool hasIngredients) {
@@ -1008,10 +1012,9 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
     );
   }
 
-  Future<void> _startRecipeFlow({String? promptOverride}) async {
+  Future<void> _startRecipeFlow() async {
     try {
-      final freeText =
-          (promptOverride ?? _customPreferenceController.text).trim();
+      final freeText = _customPreferenceController.text.trim();
       final hasIngredients = widget.sessionManager.getIngredients().isNotEmpty;
       if (!_canStartHomeRecipeFlow(freeText, hasIngredients)) {
         _showHomeRecipeInputRequired();
@@ -1037,25 +1040,6 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
               appTelemetry: widget.appTelemetry,
             );
           }
-          return;
-        }
-      }
-      if (!widget.sessionManager.isGuestMode() &&
-          !widget.subscriptionViewModel.isPremium) {
-        final sm = widget.sessionManager as SessionManager;
-        final exceeded = await sm.isSignedInFreeRecipeQuotaExceededForToday(
-          isPremium: false,
-        );
-        if (!mounted) return;
-        if (exceeded) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.freeTierQuotaMessage)),
-          );
-          openPremiumPaywall(
-            context,
-            source: 'free_quota',
-            appTelemetry: widget.appTelemetry,
-          );
           return;
         }
       }
@@ -1145,14 +1129,16 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
               ListenableBuilder(
                 listenable: widget.homeViewModel,
                 builder: (context, _) {
-                  final ideas = widget.homeViewModel.dailyIdeas;
-                  if (ideas.length != 5) return const SizedBox.shrink();
+                  final categories =
+                      widget.homeViewModel.dailyIdeaCategories;
+                  if (categories.isEmpty) return const SizedBox.shrink();
                   return Column(
                     children: [
                       _DailyIdeasStrip(
-                        recipes: ideas,
+                        categories: categories,
                         onRecipeTap: (recipe) {
-                          context.push('/show-recipe', extra: {'recipe': recipe});
+                          context
+                              .push('/show-recipe', extra: {'recipe': recipe});
                         },
                       ),
                       const SizedBox(height: 20),
@@ -1189,7 +1175,7 @@ class _HomeHeroRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '$greetingLine',
+          greetingLine,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontFamily: 'serif',
             fontWeight: FontWeight.w800,
@@ -1294,10 +1280,9 @@ class _HomeSearchFieldState extends State<_HomeSearchField>
             final dark = Theme.of(context).brightness == Brightness.dark;
             final pulse = sin(_borderGlowCtrl.value * 2 * pi) * 0.5 + 0.5;
             final boost = widget.highlightFirstPrompt ? 0.22 : 0.0;
-            final auraAlpha =
-                dark
-                    ? (0.12 + pulse * 0.18 + boost)
-                    : (0.10 + pulse * 0.16 + boost);
+            final auraAlpha = dark
+                ? (0.12 + pulse * 0.18 + boost)
+                : (0.10 + pulse * 0.16 + boost);
             return Container(
               key: widget.coachGetRecipesKey,
               padding: const EdgeInsets.all(2),
@@ -1351,8 +1336,9 @@ class _HomeSearchFieldState extends State<_HomeSearchField>
                             controller: widget.controller,
                             minLines: 1,
                             maxLines: 3,
-                            textInputAction: TextInputAction.go,
-                            onSubmitted: (_) => unawaited(widget.onGo()),
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) =>
+                                FocusScope.of(context).unfocus(),
                             onChanged: (_) => setState(() {}),
                             style:
                                 Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -1412,12 +1398,13 @@ class _HomeFilterChips extends StatelessWidget {
     (
       label: 'Busy night',
       icon: Icons.flash_on,
-      phrase: 'Busy weeknight — dinner on the table in under 30 minutes, kid-friendly',
+      phrase:
+          'Busy weeknight — dinner on the table in under 30 minutes, kid-friendly',
     ),
     (
-      label: 'Meal prep',
-      icon: Icons.calendar_month,
-      phrase: 'Meal prep for the week — reheat well, balanced lunches',
+      label: 'Minimum Effort',
+      icon: Icons.room_service,
+      phrase: 'Minimum effort — simple dinner, low prep, minimal cleanup',
     ),
     (
       label: 'Health goals',
@@ -1561,11 +1548,11 @@ class _PantryHintBar extends StatelessWidget {
 /// Horizontal carousel of preloaded daily recipe ideas (backend batch).
 class _DailyIdeasStrip extends StatelessWidget {
   const _DailyIdeasStrip({
-    required this.recipes,
+    required this.categories,
     required this.onRecipeTap,
   });
 
-  final List<Recipe> recipes;
+  final List<DailyIdeasCategory> categories;
   final void Function(Recipe recipe) onRecipeTap;
 
   @override
@@ -1575,28 +1562,31 @@ class _DailyIdeasStrip extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Ideas for you',
+          "Today's ideas",
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
         ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 168,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: recipes.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final recipe = recipes[index];
-              return _DailyIdeaCard(
-                recipe: recipe,
-                colorScheme: scheme,
-                onTap: () => onRecipeTap(recipe),
-              );
-            },
+        const SizedBox(height: 12),
+        for (var i = 0; i < categories.length; i++) ...[
+          if (i > 0) const SizedBox(height: 14),
+          if (categories[i].label.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                categories[i].label,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
+            ),
+          _DailyIdeaCard(
+            recipe: categories[i].recipe,
+            colorScheme: scheme,
+            onTap: () => onRecipeTap(categories[i].recipe),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -1616,33 +1606,51 @@ class _DailyIdeaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 140,
+      height: 96,
       child: Material(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(14),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               RecipeImageBox(
                 imageUrl: recipe.image,
                 height: 96,
-                width: 140,
+                width: 120,
                 borderRadius: BorderRadius.zero,
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                  child: Text(
-                    recipe.recipeName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          height: 1.2,
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        recipe.recipeName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              height: 1.2,
+                            ),
+                      ),
+                      if (recipe.cuisine.trim().isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          recipe.cuisine,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
                         ),
+                      ],
+                    ],
                   ),
                 ),
               ),
@@ -1934,9 +1942,7 @@ class _PantryPickerSheetState extends State<_PantryPickerSheet> {
                         subtitle: Text(
                           usualCuisines.isEmpty
                               ? l10n.suggestionsTapToChooseCuisines
-                              : usualCuisines
-                                  .map(l10n.cuisineLabel)
-                                  .join(', '),
+                              : usualCuisines.map(l10n.cuisineLabel).join(', '),
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: colorScheme.onSurfaceVariant,

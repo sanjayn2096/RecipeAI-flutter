@@ -11,7 +11,7 @@
       "ios": {
         "default": {
           "projectId": "recipeai-89d8b",
-          "appId": "1:516167677061:ios:2f60fb3d106231b77425ec",
+          "appId": "1:516167677061:ios:d42381956dad87087425ec",
           "uploadDebugSymbols": true,
           "fileOutput": "ios/Runner/GoogleService-Info.plist"
         }
@@ -29,7 +29,7 @@
           "projectId": "recipeai-89d8b",
           "configurations": {
             "android": "1:516167677061:android:f33de0b2641a63787425ec",
-            "ios": "1:516167677061:ios:2f60fb3d106231b77425ec",
+            "ios": "1:516167677061:ios:d42381956dad87087425ec",
             "macos": "1:516167677061:ios:2f60fb3d106231b77425ec",
             "web": "1:516167677061:web:46856298afed56047425ec"
           }
@@ -48,8 +48,24 @@
     ],
     "rewrites": [
       {
-        "source": "**",
-        "destination": "/index.html"
+        "source": "/terms",
+        "destination": "/terms.html"
+      },
+      {
+        "source": "/privacy",
+        "destination": "/privacy.html"
+      },
+      {
+        "source": "/home",
+        "destination": "/home.html"
+      },
+      {
+        "source": "/app",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/app/**",
+        "destination": "/app/index.html"
       }
     ]
   }

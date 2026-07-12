@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/l10n_context.dart';
+import '../../core/telemetry/app_telemetry.dart';
 import '../../data/api/api_service.dart';
 import '../../view_models/grocery_list_view_model.dart';
 import '../../view_models/recipe_view_model.dart';
+import '../../view_models/subscription_view_model.dart';
 import '../show_recipe_screen.dart';
 
 class ImportRecipeLinkScreen extends StatefulWidget {
@@ -12,11 +14,17 @@ class ImportRecipeLinkScreen extends StatefulWidget {
     super.key,
     required this.recipeViewModel,
     required this.groceryListViewModel,
+    required this.apiService,
+    required this.appTelemetry,
+    required this.subscriptionViewModel,
     required this.isGuest,
   });
 
   final RecipeViewModel recipeViewModel;
   final GroceryListViewModel groceryListViewModel;
+  final ApiService apiService;
+  final AppTelemetry appTelemetry;
+  final SubscriptionViewModel subscriptionViewModel;
   final bool isGuest;
 
   @override
@@ -52,6 +60,9 @@ class _ImportRecipeLinkScreenState extends State<ImportRecipeLinkScreen> {
         MaterialPageRoute<void>(
           builder: (ctx) => ShowRecipeScreen(
             recipe: recipe,
+            apiService: widget.apiService,
+            appTelemetry: widget.appTelemetry,
+            subscriptionViewModel: widget.subscriptionViewModel,
             recipeViewModel: widget.recipeViewModel,
             groceryListViewModel: widget.groceryListViewModel,
             isGuest: widget.isGuest,

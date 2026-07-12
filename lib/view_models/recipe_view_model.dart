@@ -57,6 +57,13 @@ class RecipeViewModel extends ChangeNotifier {
   String? _fetchError;
   String? get fetchError => _fetchError;
 
+  Object? _lastFetchThrowable;
+  Object? get lastFetchThrowable => _lastFetchThrowable;
+
+  void clearLastFetchThrowable() {
+    _lastFetchThrowable = null;
+  }
+
   bool _isBeingEdited = false;
   bool get isBeingEdited => _isBeingEdited;
 
@@ -86,6 +93,7 @@ class RecipeViewModel extends ChangeNotifier {
     _isLoading = true;
     _isStreamingFlow = false;
     _fetchError = null;
+    _lastFetchThrowable = null;
     _assistantMessage = null;
     _recipes = [];
     notifyListeners();
@@ -115,6 +123,7 @@ class RecipeViewModel extends ChangeNotifier {
       _lastBatchEntryPoint = entryPoint;
     } catch (e, st) {
       _recipes = [];
+      _lastFetchThrowable = e;
       _fetchError = recipeFetchErrorMessage(e);
       if (_kRecipeLogging) {
         debugPrint('[RecipeViewModel] fetchRecipes failed: $e');
@@ -157,6 +166,7 @@ class RecipeViewModel extends ChangeNotifier {
 
     _isLoading = true;
     _fetchError = null;
+    _lastFetchThrowable = null;
     notifyListeners();
 
     bool streamFlow = false;
@@ -200,6 +210,7 @@ class RecipeViewModel extends ChangeNotifier {
       _fetchError = null;
     } catch (e, st) {
       _recipes = prior;
+      _lastFetchThrowable = e;
       _fetchError = recipeFetchErrorMessage(e);
       if (_kRecipeLogging) {
         debugPrint('[RecipeViewModel] fetchMoreRecipes failed: $e');
@@ -216,6 +227,7 @@ class RecipeViewModel extends ChangeNotifier {
 
   void clearRecipeGenerationState() {
     _fetchError = null;
+    _lastFetchThrowable = null;
     _assistantMessage = null;
     _recipes = [];
     _successfulGenerationAttempts = 0;

@@ -29,7 +29,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.516167677061-k8bqvu71tpq9i3c6ktk8j9fn0k184mvu</string>
+				<string>com.googleusercontent.apps.516167677061-9je0nbo1t0oul8tkee2ussl472l9uptk</string>
 			</array>
 		</dict>
 	</array>
@@ -38,13 +38,17 @@
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>GIDClientID</key>
-	<string>516167677061-k8bqvu71tpq9i3c6ktk8j9fn0k184mvu.apps.googleusercontent.com</string>
+	<string>516167677061-9je0nbo1t0oul8tkee2ussl472l9uptk.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a photo of your pantry or fridge to suggest grocery items.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ask Sous Chef recipe questions by voice.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose a photo of your pantry or fridge to suggest grocery items.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Transcribe your recipe questions so Sous Chef can answer them.</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>

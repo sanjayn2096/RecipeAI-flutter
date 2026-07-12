@@ -385,11 +385,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get groceryPantryScanSubtitle =>
-      'Take a clear photo. We will suggest items—tap ✓ to add to your pantry or ℹ to edit or dismiss.';
+      'Toma una foto clara de tu despensa o nevera. Detectaremos ingredientes y sugeriremos qué puedes cocinar.';
 
   @override
   String get groceryPantryScanSubtitleOnDevice =>
-      'Take a clear photo. On your phone we analyze it on-device—nothing is uploaded. Tap ✓ to add to your pantry.';
+      'Toma una foto clara. En tu teléfono la analizamos en el dispositivo—nada se sube.';
 
   @override
   String get groceryPantryScanTakePhoto => 'Cámara';
@@ -441,7 +441,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get groceryPantryScanRemoveRow => 'Remove';
 
   @override
-  String get groceryPantryScanAddSelected => 'Add to pantry';
+  String get groceryPantryScanCookPrompt =>
+      '¿Quieres ver qué puedes cocinar con estos ingredientes?';
+
+  @override
+  String get groceryPantryScanGenerateRecipes => 'Sí, mostrar recetas';
+
+  @override
+  String get groceryPantryScanAddSelected => 'No, añadirlos a mi despensa';
+
+  @override
+  String get groceryPantryScanAlreadyInPantry =>
+      'Estos ingredientes ya están en tu despensa';
 
   @override
   String get groceryPantryScanSignInRequired =>
@@ -934,7 +945,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get onboardingPaywallSubtitle =>
-      'Premium desbloquea recetas ilimitadas, escaneo de despensa y planificación completa.';
+      'Compara los planes — Premium desbloquea recetas ilimitadas, escaneo de despensa y planificación completa.';
 
   @override
   String get onboardingPaywallBenefitUnlimited =>
@@ -964,7 +975,23 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get freeTierQuotaMessage =>
-      'El plan gratuito incluye hasta 3 generaciones de recetas al día. Mejora para recetas ilimitadas.';
+      'El plan gratuito incluye hasta 3 generaciones de recetas. Mejora para recetas ilimitadas.';
+
+  @override
+  String get freeTierQuotaDialogTitle => 'Límite diario alcanzado';
+
+  @override
+  String get freeTierQuotaResetTitle => 'Restablecimiento del límite';
+
+  @override
+  String get freeTierQuotaResetInfo =>
+      'Los límites diarios se restablecen a la medianoche UTC.';
+
+  @override
+  String get notNow => 'Ahora no';
+
+  @override
+  String get goPremium => 'Ir a Premium';
 
   @override
   String get freeTierImportQuotaMessage =>
@@ -974,4 +1001,96 @@ class AppLocalizationsEs extends AppLocalizations {
   String dailyCreditsUsed(int used, int total) {
     return '$used/$total créditos usados';
   }
+
+  @override
+  String get tierColumnFeature => 'Función';
+
+  @override
+  String get tierColumnStandard => 'Estándar';
+
+  @override
+  String get tierColumnPremium => 'Premium';
+
+  @override
+  String get tierFeatureRecipeGenerations => 'Generaciones de recetas';
+
+  @override
+  String get tierFeatureImports => 'Importar recetas';
+
+  @override
+  String get tierFeaturePantryScan => 'Escanear despensa';
+
+  @override
+  String get tierFeatureMealPlanner => 'Planificador de comidas';
+
+  @override
+  String get tierFeatureLatestRecipes => 'Últimas recetas';
+
+  @override
+  String get tierValueUnlimited => 'Ilimitado';
+
+  @override
+  String tierValuePerDay(int count) {
+    return '$count/día';
+  }
+
+  @override
+  String tierValueDays(int count) {
+    return '$count días';
+  }
+
+  @override
+  String get tierValueNotIncluded => '—';
+
+  @override
+  String get recipeAssistantOpen => 'Preguntar a Sous Chef';
+
+  @override
+  String get recipeAssistantTitle => 'Preguntar a Sous Chef';
+
+  @override
+  String get recipeAssistantEmptyTitle => 'Pregunta sobre esta receta';
+
+  @override
+  String get recipeAssistantEmptyBody =>
+      'Prueba sustituciones, tiempos, conservación, ideas para servir o ayuda con un paso.';
+
+  @override
+  String get recipeAssistantInputHint => 'Haz una pregunta sobre esta receta';
+
+  @override
+  String get recipeAssistantSend => 'Enviar';
+
+  @override
+  String get recipeAssistantListening => 'Escuchando…';
+
+  @override
+  String get recipeAssistantMicTooltip => 'Preguntar por voz';
+
+  @override
+  String get recipeAssistantStopListening => 'Dejar de escuchar';
+
+  @override
+  String get recipeAssistantSpeakTooltip => 'Leer respuesta en voz alta';
+
+  @override
+  String get recipeAssistantStopSpeakingTooltip => 'Detener lectura';
+
+  @override
+  String get recipeAssistantPremiumTitle =>
+      'El asistente de recetas es Premium';
+
+  @override
+  String get recipeAssistantPremiumBody =>
+      'Mejora para hacer preguntas a Sous Chef sobre cualquier receta mientras cocinas.';
+
+  @override
+  String get recipeAssistantPremiumCta => 'Ver Premium';
+
+  @override
+  String get recipeAssistantNotNow => 'Ahora no';
+
+  @override
+  String get recipeAssistantVoiceUnavailable =>
+      'La entrada por voz no está disponible. Aún puedes escribir tu pregunta.';
 }

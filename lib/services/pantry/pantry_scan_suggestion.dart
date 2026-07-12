@@ -27,7 +27,7 @@ class PantryScanSuggestion {
     return parts.join(' ').trim();
   }
 
-  /// Cloud Gemini items → one suggestion each (no alternates).
+  /// Cloud API items → one suggestion each (no alternates).
   static List<PantryScanSuggestion> fromApiItems(List<PantryScanItem> items) {
     return items
         .where((e) => e.name.trim().isNotEmpty)

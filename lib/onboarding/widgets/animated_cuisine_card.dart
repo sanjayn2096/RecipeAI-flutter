@@ -23,22 +23,22 @@ class AnimatedCuisineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return AnimatedScale(
-      scale: selected ? 1.04 : 1.0,
+    return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutBack,
-      child: Material(
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
         color: selected
             ? kOnboardingSelectedGreen.withValues(alpha: 0.14)
             : scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: selected ? kOnboardingSelectedGreen : scheme.outline,
-            width: selected ? 2 : 1,
-          ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: selected ? kOnboardingSelectedGreen : scheme.outline,
+          width: selected ? 2 : 1,
         ),
-        clipBehavior: Clip.antiAlias,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
         child: InkWell(
           onTap: enabled
               ? () {

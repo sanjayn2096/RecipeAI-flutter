@@ -1,7 +1,7 @@
 name: recipe_ai
 description: Sous Chef — generate recipes based on your suggestions and preferences.
 publish_to: 'none'
-version: 3.1.0+20
+version: 3.2.0+21
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -42,6 +42,8 @@ dependencies:
   in_app_purchase: ^3.2.0
   url_launcher: ^6.3.1
   flutter_timezone: ^4.1.0
+  speech_to_text: ^7.4.0
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:

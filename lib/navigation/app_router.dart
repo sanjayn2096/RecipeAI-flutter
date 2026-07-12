@@ -61,8 +61,7 @@ class AppRouter {
   late final GoRouter router = GoRouter(
     initialLocation: '/',
     observers: [
-      if (analytics != null)
-        FirebaseAnalyticsObserver(analytics: analytics!),
+      if (analytics != null) FirebaseAnalyticsObserver(analytics: analytics!),
     ],
     routes: [
       GoRoute(
@@ -118,10 +117,7 @@ class AppRouter {
           if (sm.isGuestMode()) return null;
           if (loginViewModel.isLoggedIn == true &&
               !sm.getOnboardingCompleteSync()) {
-            sm.migrateOnboardingCompleteIfExistingUser();
-            if (!sm.getOnboardingCompleteSync()) {
-              return '/onboarding';
-            }
+            return '/onboarding';
           }
           return null;
         },
@@ -131,6 +127,7 @@ class AppRouter {
           recipeViewModel: recipeViewModel,
           groceryListViewModel: groceryListViewModel,
           subscriptionViewModel: subscriptionViewModel,
+          apiService: apiService,
           appTelemetry: appTelemetry,
           sessionManager: sessionManager,
         ),
@@ -203,6 +200,9 @@ class AppRouter {
           }
           return ShowRecipeScreen(
             recipe: recipe,
+            apiService: apiService,
+            appTelemetry: appTelemetry,
+            subscriptionViewModel: subscriptionViewModel,
             recipeViewModel: recipeViewModel,
             groceryListViewModel: groceryListViewModel,
             isGuest: isGuest,
@@ -225,6 +225,9 @@ class AppRouter {
           }
           return CookRecipeFlowScreen(
             recipe: recipe,
+            apiService: apiService,
+            appTelemetry: appTelemetry,
+            subscriptionViewModel: subscriptionViewModel,
             groceryListViewModel: groceryVm ?? groceryListViewModel,
           );
         },

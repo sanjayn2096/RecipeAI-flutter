@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:recipe_ai/data/models/recipe_generation_usage.dart';
 import 'package:recipe_ai/onboarding/onboarding_prefs.dart';
 import 'package:recipe_ai/onboarding/onboarding_session_extension.dart';
 import 'package:recipe_ai/services/session_manager.dart';
@@ -38,19 +39,39 @@ void main() {
       );
     });
 
-    test('migrateOnboardingCompleteIfExistingUser when diet saved', () async {
+    test('diet profile does not imply onboardingComplete', () async {
       await session.saveUserId('user-a');
       await session.saveDietProfiles(['vegan']);
-      session.migrateOnboardingCompleteIfExistingUser();
-      expect(session.getOnboardingCompleteSync(), isTrue);
+      expect(session.getOnboardingCompleteSync(), isFalse);
     });
 
-    test('free tier quota resets on new UTC day', () async {
-      await session.recordSignedInFreeRecipeGenerationSuccess(isPremium: false);
-      final exceeded = await session.isSignedInFreeRecipeQuotaExceededForToday(
-        isPremium: false,
+    test('clearing lifestyle prefs does not clear onboardingComplete',
+        () async {
+      await session.saveUserId('user-a');
+      session.setOnboardingCompleteSync(true);
+      await session.saveDietProfiles(['vegan']);
+      await session.saveAllergensAvoid(['peanut']);
+      await session.saveUsualCuisines(['indian']);
+
+      session.clearLifestylePrefsSync();
+
+      expect(session.getOnboardingCompleteSync(), isTrue);
+      expect(session.getDietProfiles(), isEmpty);
+      expect(session.getAllergensAvoid(), isEmpty);
+      expect(session.getUsualCuisines(), isEmpty);
+    });
+
+    test('signed-in recipe usage uses in-memory backend snapshot', () async {
+      final today = RecipeGenerationUsage.utcDayKeyNow();
+      session.updateSignedInRecipeGenerationUsage(
+        RecipeGenerationUsage(utcDay: today, count: 2, dailyLimit: 3),
       );
-      expect(exceeded, isFalse);
+
+      await session.recordSignedInFreeRecipeGenerationSuccess(isPremium: false);
+
+      final usage = session.getSignedInRecipeGenerationUsageForTodaySync();
+      expect(usage.count, 3);
+      expect(usage.dailyLimit, 3);
     });
   });
 }

@@ -1,22 +1,34 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/l10n_context.dart';
 import '../core/recipe_parsing.dart';
+import '../core/telemetry/app_telemetry.dart';
+import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
 import '../services/recipe_image_cache.dart';
 import '../view_models/grocery_list_view_model.dart';
+import '../view_models/subscription_view_model.dart';
+import '../widgets/recipe_assistant_sheet.dart';
 
 /// Full-screen cooking mode: gather ingredients → step-by-step → Fin.
 class CookRecipeFlowScreen extends StatefulWidget {
   const CookRecipeFlowScreen({
     super.key,
     required this.recipe,
+    required this.apiService,
+    required this.appTelemetry,
+    required this.subscriptionViewModel,
     this.groceryListViewModel,
   });
 
   final Recipe recipe;
+  final ApiService apiService;
+  final AppTelemetry appTelemetry;
+  final SubscriptionViewModel subscriptionViewModel;
   final GroceryListViewModel? groceryListViewModel;
 
   @override
@@ -29,8 +41,10 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
 
   final Set<int> _checkedIngredientIndices = {};
   int _pageIndex = 0;
-  /// Per-step image URLs from [Recipe.stepImageUrls] only (no client fetch).
+  /// Per-step image URLs (from recipe or lazily generated for Premium).
   late List<String> _stepDisplayUrls;
+  final Set<int> _stepImageLoading = {};
+  final Set<int> _stepImageRequested = {};
 
   int get _gatherPage => 0;
   int get _firstInstructionPage => 1;
@@ -64,6 +78,61 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
         _stepDisplayUrls[i] = t;
       }
     }
+  }
+
+  bool get _canGenerateStepImages => widget.subscriptionViewModel.isPremium;
+
+  void _maybeGenerateStepImage(int stepIndex) {
+    if (!_canGenerateStepImages) return;
+    if (stepIndex < 0 || stepIndex >= _stepDisplayUrls.length) return;
+    if (_stepDisplayUrls[stepIndex].trim().isNotEmpty) return;
+    if (_stepImageRequested.contains(stepIndex)) return;
+    if (_instructions.isEmpty) return;
+
+    _stepImageRequested.add(stepIndex);
+    _stepImageLoading.add(stepIndex);
+    if (mounted) setState(() {});
+
+    final stepText = _instructions[stepIndex];
+    () async {
+      try {
+        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (token == null || !mounted) return;
+        final res = await widget.apiService.generateRecipeStepImage(
+          recipeName: widget.recipe.recipeName,
+          stepText: stepText,
+          stepIndex: stepIndex,
+          cuisine: widget.recipe.cuisine,
+          recipeId: widget.recipe.recipeId,
+          idToken: token,
+        );
+        if (!mounted) return;
+        final url = res.imageUrl.trim();
+        if (url.isNotEmpty && res.stepIndex < _stepDisplayUrls.length) {
+          setState(() {
+            _stepDisplayUrls[res.stepIndex] = url;
+            _stepImageLoading.remove(res.stepIndex);
+          });
+        } else {
+          setState(() => _stepImageLoading.remove(stepIndex));
+        }
+      } on ApiException catch (e) {
+        if (kDebugMode) {
+          debugPrint('[CookRecipe] step image: $e');
+        }
+        // Premium required or other client errors — stop retrying this step.
+        if (mounted) {
+          setState(() => _stepImageLoading.remove(stepIndex));
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[CookRecipe] step image failed: $e');
+        }
+        if (mounted) {
+          setState(() => _stepImageLoading.remove(stepIndex));
+        }
+      }
+    }();
   }
 
   void _goBackInFlow() {
@@ -174,6 +243,16 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
     );
   }
 
+  Future<void> _openRecipeAssistant() {
+    return openRecipeAssistant(
+      context: context,
+      recipe: widget.recipe,
+      apiService: widget.apiService,
+      appTelemetry: widget.appTelemetry,
+      subscriptionViewModel: widget.subscriptionViewModel,
+    );
+  }
+
   Widget _buildIngredientList(List<String> items) {
     if (items.isEmpty) {
       return const Text('No ingredients listed.');
@@ -240,6 +319,11 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
             onPressed: _goBackInFlow,
           ),
           actions: [
+            IconButton(
+              tooltip: context.l10n.recipeAssistantOpen,
+              onPressed: _openRecipeAssistant,
+              icon: const Icon(Icons.mic_none),
+            ),
             TextButton(
               onPressed: _exitCooking,
               child: const Text('Exit'),
@@ -323,6 +407,16 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
             ),
           ],
           const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _openRecipeAssistant,
+            icon: const Icon(Icons.mic_none),
+            label: Text(context.l10n.recipeAssistantOpen),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSurface,
+              side: BorderSide(color: theme.colorScheme.primary, width: 1.2),
+            ),
+          ),
+          const SizedBox(height: 8),
           TextButton.icon(
             onPressed: _showFullRecipeDialog,
             icon: const Icon(Icons.article_outlined),
@@ -419,6 +513,9 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
     final theme = Theme.of(context);
     final isLastInstruction =
         _instructions.isEmpty || safeIdx >= _instructions.length - 1;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeGenerateStepImage(safeIdx);
+    });
     String? stepImageUrl;
     if (safeIdx < _stepDisplayUrls.length) {
       final u = _stepDisplayUrls[safeIdx].trim();
@@ -426,6 +523,7 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
         stepImageUrl = u;
       }
     }
+    final loadingStep = _stepImageLoading.contains(safeIdx);
     // Keep a predictable square image box so controls stay visible and
     // the full step image can be seen without heavy cropping.
     final screen = MediaQuery.sizeOf(context);
@@ -480,6 +578,21 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
                 ),
               ),
             ),
+          ] else if (loadingStep) ...[
+            const SizedBox(height: 12),
+            Center(
+              child: SizedBox(
+                width: stepImageSize,
+                height: stepImageSize,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ),
           ],
           const SizedBox(height: 16),
           Expanded(
@@ -494,6 +607,16 @@ class _CookRecipeFlowScreenState extends State<CookRecipeFlowScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _openRecipeAssistant,
+            icon: const Icon(Icons.mic_none),
+            label: Text(context.l10n.recipeAssistantOpen),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSurface,
+              side: BorderSide(color: theme.colorScheme.primary, width: 1.2),
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               OutlinedButton(

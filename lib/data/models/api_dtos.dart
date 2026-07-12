@@ -1,4 +1,5 @@
 import 'recipe.dart';
+import 'recipe_generation_usage.dart';
 
 // --- Request DTOs ---
 
@@ -92,15 +93,19 @@ class GenerateRecipeRequest {
   final String cuisine;
   final String cookingPreference;
   final RecipeGenerationMode recipeMode;
+
   /// Structured diet tags (e.g. Vegan, Keto); server merges with signed-in profile when empty.
   final List<String> dietProfiles;
   final List<String> allergensAvoid;
   final String? allergyNotes;
   final String? anonymousId;
+
   /// Titles already shown; server instructs model not to trivially repeat them.
   final List<String> excludeRecipeNames;
+
   /// Optional hint for refresh / “more recipes” prompts.
   final String? userRefinementNote;
+
   /// 1 = first batch from this flow; 2+ = follow-ups (temperature/prompt branching on server).
   final int? generationAttempt;
 
@@ -135,6 +140,40 @@ class GenerateRecipeRequest {
     }
     return m;
   }
+}
+
+class RecipeAssistantMessageDto {
+  const RecipeAssistantMessageDto({
+    required this.role,
+    required this.content,
+  });
+
+  final String role;
+  final String content;
+
+  Map<String, dynamic> toJson() => {
+        'role': role,
+        'content': content,
+      };
+}
+
+class RecipeQuestionRequest {
+  const RecipeQuestionRequest({
+    required this.recipe,
+    required this.question,
+    this.conversation = const [],
+  });
+
+  final Recipe recipe;
+  final String question;
+  final List<RecipeAssistantMessageDto> conversation;
+
+  Map<String, dynamic> toJson() => {
+        'recipe': recipe.toJson(),
+        'question': question,
+        if (conversation.isNotEmpty)
+          'conversation': conversation.map((m) => m.toJson()).toList(),
+      };
 }
 
 // --- Response DTOs ---
@@ -191,6 +230,7 @@ class GenerateRecipeResponse {
     this.assistantMessage,
   });
   final List<Recipe> recipes;
+
   /// Conversational summary from the server (intent-aware tailoring).
   final String? assistantMessage;
   factory GenerateRecipeResponse.fromJson(dynamic json) {
@@ -202,11 +242,40 @@ class GenerateRecipeResponse {
       );
     }
     final map = json as Map<String, dynamic>;
-    final list = map['recipes'] as List<dynamic>? ?? map['recipe'] as List<dynamic>? ?? [];
+    final list = map['recipes'] as List<dynamic>? ??
+        map['recipe'] as List<dynamic>? ??
+        [];
     final msg = map['assistantMessage'] as String?;
     return GenerateRecipeResponse(
-      recipes: list.map((e) => Recipe.fromJson(e as Map<String, dynamic>)).toList(),
+      recipes:
+          list.map((e) => Recipe.fromJson(e as Map<String, dynamic>)).toList(),
       assistantMessage: msg?.trim().isNotEmpty == true ? msg!.trim() : null,
+    );
+  }
+}
+
+class RecipeQuestionResponse {
+  const RecipeQuestionResponse({
+    required this.answer,
+    required this.outOfContext,
+    this.suggestedFollowUps = const [],
+  });
+
+  final String answer;
+  final bool outOfContext;
+  final List<String> suggestedFollowUps;
+
+  factory RecipeQuestionResponse.fromJson(Map<String, dynamic> json) {
+    final rawFollowUps = json['suggestedFollowUps'];
+    return RecipeQuestionResponse(
+      answer: json['answer']?.toString().trim() ?? '',
+      outOfContext: json['outOfContext'] == true,
+      suggestedFollowUps: rawFollowUps is List
+          ? rawFollowUps
+              .map((e) => e.toString().trim())
+              .where((e) => e.isNotEmpty)
+              .toList()
+          : const [],
     );
   }
 }
@@ -313,6 +382,7 @@ class UserProfileResponse {
     this.hasAllergyNotesField = false,
     this.onboardingComplete = false,
     this.subscription,
+    this.recipeGenerationUsage,
   });
   final String userId;
   final String? email;
@@ -325,6 +395,7 @@ class UserProfileResponse {
   final String? allergyNotes;
   final bool hasAllergyNotesField;
   final bool onboardingComplete;
+  final RecipeGenerationUsage? recipeGenerationUsage;
 
   static List<String> _stringList(dynamic v) {
     if (v is! List) return const [];
@@ -356,14 +427,22 @@ class UserProfileResponse {
     if (subRaw is Map) {
       subscription = Map<String, dynamic>.from(subRaw);
     }
+    RecipeGenerationUsage? recipeGenerationUsage;
+    final usageRaw = json['recipeGenerationUsage'];
+    if (usageRaw is Map) {
+      recipeGenerationUsage = RecipeGenerationUsage.fromJson(
+        Map<String, dynamic>.from(usageRaw),
+      );
+    }
 
     return UserProfileResponse(
       userId: uid is String ? uid : uid?.toString() ?? '',
       email: json['email'] as String?,
       firstName: pickStr('firstName', 'first_name'),
       lastName: pickStr('lastName', 'last_name'),
-      dietProfiles:
-          json.containsKey('dietProfiles') ? _stringList(json['dietProfiles']) : null,
+      dietProfiles: json.containsKey('dietProfiles')
+          ? _stringList(json['dietProfiles'])
+          : null,
       allergensAvoid: json.containsKey('allergensAvoid')
           ? _stringList(json['allergensAvoid'])
           : null,
@@ -374,6 +453,7 @@ class UserProfileResponse {
       hasAllergyNotesField: hasAllergyNotesField,
       onboardingComplete: json['onboardingComplete'] == true,
       subscription: subscription,
+      recipeGenerationUsage: recipeGenerationUsage,
     );
   }
 }

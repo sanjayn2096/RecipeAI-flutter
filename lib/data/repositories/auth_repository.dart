@@ -22,7 +22,7 @@ const String _kGoogleWebClientId =
 
 /// iOS OAuth client (must match [GIDClientID] + URL scheme in ios/Runner/Info.plist).
 const String _kGoogleIosClientId =
-    '516167677061-k8bqvu71tpq9i3c6ktk8j9fn0k184mvu.apps.googleusercontent.com';
+    '516167677061-9je0nbo1t0oul8tkee2ussl472l9uptk.apps.googleusercontent.com';
 
 const Duration _kProfileFetchTimeout = Duration(seconds: 30);
 const Duration _kFirebaseAuthTimeout = Duration(seconds: 45);
@@ -111,9 +111,9 @@ class AuthRepository {
   Future<void> waitForAuthReady() async {
     try {
       await _firebaseAuth.authStateChanges().first.timeout(
-        _kFirebaseAuthTimeout,
-        onTimeout: () => _firebaseAuth.currentUser,
-      );
+            _kFirebaseAuthTimeout,
+            onTimeout: () => _firebaseAuth.currentUser,
+          );
     } catch (_) {}
   }
 
@@ -192,7 +192,8 @@ class AuthRepository {
     }
   }
 
-  Future<void> _persistProfileFromResponse(User firebaseUser, UserProfileResponse profile) async {
+  Future<void> _persistProfileFromResponse(
+      User firebaseUser, UserProfileResponse profile) async {
     final previousUserId = _session.getUserId();
     if (previousUserId != null &&
         previousUserId.isNotEmpty &&
@@ -219,6 +220,7 @@ class AuthRepository {
       applyAllergyNotes: profile.hasAllergyNotesField,
     );
     _session.setOnboardingCompleteSync(profile.onboardingComplete);
+    _session.updateSignedInRecipeGenerationUsage(profile.recipeGenerationUsage);
     onProfileLoaded?.call(profile.subscription);
   }
 
@@ -226,11 +228,6 @@ class AuthRepository {
   Future<void> prepareOnboardingRoutingState() async {
     if (_session.isGuestMode()) return;
     if (_session.getOnboardingCompleteSync()) return;
-
-    if (_session.hasExistingLifestyleProfile()) {
-      await markOnboardingCompleteOnBackend();
-      return;
-    }
 
     final user = _firebaseAuth.currentUser;
     if (user == null) return;
@@ -504,7 +501,8 @@ class AuthRepository {
   Future<void> deleteAccountWithPassword(String password) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) {
-      throw FirebaseAuthException(code: 'no-current-user', message: 'Not signed in.');
+      throw FirebaseAuthException(
+          code: 'no-current-user', message: 'Not signed in.');
     }
     final email = user.email;
     if (email == null || email.isEmpty) {
@@ -513,7 +511,8 @@ class AuthRepository {
         message: 'This account type cannot be deleted here.',
       );
     }
-    final credential = EmailAuthProvider.credential(email: email, password: password);
+    final credential =
+        EmailAuthProvider.credential(email: email, password: password);
     await user.reauthenticateWithCredential(credential);
     await user.delete();
     await _clearLocalStateAfterAccountRemoval();
@@ -524,7 +523,8 @@ class AuthRepository {
   Future<bool> deleteAccountWithGoogleReauth() async {
     final user = _firebaseAuth.currentUser;
     if (user == null) {
-      throw FirebaseAuthException(code: 'no-current-user', message: 'Not signed in.');
+      throw FirebaseAuthException(
+          code: 'no-current-user', message: 'Not signed in.');
     }
     if (kIsWeb) {
       await user.reauthenticateWithPopup(_webGoogleAuthProvider());
@@ -547,5 +547,4 @@ class AuthRepository {
     await _clearLocalStateAfterAccountRemoval();
     return true;
   }
-
 }

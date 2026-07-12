@@ -25,8 +25,17 @@ abstract final class FeatureIds {
   static const groceryCopy = 'grocery_copy';
   static const groceryPantryScanAnalyze = 'grocery_pantry_scan_analyze';
   static const groceryPantryScanConfirmAdd = 'grocery_pantry_scan_confirm_add';
+  static const groceryPantryScanAddAllToPantry =
+      'grocery_pantry_scan_add_all_to_pantry';
+  static const groceryPantryScanGenerateRecipes =
+      'grocery_pantry_scan_generate_recipes';
 
   static const importRecipe = 'import_recipe';
+  static const recipeAssistantOpen = 'recipe_assistant_open';
+  static const recipeAssistantAsk = 'recipe_assistant_ask';
+  static const recipeAssistantVoice = 'recipe_assistant_voice';
+  static const recipeAssistantTts = 'recipe_assistant_tts';
+  static const recipeAssistantPremiumCta = 'recipe_assistant_premium_cta';
 
   static const premiumCta = 'premium_cta';
   static const premiumSubscribe = 'premium_subscribe';

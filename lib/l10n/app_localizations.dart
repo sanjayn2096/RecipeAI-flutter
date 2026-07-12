@@ -785,13 +785,13 @@ abstract class AppLocalizations {
   /// No description provided for @groceryPantryScanSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Take a clear photo. We will suggest items—tap ✓ to add to your pantry or ℹ to edit or dismiss.'**
+  /// **'Take a clear photo of your pantry or fridge. We will detect ingredients and suggest what you can cook.'**
   String get groceryPantryScanSubtitle;
 
   /// No description provided for @groceryPantryScanSubtitleOnDevice.
   ///
   /// In en, this message translates to:
-  /// **'Take a clear photo. On your phone we analyze it on-device—nothing is uploaded. Tap ✓ to add to your pantry.'**
+  /// **'Take a clear photo. On your phone we analyze it on-device—nothing is uploaded.'**
   String get groceryPantryScanSubtitleOnDevice;
 
   /// No description provided for @groceryPantryScanTakePhoto.
@@ -890,11 +890,29 @@ abstract class AppLocalizations {
   /// **'Remove'**
   String get groceryPantryScanRemoveRow;
 
+  /// No description provided for @groceryPantryScanCookPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Do you want to see what you can cook with these items?'**
+  String get groceryPantryScanCookPrompt;
+
+  /// No description provided for @groceryPantryScanGenerateRecipes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, show recipes'**
+  String get groceryPantryScanGenerateRecipes;
+
   /// No description provided for @groceryPantryScanAddSelected.
   ///
   /// In en, this message translates to:
-  /// **'Add to pantry'**
+  /// **'No, add them to my pantry'**
   String get groceryPantryScanAddSelected;
+
+  /// No description provided for @groceryPantryScanAlreadyInPantry.
+  ///
+  /// In en, this message translates to:
+  /// **'These items are already in your pantry'**
+  String get groceryPantryScanAlreadyInPantry;
 
   /// No description provided for @groceryPantryScanSignInRequired.
   ///
@@ -1769,7 +1787,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingPaywallSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Premium unlocks unlimited recipes, pantry scan, and full meal planning.'**
+  /// **'Compare plans below — Premium unlocks unlimited recipes, pantry scan, and full meal planning.'**
   String get onboardingPaywallSubtitle;
 
   /// No description provided for @onboardingPaywallBenefitUnlimited.
@@ -1817,8 +1835,38 @@ abstract class AppLocalizations {
   /// No description provided for @freeTierQuotaMessage.
   ///
   /// In en, this message translates to:
-  /// **'Free plan includes up to 3 recipe generations per day. Upgrade for unlimited recipes.'**
+  /// **'Free plan includes up to 3 recipe generations. Upgrade for unlimited recipes.'**
   String get freeTierQuotaMessage;
+
+  /// No description provided for @freeTierQuotaDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily limit reached'**
+  String get freeTierQuotaDialogTitle;
+
+  /// No description provided for @freeTierQuotaResetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Limit reset'**
+  String get freeTierQuotaResetTitle;
+
+  /// No description provided for @freeTierQuotaResetInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily limits reset at midnight UTC.'**
+  String get freeTierQuotaResetInfo;
+
+  /// No description provided for @notNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get notNow;
+
+  /// No description provided for @goPremium.
+  ///
+  /// In en, this message translates to:
+  /// **'Go Premium'**
+  String get goPremium;
 
   /// No description provided for @freeTierImportQuotaMessage.
   ///
@@ -1831,6 +1879,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{used}/{total} Credits used'**
   String dailyCreditsUsed(int used, int total);
+
+  /// No description provided for @tierColumnFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'Feature'**
+  String get tierColumnFeature;
+
+  /// No description provided for @tierColumnStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get tierColumnStandard;
+
+  /// No description provided for @tierColumnPremium.
+  ///
+  /// In en, this message translates to:
+  /// **'Premium'**
+  String get tierColumnPremium;
+
+  /// No description provided for @tierFeatureRecipeGenerations.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipe generations'**
+  String get tierFeatureRecipeGenerations;
+
+  /// No description provided for @tierFeatureImports.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipe imports'**
+  String get tierFeatureImports;
+
+  /// No description provided for @tierFeaturePantryScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Pantry scan'**
+  String get tierFeaturePantryScan;
+
+  /// No description provided for @tierFeatureMealPlanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Meal planner'**
+  String get tierFeatureMealPlanner;
+
+  /// No description provided for @tierFeatureLatestRecipes.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest recipes'**
+  String get tierFeatureLatestRecipes;
+
+  /// No description provided for @tierValueUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited'**
+  String get tierValueUnlimited;
+
+  /// No description provided for @tierValuePerDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}/day'**
+  String tierValuePerDay(int count);
+
+  /// No description provided for @tierValueDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days'**
+  String tierValueDays(int count);
+
+  /// No description provided for @tierValueNotIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'—'**
+  String get tierValueNotIncluded;
+
+  /// No description provided for @recipeAssistantOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask Sous Chef'**
+  String get recipeAssistantOpen;
+
+  /// No description provided for @recipeAssistantTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask Sous Chef'**
+  String get recipeAssistantTitle;
+
+  /// No description provided for @recipeAssistantEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask about this recipe'**
+  String get recipeAssistantEmptyTitle;
+
+  /// No description provided for @recipeAssistantEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Try substitutions, timing, storage, serving ideas, or help with a step.'**
+  String get recipeAssistantEmptyBody;
+
+  /// No description provided for @recipeAssistantInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask a question about this recipe'**
+  String get recipeAssistantInputHint;
+
+  /// No description provided for @recipeAssistantSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get recipeAssistantSend;
+
+  /// No description provided for @recipeAssistantListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening…'**
+  String get recipeAssistantListening;
+
+  /// No description provided for @recipeAssistantMicTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask by voice'**
+  String get recipeAssistantMicTooltip;
+
+  /// No description provided for @recipeAssistantStopListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop listening'**
+  String get recipeAssistantStopListening;
+
+  /// No description provided for @recipeAssistantSpeakTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Read answer aloud'**
+  String get recipeAssistantSpeakTooltip;
+
+  /// No description provided for @recipeAssistantStopSpeakingTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop reading'**
+  String get recipeAssistantStopSpeakingTooltip;
+
+  /// No description provided for @recipeAssistantPremiumTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipe assistant is Premium'**
+  String get recipeAssistantPremiumTitle;
+
+  /// No description provided for @recipeAssistantPremiumBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to ask Sous Chef questions about any recipe while you cook.'**
+  String get recipeAssistantPremiumBody;
+
+  /// No description provided for @recipeAssistantPremiumCta.
+  ///
+  /// In en, this message translates to:
+  /// **'View Premium'**
+  String get recipeAssistantPremiumCta;
+
+  /// No description provided for @recipeAssistantNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get recipeAssistantNotNow;
+
+  /// No description provided for @recipeAssistantVoiceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice input is not available. You can still type your question.'**
+  String get recipeAssistantVoiceUnavailable;
 }
 
 class _AppLocalizationsDelegate

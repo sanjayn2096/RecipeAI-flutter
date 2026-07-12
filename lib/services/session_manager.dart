@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../core/constants.dart';
 import '../core/preference_options.dart';
+import '../data/models/recipe_generation_usage.dart';
 import '../data/models/subscription_status.dart';
 import '../onboarding/onboarding_prefs.dart';
 
@@ -18,6 +19,7 @@ class SessionManager {
 
   /// Bumped when client-side usage quotas change (recipe gen, import).
   final ValueNotifier<int> usageQuotaRevision = ValueNotifier<int>(0);
+  RecipeGenerationUsage? _signedInRecipeGenerationUsage;
 
   void notifyUsageQuotaChanged() {
     usageQuotaRevision.value++;
@@ -30,7 +32,8 @@ class SessionManager {
     (await _p).setString(_prefix + AppConstants.prefsSessionId, sessionId);
   }
 
-  String? getSession() => _prefs?.getString(_prefix + AppConstants.prefsSessionId);
+  String? getSession() =>
+      _prefs?.getString(_prefix + AppConstants.prefsSessionId);
 
   Future<void> clearSession() async {
     final p = await _p;
@@ -51,6 +54,8 @@ class SessionManager {
     await p.remove(_prefix + AppConstants.prefsGuestGenDayKey);
     await p.remove(_prefix + AppConstants.prefsGuestGenCount);
     await p.remove(_prefix + AppConstants.prefsSubscriptionCache);
+    _signedInRecipeGenerationUsage = null;
+    notifyUsageQuotaChanged();
   }
 
   Future<void> saveUserId(String userId) async {
@@ -64,7 +69,8 @@ class SessionManager {
   }
 
   /// Raw stored email (no placeholder).
-  String? getStoredEmail() => _prefs?.getString(_prefix + AppConstants.prefsEmail);
+  String? getStoredEmail() =>
+      _prefs?.getString(_prefix + AppConstants.prefsEmail);
 
   /// Email for API calls; falls back to empty string if unset.
   String? getEmail() => getStoredEmail();
@@ -89,9 +95,11 @@ class SessionManager {
     }
   }
 
-  String? getFirstName() => _prefs?.getString(_prefix + AppConstants.prefsFirstName);
+  String? getFirstName() =>
+      _prefs?.getString(_prefix + AppConstants.prefsFirstName);
 
-  String? getLastName() => _prefs?.getString(_prefix + AppConstants.prefsLastName);
+  String? getLastName() =>
+      _prefs?.getString(_prefix + AppConstants.prefsLastName);
 
   /// Persists all fields returned from GET get_user_profile.
   Future<void> persistUserProfile({
@@ -119,9 +127,9 @@ class SessionManager {
   }
 
   /// Legacy mood field — prefer [getLifestyleMood] / [getCreateFlowMood] by flow.
-  String? getMood() =>
-      PreferenceOptions.normalizeMoodKey(
-        getPreference(AppConstants.prefsMood) ?? PreferenceOptions.moodFeelingLucky,
+  String? getMood() => PreferenceOptions.normalizeMoodKey(
+        getPreference(AppConstants.prefsMood) ??
+            PreferenceOptions.moodFeelingLucky,
       );
 
   /// Global lifestyle default for Home generation and PATCH sync (falls back to legacy [prefsMood] once).
@@ -137,7 +145,8 @@ class SessionManager {
             PreferenceOptions.noCuisineSelected,
       );
 
-  String getLifestyleCookingPreference() => PreferenceOptions.normalizeCookingKey(
+  String getLifestyleCookingPreference() =>
+      PreferenceOptions.normalizeCookingKey(
         getPreference(AppConstants.prefsLifestyleCookingPreference) ??
             getPreference(AppConstants.prefsCookingPreference) ??
             PreferenceOptions.noCookingPreference,
@@ -174,7 +183,8 @@ class SessionManager {
             PreferenceOptions.noCuisineSelected,
       );
 
-  String getCreateFlowCookingPreference() => PreferenceOptions.normalizeCookingKey(
+  String getCreateFlowCookingPreference() =>
+      PreferenceOptions.normalizeCookingKey(
         getPreference(AppConstants.prefsCreateFlowCookingPreference) ??
             getPreference(AppConstants.prefsCookingPreference) ??
             PreferenceOptions.noCookingPreference,
@@ -212,7 +222,8 @@ class SessionManager {
       );
 
   List<String> getDietProfiles() {
-    final list = _prefs?.getStringList(_prefix + AppConstants.prefsDietProfiles);
+    final list =
+        _prefs?.getStringList(_prefix + AppConstants.prefsDietProfiles);
     return PreferenceOptions.normalizeDietProfileKeys(list ?? const []);
   }
 
@@ -224,7 +235,8 @@ class SessionManager {
   }
 
   List<String> getAllergensAvoid() {
-    final list = _prefs?.getStringList(_prefix + AppConstants.prefsAllergensAvoid);
+    final list =
+        _prefs?.getStringList(_prefix + AppConstants.prefsAllergensAvoid);
     return PreferenceOptions.normalizeAllergenKeys(list ?? const []);
   }
 
@@ -374,6 +386,17 @@ class SessionManager {
     return id;
   }
 
+  /// Stable per-install id for attributing Firestore reads/writes to one device.
+  Future<String> getOrCreateInstallId() async {
+    final p = await _p;
+    const key = _prefix + AppConstants.prefsInstallId;
+    final existing = p.getString(key);
+    if (existing != null && existing.isNotEmpty) return existing;
+    final id = const Uuid().v4();
+    await p.setString(key, id);
+    return id;
+  }
+
   /// Client-side mirror of daily guest cap (2/day); server still enforces.
   Future<bool> isGuestRecipeQuotaExceededForToday() async {
     if (!isGuestMode()) return false;
@@ -399,6 +422,31 @@ class SessionManager {
     }
     await p.setString(keyDay, day);
     await p.setInt(keyCount, count + 1);
+  }
+
+  RecipeGenerationUsage getSignedInRecipeGenerationUsageForTodaySync() {
+    final usage = _signedInRecipeGenerationUsage;
+    if (usage == null || usage.utcDay != RecipeGenerationUsage.utcDayKeyNow()) {
+      return RecipeGenerationUsage.empty(
+        dailyLimit: OnboardingPrefs.freeTierDailyRecipeLimit,
+      );
+    }
+    return usage;
+  }
+
+  void updateSignedInRecipeGenerationUsage(RecipeGenerationUsage? usage) {
+    _signedInRecipeGenerationUsage = usage;
+    notifyUsageQuotaChanged();
+  }
+
+  Future<void> recordSignedInFreeRecipeGenerationSuccess({
+    required bool isPremium,
+  }) async {
+    if (isPremium || isGuestMode()) return;
+    final usage = getSignedInRecipeGenerationUsageForTodaySync();
+    updateSignedInRecipeGenerationUsage(
+      usage.copyWith(count: usage.count + 1),
+    );
   }
 
   SubscriptionStatus readSubscriptionCacheSync() {

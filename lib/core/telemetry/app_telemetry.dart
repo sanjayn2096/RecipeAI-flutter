@@ -1,14 +1,18 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../services/session_manager.dart';
 import 'api_call_context.dart';
+import 'device_identity.dart';
+import 'firestore_activity_metrics.dart';
 
 /// Firebase Analytics for API timing, feature usage, and user identity.
 class AppTelemetry {
   AppTelemetry(this._analytics);
 
   final FirebaseAnalytics _analytics;
+  DeviceIdentity? _device;
 
   static const _maxParamLen = 100;
 
@@ -24,6 +28,38 @@ class AppTelemetry {
         'actor_id': _truncate(m.actorId, _maxParamLen),
         if (m.errorMessage != null)
           'error': _truncate(m.errorMessage!, _maxParamLen),
+      },
+    );
+  }
+
+  /// Registers install id + platform on Analytics for per-device Firestore attribution.
+  Future<void> initDeviceIdentity(SessionManager session) async {
+    final device = await DeviceIdentity.load(session);
+    _device = device;
+    await _analytics.setUserProperty(
+      name: 'install_id',
+      value: _truncate(device.installId, _maxParamLen),
+    );
+    await _analytics.setUserProperty(name: 'platform', value: device.platform);
+  }
+
+  /// Client-side Firestore activity (listeners + direct writes).
+  Future<void> logFirestoreActivity(FirestoreActivityMetrics m) async {
+    final device = _device;
+    if (kDebugMode) {
+      debugPrint(
+        '[Firestore] ${m.operation} ${m.collection} docs=${m.docCount} '
+        'device=${device?.label ?? 'unknown'}',
+      );
+    }
+    await _analytics.logEvent(
+      name: 'firestore_activity',
+      parameters: {
+        'operation': _truncate(m.operation, _maxParamLen),
+        'collection': _truncate(m.collection, _maxParamLen),
+        'doc_count': m.docCount,
+        if (device != null) 'install_id': _truncate(device.installId, 32),
+        if (device != null) 'platform': device.platform,
       },
     );
   }

@@ -18,53 +18,86 @@ class PantrySuggestionSelection {
   String get unit => suggestion.unit;
 }
 
-/// Photo preview + per-item accept (pantry) / edit / dismiss actions.
+/// Photo preview, detected items list, and cook-vs-pantry choice.
 class PantryScanReview extends StatelessWidget {
   const PantryScanReview({
     super.key,
     required this.photo,
     required this.selections,
     required this.onSelectedNameChanged,
-    required this.onAcceptItem,
     required this.onEditItem,
     required this.onDismissItem,
+    required this.onGenerateRecipes,
+    required this.onAddAllToPantry,
     required this.onScanAgain,
   });
 
   final PantryCapturedPhoto photo;
   final List<PantrySuggestionSelection> selections;
   final void Function(int groupIndex, String name) onSelectedNameChanged;
-  final void Function(int index) onAcceptItem;
   final void Function(int index) onEditItem;
   final void Function(int index) onDismissItem;
+  final VoidCallback onGenerateRecipes;
+  final VoidCallback onAddAllToPantry;
   final VoidCallback onScanAgain;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _CapturedPhotoPreview(photo: photo),
         const SizedBox(height: 16),
+        Text(
+          l10n.groceryPantryScanReviewHeading,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
         Expanded(
           child: ListView.separated(
             itemCount: selections.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               return _SuggestionGroupCard(
                 selection: selections[index],
                 onNameSelected: (name) => onSelectedNameChanged(index, name),
-                onAccept: () => onAcceptItem(index),
                 onEdit: () => onEditItem(index),
                 onDismiss: () => onDismissItem(index),
               );
             },
           ),
         ),
+        const SizedBox(height: 16),
+        Text(
+          l10n.groceryPantryScanCookPrompt,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          onPressed: onGenerateRecipes,
+          child: Text(l10n.groceryPantryScanGenerateRecipes),
+        ),
         const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: onAddAllToPantry,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: theme.colorScheme.onSurface,
+            side: BorderSide(color: theme.colorScheme.primary, width: 1.2),
+            backgroundColor: theme.colorScheme.surface,
+          ),
+          child: Text(l10n.groceryPantryScanAddSelected),
+        ),
         TextButton(
           onPressed: onScanAgain,
-          child: Text(context.l10n.groceryPantryScanScanAgain),
+          child: Text(l10n.groceryPantryScanScanAgain),
         ),
       ],
     );
@@ -122,14 +155,12 @@ class _SuggestionGroupCard extends StatelessWidget {
   const _SuggestionGroupCard({
     required this.selection,
     required this.onNameSelected,
-    required this.onAccept,
     required this.onEdit,
     required this.onDismiss,
   });
 
   final PantrySuggestionSelection selection;
   final ValueChanged<String> onNameSelected;
-  final VoidCallback onAccept;
   final VoidCallback onEdit;
   final VoidCallback onDismiss;
 
@@ -155,15 +186,8 @@ class _SuggestionGroupCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        context.l10n.groceryPantryScanLooksLike,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
                         selection.selectedName,
-                        style: theme.textTheme.titleLarge?.copyWith(
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -180,17 +204,9 @@ class _SuggestionGroupCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: context.l10n.groceryPantryScanAcceptTooltip,
-                  icon: Icon(
-                    Icons.check_circle,
-                    color: theme.colorScheme.primary,
-                  ),
-                  onPressed: onAccept,
-                ),
-                IconButton(
                   tooltip: context.l10n.groceryPantryScanEditTooltip,
                   icon: Icon(
-                    Icons.info_outline,
+                    Icons.more_vert,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   onPressed: () => _showEditMenu(context),

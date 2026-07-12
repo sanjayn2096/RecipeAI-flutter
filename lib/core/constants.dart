@@ -45,6 +45,9 @@ class AppConstants {
   /// Stable id for POST generate-recipe when not signed in (device-local; new after reinstall).
   static const String prefsAnonymousId = 'anonymousId';
 
+  /// Per-install id for Firestore usage telemetry (survives sign-out).
+  static const String prefsInstallId = 'installId';
+
   /// UTC calendar day `YYYY-MM-DD` for guest recipe quota mirror (align with backend dayKey).
   static const String prefsGuestGenDayKey = 'guestGenDayKey';
 

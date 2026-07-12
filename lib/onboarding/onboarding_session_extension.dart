@@ -51,54 +51,6 @@ extension OnboardingSessionManager on SessionManager {
     );
   }
 
-  bool hasExistingLifestyleProfile() {
-    return getDietProfiles().isNotEmpty ||
-        getAllergensAvoid().isNotEmpty ||
-        getUsualCuisines().isNotEmpty;
-  }
-
-  void migrateOnboardingCompleteIfExistingUser() {
-    if (getOnboardingCompleteSync()) return;
-    if (hasExistingLifestyleProfile()) {
-      setOnboardingCompleteSync(true);
-    }
-  }
-
-  int getSignedInFreeRecipeCountForTodaySync() {
-    if (isGuestMode()) return 0;
-    final day = SessionManager.guestQuotaUtcDayKeyNow();
-    final storedDay = getPreference(OnboardingPrefs.freeGenDayKey);
-    if (storedDay != day) return 0;
-    return int.tryParse(getPreference(OnboardingPrefs.freeGenCount) ?? '') ?? 0;
-  }
-
-  Future<bool> isSignedInFreeRecipeQuotaExceededForToday({
-    required bool isPremium,
-  }) async {
-    if (isPremium || isGuestMode()) return false;
-    return getSignedInFreeRecipeCountForTodaySync() >=
-        OnboardingPrefs.freeTierDailyRecipeLimit;
-  }
-
-  Future<void> recordSignedInFreeRecipeGenerationSuccess({
-    required bool isPremium,
-  }) async {
-    if (isPremium || isGuestMode()) return;
-    final day = SessionManager.guestQuotaUtcDayKeyNow();
-    final storedDay = getPreference(OnboardingPrefs.freeGenDayKey);
-    var count = 0;
-    if (storedDay == day) {
-      count =
-          int.tryParse(getPreference(OnboardingPrefs.freeGenCount) ?? '') ?? 0;
-    }
-    savePreferenceSync(OnboardingPrefs.freeGenDayKey, day);
-    savePreferenceSync(
-      OnboardingPrefs.freeGenCount,
-      '${count + 1}',
-    );
-    notifyUsageQuotaChanged();
-  }
-
   int getSignedInFreeImportCountForTodaySync() {
     if (isGuestMode()) return 0;
     final day = SessionManager.guestQuotaUtcDayKeyNow();
@@ -123,7 +75,8 @@ extension OnboardingSessionManager on SessionManager {
     final storedDay = getPreference(OnboardingPrefs.importDayKey);
     var count = 0;
     if (storedDay == day) {
-      count = int.tryParse(getPreference(OnboardingPrefs.importCount) ?? '') ?? 0;
+      count =
+          int.tryParse(getPreference(OnboardingPrefs.importCount) ?? '') ?? 0;
     }
     savePreferenceSync(OnboardingPrefs.importDayKey, day);
     savePreferenceSync(

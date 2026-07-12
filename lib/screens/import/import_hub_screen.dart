@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/l10n_context.dart';
 import '../../core/monetization_navigation.dart';
 import '../../core/telemetry/app_telemetry.dart';
+import '../../data/api/api_service.dart';
 import '../../onboarding/onboarding_session_extension.dart';
 import '../../services/session_manager.dart';
 import '../../view_models/grocery_list_view_model.dart';
@@ -20,6 +21,7 @@ class ImportHubScreen extends StatelessWidget {
     super.key,
     required this.sessionManager,
     required this.subscriptionViewModel,
+    required this.apiService,
     required this.appTelemetry,
     required this.recipeViewModel,
     required this.groceryListViewModel,
@@ -30,6 +32,7 @@ class ImportHubScreen extends StatelessWidget {
 
   final SessionManager sessionManager;
   final SubscriptionViewModel subscriptionViewModel;
+  final ApiService apiService;
   final AppTelemetry appTelemetry;
   final RecipeViewModel recipeViewModel;
   final GroceryListViewModel groceryListViewModel;
@@ -161,6 +164,9 @@ class ImportHubScreen extends StatelessWidget {
                             ImportRecipeLinkScreen(
                               recipeViewModel: recipeViewModel,
                               groceryListViewModel: groceryListViewModel,
+                              apiService: apiService,
+                              appTelemetry: appTelemetry,
+                              subscriptionViewModel: subscriptionViewModel,
                               isGuest: sessionManager.isGuestMode(),
                             ),
                           ),
@@ -178,6 +184,9 @@ class ImportHubScreen extends StatelessWidget {
                             ImportRecipeTextScreen(
                               recipeViewModel: recipeViewModel,
                               groceryListViewModel: groceryListViewModel,
+                              apiService: apiService,
+                              appTelemetry: appTelemetry,
+                              subscriptionViewModel: subscriptionViewModel,
                               isGuest: sessionManager.isGuestMode(),
                             ),
                           ),
@@ -198,6 +207,9 @@ class ImportHubScreen extends StatelessWidget {
                       ImportRecipeScanScreen(
                         recipeViewModel: recipeViewModel,
                         groceryListViewModel: groceryListViewModel,
+                        apiService: apiService,
+                        appTelemetry: appTelemetry,
+                        subscriptionViewModel: subscriptionViewModel,
                         isGuest: sessionManager.isGuestMode(),
                       ),
                     ),

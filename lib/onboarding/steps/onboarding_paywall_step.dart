@@ -7,6 +7,8 @@ import '../../core/monetization_config.dart';
 import '../../core/telemetry/app_telemetry.dart';
 import '../../core/telemetry/feature_ids.dart';
 import '../../view_models/subscription_view_model.dart';
+import '../../widgets/sous_chef_brand.dart';
+import '../../widgets/tier_comparison_table.dart';
 import '../onboarding_controller.dart';
 import '../widgets/onboarding_progress_bar.dart';
 
@@ -92,6 +94,10 @@ class _OnboardingPaywallStepState extends State<OnboardingPaywallStep> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const SizedBox(
+              height: kToolbarHeight,
+              child: Center(child: SousChefInlineTitle(markSize: 44)),
+            ),
             OnboardingProgressBar(
               currentStep: widget.controller.stepIndex,
               totalSteps: OnboardingController.stepCount,
@@ -100,42 +106,50 @@ class _OnboardingPaywallStepState extends State<OnboardingPaywallStep> {
                 OnboardingController.stepCount,
               ),
             ),
-            const Spacer(),
-            Icon(
-              Icons.restaurant_menu,
-              size: 72,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              l10n.onboardingPaywallTitle,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.restaurant_menu,
+                      size: 56,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      l10n.onboardingPaywallTitle,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.onboardingPaywallSubtitle,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            height: 1.45,
+                          ),
+                    ),
+                    const SizedBox(height: 20),
+                    const TierComparisonTable(compact: true),
+                    if (vm.error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        vm.error!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 12),
-            Text(
-              l10n.onboardingPaywallSubtitle,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    height: 1.45,
-                  ),
-            ),
-            const SizedBox(height: 28),
-            _Benefit(text: l10n.onboardingPaywallBenefitUnlimited),
-            _Benefit(text: l10n.onboardingPaywallBenefitNoAds),
-            _Benefit(text: l10n.onboardingPaywallBenefitMealPlan),
-            if (vm.error != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                vm.error!,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-            const Spacer(),
             FilledButton(
               onPressed: vm.loading ? null : _onSubscribe,
               child: vm.loading
@@ -158,26 +172,6 @@ class _OnboardingPaywallStepState extends State<OnboardingPaywallStep> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Benefit extends StatelessWidget {
-  const _Benefit({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Icon(Icons.check, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 10),
-          Expanded(child: Text(text)),
-        ],
       ),
     );
   }

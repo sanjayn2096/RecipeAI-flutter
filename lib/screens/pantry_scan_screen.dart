@@ -1,7 +1,4 @@
-import 'dart:io' show Platform;
-
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,14 +8,16 @@ import 'pantry/pantry_pick_photo.dart';
 import 'pantry/pantry_scan_review.dart';
 import '../core/l10n_context.dart';
 import '../core/monetization_navigation.dart';
+import '../core/recipe_generation_entry_point.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../core/telemetry/feature_ids.dart';
 import '../data/api/api_service.dart';
 import '../services/pantry/pantry_image_analyzer.dart';
 import '../services/session_manager.dart';
 import '../view_models/subscription_view_model.dart';
+import '../widgets/guest_signup_prompt.dart';
 
-/// Photo of pantry/fridge → on-device vision → review → user's Home pantry staples.
+/// Photo of pantry/fridge → cloud scan → review → user's Home pantry staples.
 class PantryScanScreen extends StatefulWidget {
   const PantryScanScreen({
     super.key,
@@ -45,9 +44,6 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
   String? _error;
   PantryCapturedPhoto? _photo;
   List<PantrySuggestionSelection> _selections = [];
-
-  bool get _usesOnDevice =>
-      !kIsWeb && (Platform.isIOS || Platform.isAndroid) && _analyzer.isOnDevice;
 
   bool get _showReview => _photo != null && _selections.isNotEmpty && !_busy;
 
@@ -86,7 +82,7 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
       return;
     }
     final user = FirebaseAuth.instance.currentUser;
-    if (!_usesOnDevice && user == null) {
+    if (user == null) {
       setState(() => _error = context.l10n.groceryPantryScanSignInRequired);
       return;
     }
@@ -106,10 +102,7 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
       }
 
       final mime = captured.mimeType;
-      String? token;
-      if (!_usesOnDevice) {
-        token = await user!.getIdToken();
-      }
+      final token = await user.getIdToken();
 
       final suggestions = await _analyzer.analyze(
         bytes: captured.bytes,
@@ -155,42 +148,92 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
     setState(() => _selections[groupIndex].selectedName = name);
   }
 
-  void _addToPantry(String name) {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) return;
-    final list = List<String>.from(widget.sessionManager.getIngredients());
-    if (!list.contains(trimmed)) {
-      list.add(trimmed);
-      widget.sessionManager.saveIngredientsSync(list);
-    }
+  List<String> _selectedIngredientNames() {
+    return _selections
+        .map((s) => s.selectedName.trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
   }
 
-  void _acceptItem(int index) {
-    final sel = _selections[index];
-    final name = sel.selectedName.trim();
-    if (name.isEmpty) return;
+  int _mergeSelectedIntoPantry() {
+    final names = _selectedIngredientNames();
+    if (names.isEmpty) return 0;
 
-    _addToPantry(name);
+    final list = List<String>.from(widget.sessionManager.getIngredients());
+    var added = 0;
+    for (final name in names) {
+      if (!list.contains(name)) {
+        list.add(name);
+        added++;
+      }
+    }
+    if (added > 0) {
+      widget.sessionManager.saveIngredientsSync(list);
+    }
+    return added;
+  }
+
+  Future<void> _addAllToPantry() async {
+    final names = _selectedIngredientNames();
+    if (names.isEmpty) return;
+
+    final added = _mergeSelectedIntoPantry();
 
     widget.appTelemetry.logFeatureInteraction(
-      featureId: FeatureIds.groceryPantryScanConfirmAdd,
+      featureId: FeatureIds.groceryPantryScanAddAllToPantry,
     );
-
-    setState(() {
-      _selections = List.of(_selections)..removeAt(index);
-      if (_selections.isEmpty) {
-        _photo = null;
-      }
-    });
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.groceryPantryScanAdded(1))),
+      SnackBar(
+        content: Text(
+          added > 0
+              ? context.l10n.groceryPantryScanAdded(added)
+              : context.l10n.groceryPantryScanAlreadyInPantry,
+        ),
+      ),
+    );
+    context.pop();
+  }
+
+  Future<void> _generateRecipesFromScan() async {
+    final names = _selectedIngredientNames();
+    if (names.isEmpty) return;
+
+    _mergeSelectedIntoPantry();
+
+    if (widget.sessionManager.isGuestMode() &&
+        !widget.subscriptionViewModel.isPremium) {
+      final exceeded =
+          await widget.sessionManager.isGuestRecipeQuotaExceededForToday();
+      if (!mounted) return;
+      if (exceeded) {
+        final action = await showGuestRecipeLimitReachedDialog(
+          context,
+          appTelemetry: widget.appTelemetry,
+        );
+        if (!mounted) return;
+        if (action == GuestLimitAction.signUp) {
+          goToSignup(context);
+        } else if (action == GuestLimitAction.premium) {
+          openPremiumPaywall(
+            context,
+            source: 'guest_quota',
+            appTelemetry: widget.appTelemetry,
+          );
+        }
+        return;
+      }
+    }
+
+    widget.appTelemetry.logFeatureInteraction(
+      featureId: FeatureIds.groceryPantryScanGenerateRecipes,
     );
 
-    if (_selections.isEmpty) {
-      context.pop();
-    }
+    if (!mounted) return;
+    context.pushReplacement('/recipe-flow', extra: {
+      'generationEntryPoint': RecipeGenerationEntryPoint.home.name,
+    });
   }
 
   void _dismissItem(int index) {
@@ -243,12 +286,8 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final workingLabel = _usesOnDevice
-        ? context.l10n.groceryPantryScanWorkingOnDevice
-        : context.l10n.groceryPantryScanWorking;
-    final subtitle = _usesOnDevice
-        ? context.l10n.groceryPantryScanSubtitleOnDevice
-        : context.l10n.groceryPantryScanSubtitle;
+    final workingLabel = context.l10n.groceryPantryScanWorking;
+    final subtitle = context.l10n.groceryPantryScanSubtitle;
 
     return Scaffold(
       appBar: AppBar(
@@ -316,9 +355,10 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
                   photo: _photo!,
                   selections: _selections,
                   onSelectedNameChanged: _onSelectedNameChanged,
-                  onAcceptItem: _acceptItem,
                   onEditItem: _editItem,
                   onDismissItem: _dismissItem,
+                  onGenerateRecipes: _generateRecipesFromScan,
+                  onAddAllToPantry: _addAllToPantry,
                   onScanAgain: _scanAgain,
                 ),
               ),

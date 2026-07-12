@@ -7,6 +7,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../../core/preference_options.dart';
 import '../../core/firestore_paths.dart';
+import '../../core/telemetry/firestore_activity_metrics.dart';
 import '../../onboarding/onboarding_session_extension.dart';
 import '../api/api_service.dart';
 import '../firestore/favorites_firestore_mapper.dart';
@@ -24,17 +25,42 @@ class UserRepository {
     required SavedRecipesHiveStore savedRecipesHiveStore,
     FirebaseAuth? firebaseAuth,
     FirebaseFirestore? firestore,
+    FirestoreActivityCallback? onFirestoreActivity,
   })  : _api = apiService,
         _session = sessionManager,
         _savedRecipesHiveStore = savedRecipesHiveStore,
         _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+        _firestore = firestore ?? FirebaseFirestore.instance,
+        _onFirestoreActivity = onFirestoreActivity;
 
   final ApiService _api;
   final SessionManager _session;
   final SavedRecipesHiveStore _savedRecipesHiveStore;
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
+  final FirestoreActivityCallback? _onFirestoreActivity;
+
+  void _logFirestore(FirestoreActivityMetrics metrics) {
+    _onFirestoreActivity?.call(metrics);
+  }
+
+  Stream<T> _listenWithTelemetry<T>(
+    Stream<T> stream, {
+    required String collection,
+    required int Function(T value) docCount,
+  }) {
+    if (_onFirestoreActivity == null) return stream;
+    return stream.map((value) {
+      _logFirestore(
+        FirestoreActivityMetrics(
+          operation: 'listen_snapshot',
+          collection: collection,
+          docCount: docCount(value),
+        ),
+      );
+      return value;
+    });
+  }
 
   /// `saved` + legacy `favorites` subcollections (merged, live).
   Stream<List<Recipe>> watchSavedFromFirestore(String userId) {
@@ -54,14 +80,22 @@ class UserRepository {
       );
     }
 
-    final sub1 = saved.snapshots().listen(
+    final sub1 = _listenWithTelemetry(
+      saved.snapshots(),
+      collection: 'users/*/saved',
+      docCount: (v) => v.docs.length,
+    ).listen(
       (v) {
         s = v;
         push();
       },
       onError: controller.addError,
     );
-    final sub2 = legacy.snapshots().listen(
+    final sub2 = _listenWithTelemetry(
+      legacy.snapshots(),
+      collection: 'users/*/favorites',
+      docCount: (v) => v.docs.length,
+    ).listen(
       (v) {
         l = v;
         push();

@@ -259,7 +259,11 @@ class ApiService {
     if (r.statusCode >= 200 && r.statusCode < 300) {
       return GenerateRecipeResponse.fromJson(body);
     }
-    throw ApiException(r.statusCode, _extractError(body));
+    throw ApiException(
+      r.statusCode,
+      _extractError(body),
+      code: body is Map ? body['code']?.toString() : null,
+    );
   }
 
   /// POST resolve-recipe-hero.
@@ -332,7 +336,11 @@ class ApiService {
       if (statusCode < 200 || statusCode >= 300) {
         final body = await streamed.stream.bytesToString();
         final decoded = _decodeBody(body, url);
-        throw ApiException(statusCode, _extractError(decoded));
+        throw ApiException(
+          statusCode,
+          _extractError(decoded),
+          code: decoded is Map ? decoded['code']?.toString() : null,
+        );
       }
 
       String currentEvent = '';
@@ -365,7 +373,11 @@ class ApiService {
               }
             }
           } else if (event == 'error') {
-            throw ApiException(statusCode, _extractError(payload));
+            throw ApiException(
+              statusCode,
+              _extractError(payload),
+              code: payload is Map ? payload['code']?.toString() : null,
+            );
           } else if (event == 'done') {
             return;
           }
@@ -629,6 +641,79 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(body));
   }
 
+  /// POST /generate-recipe-step-image (Premium). Persists onto recipe when [recipeId] set.
+  Future<GenerateRecipeStepImageResponse> generateRecipeStepImage({
+    required String recipeName,
+    required String stepText,
+    required int stepIndex,
+    String? cuisine,
+    String? recipeId,
+    String? clientRequestId,
+    String? idToken,
+  }) async {
+    const metricPath = 'generate-recipe-step-image';
+    final url = _url('generate-recipe-step-image');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final body = <String, dynamic>{
+      'recipeName': recipeName,
+      'stepText': stepText,
+      'stepIndex': stepIndex,
+      if (cuisine != null && cuisine.trim().isNotEmpty) 'cuisine': cuisine.trim(),
+      if (recipeId != null && recipeId.trim().isNotEmpty) 'recipeId': recipeId.trim(),
+      if (clientRequestId != null && clientRequestId.trim().isNotEmpty)
+        'clientRequestId': clientRequestId.trim(),
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+    });
+    final decoded = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return GenerateRecipeStepImageResponse.fromJson(
+        decoded as Map<String, dynamic>,
+      );
+    }
+    throw ApiException(
+      r.statusCode,
+      _extractError(decoded),
+      code: decoded is Map ? decoded['code']?.toString() : null,
+    );
+  }
+
+  Future<RecipeQuestionResponse> askRecipe(
+    RecipeQuestionRequest request, {
+    String? idToken,
+  }) async {
+    const metricPath = 'ask-recipe';
+    final url = _url('ask-recipe');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(request.toJson()),
+      );
+    });
+    final body = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return RecipeQuestionResponse.fromJson(body as Map<String, dynamic>);
+    }
+    throw ApiException(
+      r.statusCode,
+      _extractError(body),
+      code: body is Map ? body['code']?.toString() : null,
+    );
+  }
+
   static List<Recipe> _parseRecipeList(dynamic json) {
     if (json is List) {
       return json
@@ -787,7 +872,7 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(map));
   }
 
-  /// GET daily-ideas — preloaded personalized recipe carousel (auth).
+  /// GET daily-ideas — shared categorized catalog (auth).
   Future<DailyIdeasResponse> fetchDailyIdeas({
     String? idToken,
     String slot = 'dinner',
@@ -853,6 +938,55 @@ class ResolveRecipeHeroResponse {
   }
 }
 
+class GenerateRecipeStepImageResponse {
+  const GenerateRecipeStepImageResponse({
+    required this.stepIndex,
+    required this.imageUrl,
+    this.clientRequestId,
+    this.recipeId,
+  });
+
+  final int stepIndex;
+  final String imageUrl;
+  final String? clientRequestId;
+  final String? recipeId;
+
+  factory GenerateRecipeStepImageResponse.fromJson(Map<String, dynamic> json) {
+    final idxRaw = json['stepIndex'];
+    final idx = idxRaw is num ? idxRaw.toInt() : int.tryParse('$idxRaw') ?? 0;
+    return GenerateRecipeStepImageResponse(
+      stepIndex: idx,
+      imageUrl: (json['imageUrl'] ?? '').toString(),
+      clientRequestId: json['clientRequestId']?.toString(),
+      recipeId: json['recipeId']?.toString(),
+    );
+  }
+}
+
+class DailyIdeasCategory {
+  const DailyIdeasCategory({
+    required this.id,
+    required this.label,
+    required this.recipe,
+  });
+
+  final String id;
+  final String label;
+  final Recipe recipe;
+
+  factory DailyIdeasCategory.fromJson(Map<String, dynamic> json) {
+    final rawRecipe = json['recipe'];
+    final recipe = rawRecipe is Map
+        ? Recipe.fromJson(Map<String, dynamic>.from(rawRecipe))
+        : Recipe.fromJson(const <String, dynamic>{});
+    return DailyIdeasCategory(
+      id: (json['id'] ?? '').toString(),
+      label: (json['label'] ?? '').toString(),
+      recipe: recipe,
+    );
+  }
+}
+
 class DailyIdeasResponse {
   const DailyIdeasResponse({
     required this.batchId,
@@ -860,6 +994,7 @@ class DailyIdeasResponse {
     required this.slot,
     required this.status,
     required this.recipes,
+    this.categories = const [],
     this.timezone = '',
     this.error,
     this.isFallback = false,
@@ -872,29 +1007,47 @@ class DailyIdeasResponse {
   final String timezone;
   final String status;
   final List<Recipe> recipes;
+  final List<DailyIdeasCategory> categories;
   final String? error;
   final bool isFallback;
   final String? fallbackBatchId;
 
-  bool get isReady => status == 'ready' && recipes.length == 5;
+  bool get isReady =>
+      status == 'ready' && (categories.isNotEmpty || recipes.isNotEmpty);
 
-  bool get hasDisplayRecipes => recipes.length == 5;
+  bool get hasDisplayRecipes =>
+      categories.isNotEmpty || recipes.isNotEmpty;
 
   factory DailyIdeasResponse.fromJson(Map<String, dynamic> json) {
+    final rawCats = json['categories'];
+    final categories = rawCats is List
+        ? rawCats
+            .whereType<Map>()
+            .map((e) => DailyIdeasCategory.fromJson(Map<String, dynamic>.from(e)))
+            .where((c) => c.recipe.recipeName.trim().isNotEmpty)
+            .toList()
+        : <DailyIdeasCategory>[];
+
     final raw = json['recipes'];
-    final list = raw is List
+    var list = raw is List
         ? raw
             .whereType<Map>()
             .map((e) => Recipe.fromJson(Map<String, dynamic>.from(e)))
             .toList()
         : <Recipe>[];
+    if (list.isEmpty && categories.isNotEmpty) {
+      list = categories.map((c) => c.recipe).toList();
+    }
+
     return DailyIdeasResponse(
-      batchId: (json['batchId'] ?? '').toString(),
-      localDate: (json['localDate'] ?? '').toString(),
+      batchId: (json['batchId'] ?? json['date'] ?? '').toString(),
+      localDate: (json['localDate'] ?? json['date'] ?? json['utcDate'] ?? '')
+          .toString(),
       slot: (json['slot'] ?? 'dinner').toString(),
-      timezone: (json['timezone'] ?? '').toString(),
+      timezone: (json['timezone'] ?? 'UTC').toString(),
       status: (json['status'] ?? 'missing').toString(),
       recipes: list,
+      categories: categories,
       error: json['error']?.toString(),
       isFallback: json['isFallback'] == true,
       fallbackBatchId: json['fallbackBatchId']?.toString(),

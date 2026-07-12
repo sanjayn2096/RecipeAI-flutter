@@ -3,11 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/monetization_config.dart';
+import '../core/subscription_log.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../core/telemetry/feature_ids.dart';
 import '../services/session_manager.dart';
 import '../view_models/login_view_model.dart';
 import '../view_models/subscription_view_model.dart';
+import '../widgets/tier_comparison_table.dart';
 
 /// Premium subscription paywall with purchase funnel analytics.
 class PremiumPaywallScreen extends StatefulWidget {
@@ -77,7 +79,9 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
   }
 
   Future<void> _onSubscribe() async {
+    subscriptionLog('paywall subscribe tap source=${widget.source}');
     if (widget.sessionManager.isGuestMode()) {
+      subscriptionLog('paywall subscribe: redirect guest → login');
       context.go('/login', extra: true);
       return;
     }
@@ -152,7 +156,7 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
                   padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
                   children: [
                     Text(
-                      'Standard',
+                      'Sous Chef Premium',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
@@ -172,31 +176,8 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
                             color: scheme.onSurfaceVariant,
                           ),
                     ),
-                    const SizedBox(height: 24),
-                    _BenefitRow(
-                      icon: Icons.all_inclusive,
-                      title: 'Unlimited recipes',
-                      subtitle:
-                          'No daily cap on AI recipe generations.',
-                    ),
-                    _BenefitRow(
-                      icon: Icons.camera_alt_outlined,
-                      title: 'Pantry scan',
-                      subtitle:
-                          'Scan pantry or fridge photos to add staples instantly.',
-                    ),
-                    _BenefitRow(
-                      icon: Icons.download_for_offline_outlined,
-                      title: 'Unlimited imports',
-                      subtitle:
-                          'Import recipes from links, text, or photos without daily limits.',
-                    ),
-                    _BenefitRow(
-                      icon: Icons.new_releases_outlined,
-                      title: 'Latest recipes',
-                      subtitle:
-                          'Subscriber-only feed of the newest recipes in the community.',
-                    ),
+                    const SizedBox(height: 20),
+                    const TierComparisonTable(),
                     if (vm.error != null) ...[
                       const SizedBox(height: 16),
                       Text(
@@ -226,6 +207,13 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
                           child: const Text('Privacy Policy'),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      MonetizationConfig.developerName,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
                     ),
                   ],
                 ),
@@ -264,50 +252,6 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _BenefitRow extends StatelessWidget {
-  const _BenefitRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

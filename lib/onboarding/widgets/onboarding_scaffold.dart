@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/sous_chef_brand.dart';
 import 'onboarding_progress_bar.dart';
 
 /// Shared layout for onboarding preference steps.
@@ -38,17 +39,25 @@ class OnboardingScaffold extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (showBack && onBack != null)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                      onPressed: onBack,
-                    ),
-                  )
-                else
-                  const SizedBox(height: 48),
+                SizedBox(
+                  height: kToolbarHeight,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Center(child: SousChefInlineTitle(markSize: 44)),
+                      if (showBack && onBack != null)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            tooltip: MaterialLocalizations.of(context)
+                                .backButtonTooltip,
+                            onPressed: onBack,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 OnboardingProgressBar(
                   currentStep: currentStep,
                   totalSteps: totalSteps,

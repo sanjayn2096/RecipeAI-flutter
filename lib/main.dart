@@ -95,6 +95,7 @@ void main() async {
 
     final analytics = FirebaseAnalytics.instance;
     final appTelemetry = AppTelemetry(analytics);
+    await appTelemetry.initDeviceIdentity(sessionManager);
 
     final apiService = ApiService(
       getCallContext: () async {
@@ -137,6 +138,7 @@ void main() async {
       savedRecipesHiveStore: savedRecipesHiveStore,
       firebaseAuth: FirebaseAuth.instance,
       firestore: FirebaseFirestore.instance,
+      onFirestoreActivity: appTelemetry.logFirestoreActivity,
     );
     final recipeRepo = RecipeRepository(
       sessionManager: sessionManager,
@@ -161,7 +163,10 @@ void main() async {
       appTelemetry: appTelemetry,
     );
 
-    final groceryRepo = GroceryListRepository(hiveStore: groceryHiveStore);
+    final groceryRepo = GroceryListRepository(
+      hiveStore: groceryHiveStore,
+      onFirestoreActivity: appTelemetry.logFirestoreActivity,
+    );
     final groceryViewModel = GroceryListViewModel(
       repository: groceryRepo,
       appTelemetry: appTelemetry,

@@ -3,23 +3,33 @@ import 'package:go_router/go_router.dart';
 
 import '../core/l10n_context.dart';
 import '../core/recipe_parsing.dart';
+import '../core/telemetry/app_telemetry.dart';
+import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
 import '../view_models/grocery_list_view_model.dart';
 import '../view_models/recipe_view_model.dart';
+import '../view_models/subscription_view_model.dart';
 import '../widgets/guest_signup_prompt.dart';
 import '../widgets/ingredient_icon.dart';
+import '../widgets/recipe_assistant_sheet.dart';
 import '../widgets/recipe_image_box.dart';
 
 class ShowRecipeScreen extends StatefulWidget {
   const ShowRecipeScreen({
     super.key,
     required this.recipe,
+    required this.apiService,
+    required this.appTelemetry,
+    required this.subscriptionViewModel,
     this.recipeViewModel,
     this.groceryListViewModel,
     this.isGuest = false,
   });
 
   final Recipe recipe;
+  final ApiService apiService;
+  final AppTelemetry appTelemetry;
+  final SubscriptionViewModel subscriptionViewModel;
   final dynamic recipeViewModel;
   final GroceryListViewModel? groceryListViewModel;
   final bool isGuest;
@@ -136,6 +146,16 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
     }
   }
 
+  Future<void> _openRecipeAssistant() {
+    return openRecipeAssistant(
+      context: context,
+      recipe: _displayRecipe,
+      apiService: widget.apiService,
+      appTelemetry: widget.appTelemetry,
+      subscriptionViewModel: widget.subscriptionViewModel,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final groceryVm = widget.groceryListViewModel;
@@ -230,6 +250,20 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
                     label: const Text("Let's get cooking"),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(52),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _openRecipeAssistant,
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: Text(context.l10n.recipeAssistantOpen),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      foregroundColor: Theme.of(context).colorScheme.onSurface,
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 1.2,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),

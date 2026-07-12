@@ -6,6 +6,7 @@ import '../data/models/api_dtos.dart';
 import '../data/models/recipe.dart';
 import '../data/models/session_profile.dart';
 import '../data/models/user_data.dart';
+import '../data/api/api_service.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../core/telemetry/feature_ids.dart';
 import '../data/repositories/auth_repository.dart';
@@ -61,12 +62,16 @@ class HomeViewModel extends ChangeNotifier {
   List<Recipe> _dailyIdeas = const [];
   List<Recipe> get dailyIdeas => _dailyIdeas;
 
+  List<DailyIdeasCategory> _dailyIdeaCategories = const [];
+  List<DailyIdeasCategory> get dailyIdeaCategories => _dailyIdeaCategories;
+
   bool _dailyIdeasLoading = false;
   bool get dailyIdeasLoading => _dailyIdeasLoading;
 
   Timer? _dailyIdeasPollTimer;
   int _dailyIdeasPollCount = 0;
-  static const _dailyIdeasPollMax = 36;
+  /// Shared catalog is usually ready; short poll only while generating.
+  static const _dailyIdeasPollMax = 12;
 
   @override
   void dispose() {
@@ -126,11 +131,12 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
-  /// GET /daily-ideas — carousel when 5 display recipes; polls until today is ready.
+  /// GET /daily-ideas — shared categorized catalog; short poll while generating.
   Future<void> loadDailyIdeas({bool isPoll = false}) async {
     if (_session.isGuestMode()) {
       _cancelDailyIdeasPoll();
       _dailyIdeas = const [];
+      _dailyIdeaCategories = const [];
       _dailyIdeasLoading = false;
       notifyListeners();
       return;
@@ -139,6 +145,7 @@ class HomeViewModel extends ChangeNotifier {
     if (uid == null || uid.isEmpty) {
       _cancelDailyIdeasPoll();
       _dailyIdeas = const [];
+      _dailyIdeaCategories = const [];
       _dailyIdeasLoading = false;
       notifyListeners();
       return;
@@ -156,13 +163,29 @@ class HomeViewModel extends ChangeNotifier {
         );
       }
       final resp = await _userRepo.fetchDailyIdeas();
-      if (resp.status == 'inactive' || !resp.hasDisplayRecipes) {
+      if (!resp.hasDisplayRecipes) {
         _dailyIdeas = const [];
-        _cancelDailyIdeasPoll();
+        _dailyIdeaCategories = const [];
+        if (_shouldPollDailyIdeas(resp.status)) {
+          _scheduleDailyIdeasPoll();
+        } else {
+          _cancelDailyIdeasPoll();
+        }
       } else {
-        _dailyIdeas = resp.recipes;
+        _dailyIdeaCategories = resp.categories.isNotEmpty
+            ? resp.categories
+            : resp.recipes
+                .map(
+                  (r) => DailyIdeasCategory(
+                    id: r.recipeId,
+                    label: '',
+                    recipe: r,
+                  ),
+                )
+                .toList();
+        _dailyIdeas = _dailyIdeaCategories.map((c) => c.recipe).toList();
         unawaited(warmRecipeHeroUrls(_dailyIdeas.map((r) => r.image)));
-        if (resp.isReady) {
+        if (resp.isReady || resp.isFallback) {
           _cancelDailyIdeasPoll();
         } else if (_shouldPollDailyIdeas(resp.status)) {
           _scheduleDailyIdeasPoll();
@@ -170,10 +193,11 @@ class HomeViewModel extends ChangeNotifier {
           _cancelDailyIdeasPoll();
         }
       }
-      if (kDebugMode && resp.status != 'ready' && resp.status != 'inactive') {
+      if (kDebugMode && resp.status != 'ready') {
         debugPrint(
           '[HomeViewModel] loadDailyIdeas status=${resp.status} '
-          'batch=${resp.batchId} fallback=${resp.isFallback} error=${resp.error}',
+          'batch=${resp.batchId} cats=${resp.categories.length} '
+          'fallback=${resp.isFallback} error=${resp.error}',
         );
       }
     } catch (e) {
@@ -181,6 +205,7 @@ class HomeViewModel extends ChangeNotifier {
         debugPrint('[HomeViewModel] loadDailyIdeas: $e');
       }
       _dailyIdeas = const [];
+      _dailyIdeaCategories = const [];
       _cancelDailyIdeasPoll();
     }
     _dailyIdeasLoading = false;
@@ -188,9 +213,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   bool _shouldPollDailyIdeas(String status) {
-    return status == 'generating' ||
-        status == 'pending' ||
-        status == 'missing';
+    return status == 'generating' || status == 'pending' || status == 'missing';
   }
 
   void _scheduleDailyIdeasPoll() {

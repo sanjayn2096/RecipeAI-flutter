@@ -1,32 +1,106 @@
-# RecipeAI (Flutter)
+# Sous Chef AI (Flutter)
 
-Flutter version of RecipeAI — generates recipes based on user suggestions and preferences.
+Cross-platform client for **Sous Chef AI** — AI recipes, pantry cooking, meal planning, imports, and Premium assistants. Talks to the [RecipeAI-backend](https://github.com/sanjayn2096/RecipeAI-backend) Firebase Functions API.
 
-- **Firebase project ID:** `recipeai-89d8b`
+- **Firebase project:** `recipeai-89d8b`
+- **Android applicationId:** `com.sunj.souschefai`
+- **Platforms:** Android, iOS, Web (primary); macOS / Windows / Linux runners present
 
-## Architecture (MVVM)
+## Features
 
-- **Models**: `lib/data/models/` — Recipe, UserData, NutritionalValue, API DTOs
-- **Views**: `lib/screens/` — UI only, no business logic
-- **ViewModels**: `lib/view_models/` — state and actions, use repositories
-- **Repositories**: `lib/data/repositories/` — Auth, User, Recipe (single place for API/data)
-- **API**: `lib/data/api/api_service.dart` — all backend calls
-- **Services**: `lib/services/session_manager.dart` — session and preferences
+### Cook with AI
+- **Recipe generation** — custom prompt, preference questionnaire, or “feeling lucky”; streaming results
+- **Recipe detail** — ingredients, steps, macros, servings, hero image, public favorites
+- **Cook mode** — gather ingredients → step-by-step → finish; Premium step images
+- **Recipe assistant** — in-recipe Q&A (Premium)
+- **Saved & favorites** — Hive locally + cloud sync; trending and Premium “latest” feeds
+
+### Import and pantry
+- **Import hub** — URL, pasted text, or cookbook photo/OCR → structured recipe
+- **Pantry scan** — camera/photo → detected items → cook from pantry (Premium; on-device Vision/ML Kit + optional cloud)
+
+### Plan and shop
+- **Meal planner** — wizard + slot regeneration (free: 3 days, Premium: 7; guests: 1 trial)
+- **Grocery list** — from recipes/plans; Hive for guests, cloud when signed in; text export
+- **Daily ideas** — shared catalog from the backend scheduler
+
+### Account and UX
+- **Auth** — email/password, Google, guest mode
+- **Onboarding** — cuisines, diet, allergies, summary, soft paywall
+- **Premium** — store subscriptions with tier comparison and daily credits UI
+- **i18n** — English and Spanish
+- **Telemetry** — Analytics, Crashlytics, activity metrics
+- **Web marketing** — hosting pages (home, privacy, terms)
+
+### Free vs Premium
+
+| Feature | Free / guest | Premium |
+|--------|--------------|---------|
+| Recipe generations | Free: 3/UTC day; guest: 2 total | Unlimited |
+| Imports | 1/UTC day (signed-in) | Unlimited |
+| Pantry scan | — | Yes |
+| Meal planner | 3 days (guest: 1 trial) | 7 days |
+| Latest recipes | — | Yes |
+| Recipe assistant | — | Yes |
+| Cook-mode step images | — | Yes |
+
+## Architecture
+
+The app uses **MVVM** with a single API boundary and repository layer.
+
+```text
+lib/
+├── main.dart                 # Firebase, Hive, DI, telemetry, GoRouter
+├── navigation/app_router.dart
+├── screens/ + widgets/       # Views (UI only)
+├── onboarding/               # Preference + paywall flow
+├── view_models/              # State and actions
+├── data/
+│   ├── api/api_service.dart  # All backend HTTP
+│   ├── repositories/         # Auth, User, Recipe, Grocery, MealPlan
+│   └── models/               # Domain + API DTOs
+├── services/                 # SessionManager, platform helpers
+└── core/                     # Env, monetization, telemetry, tiers, l10n
+```
+
+### Layering
+
+| Layer | Responsibility |
+|-------|----------------|
+| **Views** | `lib/screens/`, `lib/widgets/`, `lib/onboarding/` — no business logic |
+| **ViewModels** | Recipe, home, login, grocery, meal plan, subscription, assistant |
+| **Repositories** | Auth, user, recipe, grocery list, meal plan — sole data access |
+| **API** | `ApiService` — Firebase Functions HTTP |
+| **Local** | Hive (saved recipes, grocery, meal plans) + `SessionManager` prefs |
+| **Services** | Session, platform pantry analyzers, OCR stubs for web |
+
+### Navigation and entry
+
+- `main.dart` boots Firebase, Crashlytics, Hive, wiring, and `GoRouter`.
+- Routes: splash → login/verify → onboarding → home shell; recipe flow, cook mode, grocery, pantry, meal plan, premium, profile, favorites, trending/latest.
+
+### Notable modules
+
+- **Monetization** — `MonetizationConfig`, `SubscriptionViewModel`, paywall, tier table, daily credits
+- **Telemetry** — feature IDs, device identity, Firestore activity metrics
+- **Pantry ML** — platform analyzers + `ml/pantry_detection/` training pipeline
+- **Import OCR** — IO implementation; web stub
+
+Recipe generation always goes through the backend (`POST generate-recipe` / stream). The client never calls Gemini directly.
 
 ## Setup
 
-1. Install Flutter and run from project root:
+1. Install Flutter and from the project root:
+
    ```bash
-   cd recipe_ai_flutter
    flutter pub get
    ```
 
-2. Firebase (required for Android): The app needs `FirebaseOptions` from a config file.
-   - **Android:** Release `applicationId` is `com.sunj.souschefai`. Use **`android/app/google-services.json`** from Firebase Console → project **recipeai-89d8b** → Android app registered with that package (or run `firebase apps:sdkconfig ANDROID <appId> --project recipeai-89d8b`).
-   - **iOS:** Add `GoogleService-Info.plist` to the iOS project if you build for iOS.
-   - The Google Services Gradle plugin is already applied in this project; the file path above must be correct or you'll see "Failed to load FirebaseOptions from resource".
+2. Firebase config:
+   - **Android:** `android/app/google-services.json` for package `com.sunj.souschefai` on project `recipeai-89d8b`
+   - **iOS:** `GoogleService-Info.plist` in the iOS runner
 
-3. **Recipe generation** is done by your backend (`POST generate-recipe`). The app does not call Gemini from the client. Server-side prompt assembly and a route sketch live in [`backend_reference/recipe_prompt.js`](backend_reference/recipe_prompt.js) and [`backend_reference/generate_recipe_route.example.js`](backend_reference/generate_recipe_route.example.js); merge them into your Node API.
+3. Point at your backend via `lib/core/env_config.dart` (optional `--dart-define=ENV=dev` for staging URLs).
 
 ## Run
 
@@ -34,15 +108,9 @@ Flutter version of RecipeAI — generates recipes based on user suggestions and 
 flutter run
 ```
 
-## Architectural fixes (vs original Android)
+## Design notes (vs original Android)
 
-- **Repositories**: Auth and User use `AuthRepository` / `UserRepository` instead of calling API from ViewModels.
-- **Async**: All API/session work uses `async/await` (no callbacks).
-- **Firebase sign out**: Sign out now calls `FirebaseAuth.signOut()` in addition to backend and session clear.
-- **Recipe generation request**: The app sends structured preferences (`ingredients`, `customPreference`, mood, diet, cuisine, cooking time) plus `recipeMode` (`custom` / `lucky` / `preferences`) so the backend does not rely on UI copy for the “feeling lucky” branch; the backend builds the LLM prompt.
-- **Session**: Single `SessionManager` instance created in `main.dart` and passed where needed.
-- **Recipe image**: Model supports both `imageUrl` and `image` for API compatibility.
-
-## Environment / base URL
-
-To add dev or staging later, use `--dart-define=ENV=dev` and add the URL in `lib/core/env_config.dart` (`_baseUrls`).
+- Repositories own API/session access; ViewModels stay UI-state focused.
+- Async work uses `async/await` throughout.
+- Sign-out clears Firebase Auth, backend session, and local session.
+- Generation requests send structured preferences plus `recipeMode` (`custom` / `lucky` / `preferences`) so the backend owns prompt assembly.

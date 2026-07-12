@@ -17,6 +17,6 @@ abstract class PantryImageAnalyzer {
   bool get isOnDevice;
 }
 
-/// Platform-appropriate analyzer: on-device on iOS/Android, cloud elsewhere.
+/// Cloud Claude analyzer (POST analyze-pantry-image) on all platforms.
 PantryImageAnalyzer createPantryImageAnalyzer(ApiService apiService) =>
     createPantryImageAnalyzerImpl(apiService);

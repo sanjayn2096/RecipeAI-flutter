@@ -5,7 +5,7 @@ import '../../data/api/api_service.dart';
 import 'pantry_image_analyzer.dart';
 import 'pantry_scan_suggestion.dart';
 
-/// Cloud Gemini vision via POST analyze-pantry-image (Android/web fallback).
+/// Cloud Claude vision via POST analyze-pantry-image (all platforms).
 class CloudPantryImageAnalyzer implements PantryImageAnalyzer {
   CloudPantryImageAnalyzer(this._apiService);
 

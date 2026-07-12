@@ -385,11 +385,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groceryPantryScanSubtitle =>
-      'Take a clear photo. We will suggest items—tap ✓ to add to your pantry or ℹ to edit or dismiss.';
+      'Take a clear photo of your pantry or fridge. We will detect ingredients and suggest what you can cook.';
 
   @override
   String get groceryPantryScanSubtitleOnDevice =>
-      'Take a clear photo. On your phone we analyze it on-device—nothing is uploaded. Tap ✓ to add to your pantry.';
+      'Take a clear photo. On your phone we analyze it on-device—nothing is uploaded.';
 
   @override
   String get groceryPantryScanTakePhoto => 'Camera';
@@ -441,7 +441,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groceryPantryScanRemoveRow => 'Remove';
 
   @override
-  String get groceryPantryScanAddSelected => 'Add to pantry';
+  String get groceryPantryScanCookPrompt =>
+      'Do you want to see what you can cook with these items?';
+
+  @override
+  String get groceryPantryScanGenerateRecipes => 'Yes, show recipes';
+
+  @override
+  String get groceryPantryScanAddSelected => 'No, add them to my pantry';
+
+  @override
+  String get groceryPantryScanAlreadyInPantry =>
+      'These items are already in your pantry';
 
   @override
   String get groceryPantryScanSignInRequired =>
@@ -934,7 +945,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingPaywallSubtitle =>
-      'Premium unlocks unlimited recipes, pantry scan, and full meal planning.';
+      'Compare plans below — Premium unlocks unlimited recipes, pantry scan, and full meal planning.';
 
   @override
   String get onboardingPaywallBenefitUnlimited =>
@@ -963,7 +974,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get freeTierQuotaMessage =>
-      'Free plan includes up to 3 recipe generations per day. Upgrade for unlimited recipes.';
+      'Free plan includes up to 3 recipe generations. Upgrade for unlimited recipes.';
+
+  @override
+  String get freeTierQuotaDialogTitle => 'Daily limit reached';
+
+  @override
+  String get freeTierQuotaResetTitle => 'Limit reset';
+
+  @override
+  String get freeTierQuotaResetInfo => 'Daily limits reset at midnight UTC.';
+
+  @override
+  String get notNow => 'Not now';
+
+  @override
+  String get goPremium => 'Go Premium';
 
   @override
   String get freeTierImportQuotaMessage =>
@@ -973,4 +999,95 @@ class AppLocalizationsEn extends AppLocalizations {
   String dailyCreditsUsed(int used, int total) {
     return '$used/$total Credits used';
   }
+
+  @override
+  String get tierColumnFeature => 'Feature';
+
+  @override
+  String get tierColumnStandard => 'Standard';
+
+  @override
+  String get tierColumnPremium => 'Premium';
+
+  @override
+  String get tierFeatureRecipeGenerations => 'Recipe generations';
+
+  @override
+  String get tierFeatureImports => 'Recipe imports';
+
+  @override
+  String get tierFeaturePantryScan => 'Pantry scan';
+
+  @override
+  String get tierFeatureMealPlanner => 'Meal planner';
+
+  @override
+  String get tierFeatureLatestRecipes => 'Latest recipes';
+
+  @override
+  String get tierValueUnlimited => 'Unlimited';
+
+  @override
+  String tierValuePerDay(int count) {
+    return '$count/day';
+  }
+
+  @override
+  String tierValueDays(int count) {
+    return '$count days';
+  }
+
+  @override
+  String get tierValueNotIncluded => '—';
+
+  @override
+  String get recipeAssistantOpen => 'Ask Sous Chef';
+
+  @override
+  String get recipeAssistantTitle => 'Ask Sous Chef';
+
+  @override
+  String get recipeAssistantEmptyTitle => 'Ask about this recipe';
+
+  @override
+  String get recipeAssistantEmptyBody =>
+      'Try substitutions, timing, storage, serving ideas, or help with a step.';
+
+  @override
+  String get recipeAssistantInputHint => 'Ask a question about this recipe';
+
+  @override
+  String get recipeAssistantSend => 'Send';
+
+  @override
+  String get recipeAssistantListening => 'Listening…';
+
+  @override
+  String get recipeAssistantMicTooltip => 'Ask by voice';
+
+  @override
+  String get recipeAssistantStopListening => 'Stop listening';
+
+  @override
+  String get recipeAssistantSpeakTooltip => 'Read answer aloud';
+
+  @override
+  String get recipeAssistantStopSpeakingTooltip => 'Stop reading';
+
+  @override
+  String get recipeAssistantPremiumTitle => 'Recipe assistant is Premium';
+
+  @override
+  String get recipeAssistantPremiumBody =>
+      'Upgrade to ask Sous Chef questions about any recipe while you cook.';
+
+  @override
+  String get recipeAssistantPremiumCta => 'View Premium';
+
+  @override
+  String get recipeAssistantNotNow => 'Not now';
+
+  @override
+  String get recipeAssistantVoiceUnavailable =>
+      'Voice input is not available. You can still type your question.';
 }
