@@ -469,7 +469,7 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(map));
   }
 
-  /// GET /latest-recipes — auth + premium.
+  /// GET /latest-recipes — public discovery feed (newest recipes).
   Future<List<Recipe>> fetchLatestRecipes({
     int limit = 20,
     String? idToken,

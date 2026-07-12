@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/monetization_navigation.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
@@ -11,7 +10,7 @@ import '../view_models/subscription_view_model.dart';
 import '../widgets/cartoon_outlined_card.dart';
 import '../widgets/recipe_list_row.dart';
 
-/// Premium feed of newest community recipes.
+/// Feed of newest community recipes (public discovery).
 class LatestRecipesScreen extends StatefulWidget {
   const LatestRecipesScreen({
     super.key,
@@ -35,29 +34,12 @@ class LatestRecipesScreen extends StatefulWidget {
 }
 
 class _LatestRecipesScreenState extends State<LatestRecipesScreen> {
-  Future<List<Recipe>>? _future;
+  late Future<List<Recipe>> _future;
 
   @override
   void initState() {
     super.initState();
-    if (widget.subscriptionViewModel.isPremium) {
-      _future = widget.homeViewModel.loadLatestRecipes();
-    }
-    widget.subscriptionViewModel.addListener(_onSubscriptionChanged);
-  }
-
-  void _onSubscriptionChanged() {
-    if (widget.subscriptionViewModel.isPremium && _future == null) {
-      setState(() {
-        _future = widget.homeViewModel.loadLatestRecipes();
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.subscriptionViewModel.removeListener(_onSubscriptionChanged);
-    super.dispose();
+    _future = widget.homeViewModel.loadLatestRecipes();
   }
 
   Future<void> _openRecipe(Recipe listRecipe) async {
@@ -112,43 +94,6 @@ class _LatestRecipesScreenState extends State<LatestRecipesScreen> {
     }
   }
 
-  Widget _lockedBody(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.lock_outline, size: 56, color: scheme.primary),
-            const SizedBox(height: 16),
-            Text(
-              'Latest recipes',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Premium members get early access to the newest recipes as they’re added.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () => openPremiumPaywall(
-                context,
-                source: 'latest_recipes',
-                appTelemetry: widget.appTelemetry,
-              ),
-              child: const Text('Unlock with Premium'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,80 +104,66 @@ class _LatestRecipesScreenState extends State<LatestRecipesScreen> {
           onPressed: widget.onBack,
         ),
         actions: [
-          if (widget.subscriptionViewModel.isPremium)
-            IconButton(
-              tooltip: 'Refresh',
-              icon: const Icon(Icons.refresh),
-              onPressed: () {
-                setState(() {
-                  _future = widget.homeViewModel.loadLatestRecipes();
-                });
-              },
-            ),
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              setState(() {
+                _future = widget.homeViewModel.loadLatestRecipes();
+              });
+            },
+          ),
         ],
       ),
-      body: ListenableBuilder(
-        listenable: widget.subscriptionViewModel,
-        builder: (context, _) {
-          if (!widget.subscriptionViewModel.isPremium) {
-            return _lockedBody(context);
+      body: FutureBuilder<List<Recipe>>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading latest recipes…'),
+                ],
+              ),
+            );
           }
-          return FutureBuilder<List<Recipe>>(
-            future: _future,
-            builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Loading latest recipes…'),
-                    ],
-                  ),
-                );
-              }
-              if (snap.hasError) {
-                return Center(child: Text('Error: ${snap.error}'));
-              }
-              final list = snap.data ?? const <Recipe>[];
-              if (list.isEmpty) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'No latest recipes yet. Check back soon.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              }
-              return ListView.builder(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                itemCount: list.length,
-                itemBuilder: (_, i) {
-                  final r = list[i];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: CartoonOutlinedCard(
-                      child: RecipeListRow(
-                        recipe: r,
-                        metaExtra: 'New',
-                        trailingActions: [
-                          Padding(
-                            padding: const EdgeInsets.only(right: 4, top: 4),
-                            child: Icon(
-                              Icons.new_releases_outlined,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                        ],
-                        onTap: () => _openRecipe(r),
+          if (snap.hasError) {
+            return Center(child: Text('Error: ${snap.error}'));
+          }
+          final list = snap.data ?? const <Recipe>[];
+          if (list.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'No latest recipes yet. Check back soon.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            itemCount: list.length,
+            itemBuilder: (_, i) {
+              final r = list[i];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: CartoonOutlinedCard(
+                  child: RecipeListRow(
+                    recipe: r,
+                    trailingActions: const [
+                      Padding(
+                        padding: EdgeInsets.only(right: 4, top: 4),
+                        child: Icon(Icons.new_releases_outlined),
                       ),
-                    ),
-                  );
-                },
+                    ],
+                    onTap: () => _openRecipe(r),
+                  ),
+                ),
               );
             },
           );

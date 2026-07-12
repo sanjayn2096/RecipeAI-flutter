@@ -535,15 +535,8 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                         },
                       ),
                       ListTile(
-                        leading: Icon(
-                          widget.subscriptionViewModel.isPremium
-                              ? Icons.new_releases
-                              : Icons.new_releases_outlined,
-                        ),
+                        leading: const Icon(Icons.new_releases),
                         title: const Text('Latest recipes'),
-                        trailing: widget.subscriptionViewModel.isPremium
-                            ? null
-                            : const Icon(Icons.lock_outline, size: 18),
                         onTap: () {
                           Navigator.of(context).pop();
                           context.push('/latest-recipes');
@@ -1131,15 +1124,35 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 builder: (context, _) {
                   final categories =
                       widget.homeViewModel.dailyIdeaCategories;
-                  if (categories.isEmpty) return const SizedBox.shrink();
+                  final trending = widget.homeViewModel.trendingRecipes;
+                  if (categories.isNotEmpty) {
+                    return Column(
+                      children: [
+                        _DailyIdeasStrip(
+                          categories: categories,
+                          onRecipeTap: (recipe) {
+                            context.push(
+                              '/show-recipe',
+                              extra: {'recipe': recipe},
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    );
+                  }
+                  if (trending.isEmpty) return const SizedBox.shrink();
                   return Column(
                     children: [
-                      _DailyIdeasStrip(
-                        categories: categories,
+                      _TrendingHomeStrip(
+                        recipes: trending,
                         onRecipeTap: (recipe) {
-                          context
-                              .push('/show-recipe', extra: {'recipe': recipe});
+                          context.push(
+                            '/show-recipe',
+                            extra: {'recipe': recipe},
+                          );
                         },
+                        onSeeAll: () => context.push('/trending'),
                       ),
                       const SizedBox(height: 20),
                     ],
@@ -1587,6 +1600,96 @@ class _DailyIdeasStrip extends StatelessWidget {
             onTap: () => onRecipeTap(categories[i].recipe),
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// Home fallback discovery strip when daily ideas are not ready.
+class _TrendingHomeStrip extends StatelessWidget {
+  const _TrendingHomeStrip({
+    required this.recipes,
+    required this.onRecipeTap,
+    required this.onSeeAll,
+  });
+
+  final List<Recipe> recipes;
+  final void Function(Recipe recipe) onRecipeTap;
+  final VoidCallback onSeeAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Trending',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+            TextButton(
+              onPressed: onSeeAll,
+              child: const Text('See all'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 168,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: recipes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final recipe = recipes[index];
+              return SizedBox(
+                width: 140,
+                child: Material(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(14),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => onRecipeTap(recipe),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        RecipeImageBox(
+                          imageUrl: recipe.image,
+                          height: 96,
+                          width: 140,
+                          borderRadius: BorderRadius.zero,
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                            child: Text(
+                              recipe.recipeName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.2,
+                                  ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }

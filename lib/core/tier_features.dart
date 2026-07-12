@@ -46,10 +46,5 @@ abstract final class TierFeatures {
           standardValue: l10n.tierValueDays(freeMealPlanDays),
           premiumValue: l10n.tierValueDays(premiumMealPlanDays),
         ),
-        TierFeatureRow(
-          label: l10n.tierFeatureLatestRecipes,
-          standardValue: l10n.tierValueNotIncluded,
-          premiumIsCheck: true,
-        ),
       ];
 }

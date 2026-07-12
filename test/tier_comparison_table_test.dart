@@ -22,7 +22,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('renders five feature rows with column headers', (tester) async {
+  testWidgets('renders four feature rows with column headers', (tester) async {
     await pumpTable(tester);
 
     expect(find.text(l10n.tierColumnFeature), findsOneWidget);
@@ -33,7 +33,7 @@ void main() {
     expect(find.text(l10n.tierFeatureImports), findsOneWidget);
     expect(find.text(l10n.tierFeaturePantryScan), findsOneWidget);
     expect(find.text(l10n.tierFeatureMealPlanner), findsOneWidget);
-    expect(find.text(l10n.tierFeatureLatestRecipes), findsOneWidget);
+    expect(find.text(l10n.tierFeatureLatestRecipes), findsNothing);
   });
 
   testWidgets('shows recipe limits and unlimited premium value', (tester) async {
@@ -47,8 +47,9 @@ void main() {
   testWidgets('shows check icons for premium-only features', (tester) async {
     await pumpTable(tester);
 
-    expect(find.byIcon(Icons.check), findsNWidgets(2));
-    expect(find.text(l10n.tierValueNotIncluded), findsNWidgets(2));
+    // Pantry scan remains premium-only in the comparison table.
+    expect(find.byIcon(Icons.check), findsOneWidget);
+    expect(find.text(l10n.tierValueNotIncluded), findsOneWidget);
   });
 
   testWidgets('compact variant renders without overflow', (tester) async {

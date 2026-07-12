@@ -65,6 +65,9 @@ class HomeViewModel extends ChangeNotifier {
   List<DailyIdeasCategory> _dailyIdeaCategories = const [];
   List<DailyIdeasCategory> get dailyIdeaCategories => _dailyIdeaCategories;
 
+  List<Recipe> _trendingRecipes = const [];
+  List<Recipe> get trendingRecipes => _trendingRecipes;
+
   bool _dailyIdeasLoading = false;
   bool get dailyIdeasLoading => _dailyIdeasLoading;
 
@@ -122,9 +125,11 @@ class HomeViewModel extends ChangeNotifier {
       _stopSavedFirestoreSync();
       _promptSuggestions = const [];
       _promptSuggestionsLoading = false;
+      unawaited(loadHomeTrendingRecipes());
     } else {
       _startSavedFirestoreSync();
       unawaited(loadPromptSuggestions());
+      unawaited(loadHomeTrendingRecipes());
       await _userRepo.recordAppOpen();
       await _userRepo.syncDeviceTimezone();
       await loadDailyIdeas();
@@ -389,6 +394,21 @@ class HomeViewModel extends ChangeNotifier {
     return _userRepo.fetchRecipeById(recipeId);
   }
 
+  /// GET /trending-recipes for the home discovery strip (no auth).
+  Future<void> loadHomeTrendingRecipes() async {
+    try {
+      final list = await _userRepo.fetchTrendingRecipes(limit: 12);
+      _trendingRecipes = list;
+      unawaited(warmRecipeHeroUrls(_trendingRecipes.map((r) => r.image)));
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[HomeViewModel] loadHomeTrendingRecipes: $e');
+      }
+      _trendingRecipes = const [];
+    }
+    notifyListeners();
+  }
+
   /// GET /trending-recipes (for discovery; no auth).
   Future<List<Recipe>> loadTrendingRecipes() async {
     try {
@@ -402,7 +422,7 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
-  /// GET /latest-recipes (premium).
+  /// GET /latest-recipes (public discovery).
   Future<List<Recipe>> loadLatestRecipes() async {
     try {
       await _telemetry.logFeatureInteraction(

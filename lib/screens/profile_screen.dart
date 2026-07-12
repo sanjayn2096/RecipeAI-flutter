@@ -130,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       subtitle: Text(
                         premium
-                            ? 'Unlimited recipes · pantry scan · latest recipes'
+                            ? 'Unlimited recipes · pantry scan · meal planner'
                             : '3 recipe credits/day · ${MonetizationConfig.monthlyPriceDisplay}/month for unlimited',
                       ),
                       trailing: premium
