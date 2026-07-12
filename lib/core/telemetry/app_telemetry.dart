@@ -133,6 +133,20 @@ class AppTelemetry {
     await _analytics.logEvent(name: 'premium_restore_tap');
   }
 
+  Future<void> logPremiumPromoRedeemResult({
+    required String result,
+    String? errorCode,
+  }) async {
+    await _analytics.logEvent(
+      name: 'premium_promo_redeem_result',
+      parameters: {
+        'result': _truncate(result, _maxParamLen),
+        if (errorCode != null)
+          'error_code': _truncate(errorCode, _maxParamLen),
+      },
+    );
+  }
+
   Future<void> logPremiumPaywallDismiss({
     required String source,
     required int secondsOnScreen,

@@ -17,7 +17,7 @@
       <h1>Privacy Policy</h1>
       <p class="meta"><strong>Sublime Developers</strong> (&ldquo;Sublime Developers,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;)<br />
       Sous Chef app and related services (&ldquo;Sous Chef&rdquo; or the &ldquo;Service&rdquo;)<br />
-      Effective date: July 3, 2026</p>
+      Effective date: July 12, 2026</p>
       <nav class="links" aria-label="Legal">
         <a href="/">About Sous Chef</a>
         <a href="/terms">Terms of Service</a>
@@ -42,8 +42,9 @@
     <h3>Content you provide</h3>
     <ul>
       <li>Recipe prompts, imported recipe text or URLs, saved and created recipes, favorites (including public favorites), grocery list items, and meal-plan data</li>
-      <li><strong>Photos:</strong> pantry or fridge images you submit for Premium pantry scan (and optional on-device analysis before upload)</li>
+      <li><strong>Photos:</strong> pantry or fridge images you take for Premium pantry scan. These photos are uploaded to our servers and processed by a third-party AI provider (Anthropic Claude) to suggest ingredients. Do not photograph anything you do not want analyzed for this purpose.</li>
       <li>Images or text captured when using import/scan features (some processing may occur on your device)</li>
+      <li><strong>Pantry list:</strong> ingredient labels you select or confirm in the app. When you are signed in, this list may sync to your account so it is available across your devices.</li>
     </ul>
 
     <h3>Usage and device information</h3>
@@ -67,7 +68,7 @@
     <ul>
       <li>Provide, personalize, and improve recipes, meal plans, imports, pantry analysis, and other features</li>
       <li>Honor your dietary and allergy preferences in AI-generated suggestions</li>
-      <li>Authenticate you, sync data across devices, and manage subscriptions</li>
+      <li>Authenticate you, sync data across devices (including your pantry ingredient list when signed in), and manage subscriptions</li>
       <li>Enforce usage limits, prevent abuse, and protect the Service</li>
       <li>Analyze performance, fix bugs, and understand how features are used</li>
       <li>Display trending or publicly favorited recipes</li>
@@ -75,7 +76,7 @@
     </ul>
 
     <div class="card">
-      <p><strong>AI processing:</strong> To generate recipes, meal plans, images, and pantry suggestions, we send relevant prompts, preferences, and content (including photos you submit) to third-party AI and infrastructure providers, such as Google (Gemini / Imagen), Pinecone, and image-generation services. Do not submit sensitive information you do not want processed for this purpose.</p>
+      <p><strong>AI processing:</strong> To generate recipes, meal plans, images, and pantry suggestions, we send relevant prompts, preferences, and content (including pantry or fridge photos you submit) to third-party AI and infrastructure providers, such as Google (Gemini / Imagen), Anthropic (Claude) for pantry photo analysis, Pinecone, and image-generation services. Do not submit sensitive information you do not want processed for this purpose.</p>
     </div>
 
     <h2>4. How we share information</h2>
@@ -95,6 +96,10 @@
         <tr>
           <td>Apple (Sign in with Apple, App Store)</td>
           <td>Authentication and iOS/macOS subscription verification</td>
+        </tr>
+        <tr>
+          <td>Anthropic (Claude)</td>
+          <td>Analysis of pantry or fridge photos for Premium pantry scan ingredient suggestions</td>
         </tr>
         <tr>
           <td>Pinecone</td>

@@ -40,6 +40,7 @@ abstract final class FeatureIds {
   static const premiumCta = 'premium_cta';
   static const premiumSubscribe = 'premium_subscribe';
   static const premiumRestore = 'premium_restore';
+  static const premiumPromoRedeem = 'premium_promo_redeem';
   static const openLatestRecipes = 'open_latest_recipes';
 
   static const mealPlanOpen = 'meal_plan_open';

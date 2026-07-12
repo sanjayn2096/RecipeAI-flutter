@@ -50,3 +50,6 @@ android/app/google-services.json
 .env
 .env.*
 /backend_reference/
+
+# Cursor local state / rules / architecture (not committed)
+.cursor/

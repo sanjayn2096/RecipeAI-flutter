@@ -27,6 +27,7 @@ import 'data/repositories/auth_repository.dart';
 import 'data/repositories/recipe_repository.dart';
 import 'data/repositories/user_repository.dart';
 import 'services/session_manager.dart';
+import 'services/pantry_sync_coordinator.dart';
 import 'view_models/login_view_model.dart';
 import 'view_models/home_view_model.dart';
 import 'view_models/recipe_view_model.dart';
@@ -182,6 +183,12 @@ void main() async {
       repository: mealPlanRepo,
       appTelemetry: appTelemetry,
     );
+
+    final pantrySyncCoordinator = PantrySyncCoordinator(
+      sessionManager: sessionManager,
+      userRepository: userRepo,
+    );
+    pantrySyncCoordinator.start();
 
     final router = AppRouter(
       loginViewModel: loginViewModel,

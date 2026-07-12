@@ -37,6 +37,8 @@ class AppConstants {
   static const String prefsCustomPreference = 'customPreference';
   /// Pantry / chosen ingredient labels (persisted as string list).
   static const String prefsIngredients = 'ingredients';
+  /// True when local pantry differs from last successful cloud sync.
+  static const String prefsPantryDirty = 'pantryDirty';
   /// Cuisines the user usually cooks (drives pantry suggestions).
   static const String prefsUsualCuisines = 'usualCuisines';
   /// Browse app without account; cleared on real login or session clear.

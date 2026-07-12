@@ -19,10 +19,17 @@ class SessionManager {
 
   /// Bumped when client-side usage quotas change (recipe gen, import).
   final ValueNotifier<int> usageQuotaRevision = ValueNotifier<int>(0);
+
+  /// Bumped when local pantry is marked dirty (for sync debounce).
+  final ValueNotifier<int> pantryDirtyRevision = ValueNotifier<int>(0);
   RecipeGenerationUsage? _signedInRecipeGenerationUsage;
 
   void notifyUsageQuotaChanged() {
     usageQuotaRevision.value++;
+  }
+
+  void _notifyPantryDirtyChanged() {
+    pantryDirtyRevision.value++;
   }
 
   Future<SharedPreferences> get _p async =>
@@ -43,6 +50,7 @@ class SessionManager {
     await p.remove(_prefix + AppConstants.prefsFirstName);
     await p.remove(_prefix + AppConstants.prefsLastName);
     await p.remove(_prefix + AppConstants.prefsIngredients);
+    await p.remove(_prefix + AppConstants.prefsPantryDirty);
     await p.remove(_prefix + AppConstants.prefsUsualCuisines);
     await p.remove(_prefix + AppConstants.prefsDietProfiles);
     await p.remove(_prefix + AppConstants.prefsAllergensAvoid);
@@ -307,6 +315,29 @@ class SessionManager {
     return list ?? const [];
   }
 
+  bool get isPantryDirty =>
+      _prefs?.getBool(_prefix + AppConstants.prefsPantryDirty) ?? false;
+
+  void markPantryClean() {
+    _prefs?.setBool(_prefix + AppConstants.prefsPantryDirty, false);
+  }
+
+  void _markPantryDirtyIfChanged(List<String> next) {
+    final prev = getIngredients();
+    if (listEquals(prev, next)) return;
+    _prefs?.setBool(_prefix + AppConstants.prefsPantryDirty, true);
+    _notifyPantryDirtyChanged();
+  }
+
+  /// Replace local pantry from cloud without marking dirty.
+  void applyPantryFromCloud(List<String> ingredients) {
+    _prefs?.setStringList(
+      _prefix + AppConstants.prefsIngredients,
+      ingredients,
+    );
+    markPantryClean();
+  }
+
   /// Cuisines the user usually cooks (used to suggest pantry items on Home).
   List<String> getUsualCuisines() {
     final list =
@@ -315,6 +346,7 @@ class SessionManager {
   }
 
   Future<void> saveIngredients(List<String> ingredients) async {
+    _markPantryDirtyIfChanged(ingredients);
     await (await _p).setStringList(
       _prefix + AppConstants.prefsIngredients,
       ingredients,
@@ -322,6 +354,7 @@ class SessionManager {
   }
 
   void saveIngredientsSync(List<String> ingredients) {
+    _markPantryDirtyIfChanged(ingredients);
     _prefs?.setStringList(
       _prefix + AppConstants.prefsIngredients,
       ingredients,

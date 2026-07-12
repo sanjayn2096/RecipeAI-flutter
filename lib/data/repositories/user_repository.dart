@@ -305,6 +305,46 @@ class UserRepository {
     }
   }
 
+  /// Push local pantry to Firestore when dirty (no-op for guests / clean).
+  Future<void> flushPantryIfDirty() async {
+    if (_session.isGuestMode() || !_session.isPantryDirty) return;
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) return;
+    final snapshot = List<String>.from(_session.getIngredients());
+    try {
+      await _api.patchUserPantry(
+        ingredients: snapshot,
+        idToken: token,
+      );
+      // Only clear dirty if local list still matches what we pushed.
+      if (listEquals(_session.getIngredients(), snapshot)) {
+        _session.markPantryClean();
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[UserRepository] flushPantryIfDirty failed: $e');
+        debugPrint(st.toString());
+      }
+    }
+  }
+
+  /// Pull cloud pantry when local is clean (no-op for guests / dirty).
+  Future<void> pullPantryIfClean() async {
+    if (_session.isGuestMode() || _session.isPantryDirty) return;
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) return;
+    try {
+      final profile = await _api.getUserProfile(idToken: token);
+      if (!profile.hasPantryIngredientsField) return;
+      _session.applyPantryFromCloud(profile.pantryIngredients ?? const []);
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[UserRepository] pullPantryIfClean failed: $e');
+        debugPrint(st.toString());
+      }
+    }
+  }
+
   /// GET /daily-ideas — empty when guest, not ready, or signed out.
   Future<DailyIdeasResponse> fetchDailyIdeas({String slot = 'dinner'}) async {
     if (_session.isGuestMode()) {

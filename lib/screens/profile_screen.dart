@@ -116,34 +116,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 listenable: widget.subscriptionViewModel,
                 builder: (context, _) {
                   final premium = widget.subscriptionViewModel.isPremium;
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 20),
-                    child: ListTile(
-                      leading: Icon(
-                        premium
-                            ? Icons.verified
-                            : Icons.workspace_premium_outlined,
-                        color: Theme.of(context).colorScheme.primary,
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: Icon(
+                            premium
+                                ? Icons.verified
+                                : Icons.workspace_premium_outlined,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          title: Text(
+                            premium ? 'Premium active' : 'Sous Chef Premium',
+                          ),
+                          subtitle: Text(
+                            premium
+                                ? 'Unlimited recipes · pantry scan · meal planner'
+                                : '3 recipe credits/day · ${MonetizationConfig.monthlyPriceDisplay}/month for unlimited',
+                          ),
+                          trailing: premium
+                              ? null
+                              : const Icon(Icons.chevron_right),
+                          onTap: premium
+                              ? null
+                              : () => openPremiumPaywall(
+                                    context,
+                                    source: 'profile',
+                                    appTelemetry: widget.appTelemetry,
+                                  ),
+                        ),
                       ),
-                      title: Text(
-                        premium ? 'Premium active' : 'Sous Chef Premium',
-                      ),
-                      subtitle: Text(
-                        premium
-                            ? 'Unlimited recipes · pantry scan · meal planner'
-                            : '3 recipe credits/day · ${MonetizationConfig.monthlyPriceDisplay}/month for unlimited',
-                      ),
-                      trailing: premium
-                          ? null
-                          : const Icon(Icons.chevron_right),
-                      onTap: premium
-                          ? null
-                          : () => openPremiumPaywall(
-                                context,
-                                source: 'profile',
-                                appTelemetry: widget.appTelemetry,
-                              ),
-                    ),
+                      if (!premium)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: () => openPremiumPaywall(
+                              context,
+                              source: 'profile_promo',
+                              appTelemetry: widget.appTelemetry,
+                            ),
+                            child: const Text('Have a promo code?'),
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                    ],
                   );
                 },
               ),

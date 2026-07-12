@@ -207,6 +207,65 @@ class SubscriptionViewModel extends ChangeNotifier {
     }
   }
 
+  /// Redeem a backend promo code for free Premium (friends & family / campaigns).
+  /// Returns true on success.
+  Future<bool> redeemPromoCode(String code) async {
+    final trimmed = code.trim();
+    subscriptionLog('redeemPromoCode: start');
+    final user = _auth.currentUser;
+    if (user == null || _session.isGuestMode()) {
+      _error = 'Sign in to redeem a promo code.';
+      subscriptionLog('redeemPromoCode: blocked (auth)');
+      notifyListeners();
+      return false;
+    }
+    if (trimmed.isEmpty) {
+      _error = 'Enter a promo code.';
+      notifyListeners();
+      return false;
+    }
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final token = await user.getIdToken();
+      final result = await _api.redeemPromoCode(code: trimmed, idToken: token);
+      final sub = result['subscription'];
+      if (sub is Map) {
+        applyProfileSubscription(Map<String, dynamic>.from(sub));
+      } else {
+        await refreshFromApi();
+      }
+      _loading = false;
+      _error = null;
+      subscriptionLog('redeemPromoCode: success');
+      await _telemetry.logPremiumPromoRedeemResult(result: 'success');
+      notifyListeners();
+      return true;
+    } catch (e, st) {
+      subscriptionLog('redeemPromoCode failed: $e');
+      if (!kIsWeb) {
+        FirebaseCrashlytics.instance.recordError(e, st, fatal: false);
+      }
+      _loading = false;
+      if (e is ApiException) {
+        _error = e.message;
+        await _telemetry.logPremiumPromoRedeemResult(
+          result: 'error',
+          errorCode: e.code ?? 'redeem_failed',
+        );
+      } else {
+        _error = e.toString();
+        await _telemetry.logPremiumPromoRedeemResult(
+          result: 'error',
+          errorCode: 'redeem_failed',
+        );
+      }
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> _onPurchaseUpdates(List<PurchaseDetails> purchases) async {
     subscriptionLog('purchaseUpdates: count=${purchases.length}');
     for (final purchase in purchases) {

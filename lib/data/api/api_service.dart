@@ -153,6 +153,31 @@ class ApiService {
     throw ApiException(r.statusCode, _extractError(map));
   }
 
+  /// PATCH user-pantry — replace signed-in user's pantry ingredient list.
+  Future<Map<String, dynamic>> patchUserPantry({
+    required List<String> ingredients,
+    String? idToken,
+  }) async {
+    const metricPath = 'user-pantry';
+    final url = _url('user-pantry');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('PATCH', metricPath, () async {
+      return http.patch(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode({'ingredients': ingredients}),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return map as Map<String, dynamic>;
+    }
+    throw ApiException(r.statusCode, _extractError(map));
+  }
+
   /// POST suggest-prompts — personalized short prompts (auth).
   Future<SuggestPromptsResponse> suggestPrompts({
     String? idToken,
@@ -522,6 +547,35 @@ class ApiService {
       return map as Map<String, dynamic>;
     }
     throw ApiException(r.statusCode, _extractError(map));
+  }
+
+  /// POST /redeem-promo-code — grants free Premium for a campaign promo code.
+  Future<Map<String, dynamic>> redeemPromoCode({
+    required String code,
+    String? idToken,
+  }) async {
+    const metricPath = 'redeem-promo-code';
+    final url = _url('redeem-promo-code');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode({'code': code}),
+      );
+    });
+    final map = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return map as Map<String, dynamic>;
+    }
+    throw ApiException(
+      r.statusCode,
+      _extractError(map),
+      code: map is Map ? map['code']?.toString() : null,
+    );
   }
 
   /// GET /trending-recipes — no auth. Recipes with highest [favoriteCount].

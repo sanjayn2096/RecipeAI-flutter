@@ -105,6 +105,38 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
     await widget.subscriptionViewModel.restorePurchases();
   }
 
+  Future<void> _onPromoCodeTap() async {
+    if (widget.sessionManager.isGuestMode()) {
+      context.go('/login', extra: true);
+      return;
+    }
+    await widget.appTelemetry.logFeatureInteraction(
+      featureId: FeatureIds.premiumPromoRedeem,
+      action: 'tap',
+    );
+    if (!mounted) return;
+    final code = await showDialog<String>(
+      context: context,
+      builder: (ctx) => const _PromoCodeDialog(),
+    );
+    if (code == null || code.trim().isEmpty || !mounted) return;
+    final ok = await widget.subscriptionViewModel.redeemPromoCode(code);
+    if (!mounted) return;
+    if (ok) {
+      final expiresMs = widget.subscriptionViewModel.status.expiresAtMs;
+      String message = 'Premium unlocked with your promo code.';
+      if (expiresMs != null) {
+        final expires = DateTime.fromMillisecondsSinceEpoch(expiresMs);
+        final formatted =
+            '${expires.year}-${expires.month.toString().padLeft(2, '0')}-${expires.day.toString().padLeft(2, '0')}';
+        message = 'Premium unlocked until $formatted.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -245,6 +277,10 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
                         onPressed: vm.loading ? null : _onRestore,
                         child: const Text('Restore purchases'),
                       ),
+                      TextButton(
+                        onPressed: vm.loading ? null : _onPromoCodeTap,
+                        child: const Text('Have a promo code?'),
+                      ),
                     ],
                   ),
                 ),
@@ -253,6 +289,57 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+class _PromoCodeDialog extends StatefulWidget {
+  const _PromoCodeDialog();
+
+  @override
+  State<_PromoCodeDialog> createState() => _PromoCodeDialogState();
+}
+
+class _PromoCodeDialogState extends State<_PromoCodeDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Enter promo code'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.characters,
+        decoration: const InputDecoration(
+          hintText: 'SOUSCHEF-XXXXXX',
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: (value) {
+          final trimmed = value.trim();
+          if (trimmed.isNotEmpty) Navigator.of(context).pop(trimmed);
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final trimmed = _controller.text.trim();
+            if (trimmed.isEmpty) return;
+            Navigator.of(context).pop(trimmed);
+          },
+          child: const Text('Redeem'),
+        ),
+      ],
     );
   }
 }

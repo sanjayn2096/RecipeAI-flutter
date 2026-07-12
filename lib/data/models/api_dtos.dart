@@ -383,6 +383,8 @@ class UserProfileResponse {
     this.onboardingComplete = false,
     this.subscription,
     this.recipeGenerationUsage,
+    this.pantryIngredients,
+    this.hasPantryIngredientsField = false,
   });
   final String userId;
   final String? email;
@@ -396,6 +398,8 @@ class UserProfileResponse {
   final bool hasAllergyNotesField;
   final bool onboardingComplete;
   final RecipeGenerationUsage? recipeGenerationUsage;
+  final List<String>? pantryIngredients;
+  final bool hasPantryIngredientsField;
 
   static List<String> _stringList(dynamic v) {
     if (v is! List) return const [];
@@ -454,6 +458,10 @@ class UserProfileResponse {
       onboardingComplete: json['onboardingComplete'] == true,
       subscription: subscription,
       recipeGenerationUsage: recipeGenerationUsage,
+      pantryIngredients: json.containsKey('pantryIngredients')
+          ? _stringList(json['pantryIngredients'])
+          : null,
+      hasPantryIngredientsField: json.containsKey('pantryIngredients'),
     );
   }
 }
