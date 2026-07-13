@@ -29,6 +29,7 @@ import '../widgets/bottom_ad_banner.dart';
 import '../widgets/daily_credits_indicator.dart';
 import '../core/monetization_navigation.dart';
 import '../core/telemetry/app_telemetry.dart';
+import '../onboarding/onboarding_session_extension.dart';
 import '../services/session_manager.dart';
 import '../view_models/subscription_view_model.dart';
 import 'grocery_list_screen.dart';
@@ -152,7 +153,7 @@ class HomeShellScreen extends StatefulWidget {
   final SubscriptionViewModel subscriptionViewModel;
   final ApiService apiService;
   final AppTelemetry appTelemetry;
-  final dynamic sessionManager;
+  final SessionManager sessionManager;
 
   @override
   State<HomeShellScreen> createState() => _HomeShellScreenState();
@@ -535,14 +536,6 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                         },
                       ),
                       ListTile(
-                        leading: const Icon(Icons.new_releases),
-                        title: const Text('Latest recipes'),
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          context.push('/latest-recipes');
-                        },
-                      ),
-                      ListTile(
                         leading: const Icon(Icons.workspace_premium_outlined),
                         title: Text(
                           widget.subscriptionViewModel.isPremium
@@ -848,7 +841,7 @@ class _HomeTabBody extends StatefulWidget {
 
   final HomeViewModel homeViewModel;
   final dynamic recipeViewModel;
-  final dynamic sessionManager;
+  final SessionManager sessionManager;
   final SubscriptionViewModel subscriptionViewModel;
   final AppTelemetry appTelemetry;
   final GlobalKey coachGetRecipesKey;
@@ -980,8 +973,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
 
   bool _canStartHomeRecipeFlow(String freeText, bool hasIngredients) {
     if (freeText.isNotEmpty || hasIngredients) return true;
-    final sm = widget.sessionManager as SessionManager;
-    if (sm.isGuestMode()) return false;
+    if (widget.sessionManager.isGuestMode()) return false;
     // Signed-in users can generate from saved lifestyle prefs / feeling-lucky defaults.
     return true;
   }
@@ -1826,7 +1818,7 @@ class _PantryPickerSheet extends StatefulWidget {
     required this.initialSelected,
   });
 
-  final dynamic sessionManager;
+  final SessionManager sessionManager;
   final List<String> initialSelected;
 
   @override
