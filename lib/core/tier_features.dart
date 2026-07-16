@@ -38,8 +38,10 @@ abstract final class TierFeatures {
         ),
         TierFeatureRow(
           label: l10n.tierFeaturePantryScan,
-          standardValue: l10n.tierValueNotIncluded,
-          premiumIsCheck: true,
+          standardValue: l10n.tierValuePerWeek(
+            OnboardingPrefs.freeTierWeeklyPantryScanLimit,
+          ),
+          premiumValue: l10n.tierValueUnlimited,
         ),
         TierFeatureRow(
           label: l10n.tierFeatureMealPlanner,

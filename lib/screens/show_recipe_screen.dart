@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/l10n_context.dart';
 import '../core/recipe_parsing.dart';
+import '../core/recipe_share.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
@@ -44,6 +46,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
   late Recipe _displayRecipe;
   late final List<String> _ingredientItems;
   late final List<String> _instructionItems;
+  bool _sharing = false;
 
   @override
   void initState() {
@@ -56,6 +59,59 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
         .toList();
     _instructionItems =
         RecipeParsing.parseInstructions(widget.recipe.instructions);
+  }
+
+  Future<void> _shareRecipe() async {
+    if (_sharing) return;
+    if (widget.isGuest) {
+      final goSignup = await showGuestFavoriteSignupDialog(context);
+      if (!mounted) return;
+      if (goSignup == true) {
+        goToSignup(context);
+      }
+      return;
+    }
+    if (_displayRecipe.recipeId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This recipe cannot be shared yet')),
+      );
+      return;
+    }
+    final vm = widget.recipeViewModel;
+    setState(() => _sharing = true);
+    try {
+      String recipeId = _displayRecipe.recipeId;
+      if (vm is RecipeViewModel) {
+        final ensured = await vm.ensureRecipeForShare(_displayRecipe);
+        if (!mounted) return;
+        if (ensured == null || ensured.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not prepare recipe link')),
+          );
+          return;
+        }
+        recipeId = ensured;
+        if (recipeId != _displayRecipe.recipeId) {
+          setState(() {
+            _displayRecipe = _displayRecipe.copyWith(recipeId: recipeId);
+          });
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not prepare recipe link')),
+        );
+        return;
+      }
+      await Share.share(
+        RecipeShare.shareText(
+          recipeName: _displayRecipe.recipeName,
+          recipeId: recipeId,
+        ),
+        subject: _displayRecipe.recipeName,
+      );
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
   }
 
   Future<void> _toggleSaved() async {
@@ -170,6 +226,17 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
           onPressed: () => context.pop(),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Share recipe',
+            onPressed: _sharing ? null : _shareRecipe,
+            icon: _sharing
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.share_outlined),
+          ),
           if (widget.recipeViewModel != null) ...[
             IconButton(
               tooltip: _isSaved ? 'Remove from saved' : 'Save to your list',

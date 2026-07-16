@@ -82,6 +82,10 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
     subscriptionLog('paywall subscribe tap source=${widget.source}');
     if (widget.sessionManager.isGuestMode()) {
       subscriptionLog('paywall subscribe: redirect guest → login');
+      await widget.appTelemetry.logPremiumSubscribeLoginRedirect(
+        source: widget.source,
+      );
+      if (!mounted) return;
       context.go('/login', extra: true);
       return;
     }
@@ -93,7 +97,7 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
       source: widget.source,
       productId: MonetizationConfig.standardProductId,
     );
-    await widget.subscriptionViewModel.subscribe();
+    await widget.subscriptionViewModel.subscribe(source: widget.source);
   }
 
   Future<void> _onRestore() async {

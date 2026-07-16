@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../onboarding/onboarding_session_extension.dart';
 import '../services/session_manager.dart';
 import '../view_models/login_view_model.dart';
+import 'pending_deep_link.dart';
 
 /// Routes after splash, login, signup, or email verification.
 Future<void> navigateAfterAuthentication(
@@ -11,6 +12,11 @@ Future<void> navigateAfterAuthentication(
   required SessionManager sessionManager,
   required LoginViewModel loginViewModel,
 }) async {
+  final pending = PendingDeepLink.take();
+  if (pending != null && pending.startsWith('/r/')) {
+    if (context.mounted) context.go(pending);
+    return;
+  }
   if (sessionManager.isGuestMode()) {
     if (context.mounted) context.go('/home');
     return;

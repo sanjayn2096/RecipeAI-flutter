@@ -151,6 +151,7 @@ class Recipe {
   }
 
   Recipe copyWith({
+    String? recipeId,
     bool? isSaved,
     bool? isFavorited,
     int? favoriteCount,
@@ -161,7 +162,7 @@ class Recipe {
     RecipeOrigin? recipeOrigin,
   }) =>
       Recipe(
-        recipeId: recipeId,
+        recipeId: recipeId ?? this.recipeId,
         recipeName: recipeName,
         image: image ?? this.image,
         ingredients: ingredients,

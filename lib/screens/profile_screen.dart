@@ -7,7 +7,9 @@ import '../core/l10n_context.dart';
 import '../core/l10n_extensions.dart';
 import '../core/monetization_config.dart';
 import '../core/monetization_navigation.dart';
+import '../core/preference_options.dart';
 import '../core/telemetry/app_telemetry.dart';
+import '../onboarding/onboarding_controller.dart';
 import '../view_models/home_view_model.dart';
 import '../view_models/login_view_model.dart';
 import '../view_models/subscription_view_model.dart';
@@ -35,6 +37,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late Set<String> _dietSelections;
   late Set<String> _allergenSelections;
+  late Set<String> _cuisineSelections;
   late TextEditingController _allergyNotesController;
   bool _saving = false;
 
@@ -44,6 +47,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     widget.homeViewModel.loadProfileScreen();
     _dietSelections = widget.homeViewModel.persistedDietProfiles.toSet();
     _allergenSelections = widget.homeViewModel.persistedAllergensAvoid.toSet();
+    _cuisineSelections = widget.homeViewModel.persistedUsualCuisines
+        .where(PreferenceOptions.preferredCuisineKeys.contains)
+        .toSet();
     _allergyNotesController = TextEditingController(
       text: widget.homeViewModel.persistedAllergyNotes ?? '',
     );
@@ -64,10 +70,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         allergyNotes: _allergyNotesController.text.trim().isEmpty
             ? null
             : _allergyNotesController.text.trim(),
+        preferredCuisines: _cuisineSelections.toList(),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Diet and allergy preferences saved')),
+          const SnackBar(
+            content: Text('Diet, allergy, and cuisine preferences saved'),
+          ),
         );
       }
     } finally {
@@ -91,6 +100,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _allergenSelections.remove(value);
       } else {
         _allergenSelections.add(value);
+      }
+    });
+  }
+
+  void _toggleCuisine(String value) {
+    setState(() {
+      if (_cuisineSelections.contains(value)) {
+        _cuisineSelections.remove(value);
+      } else if (_cuisineSelections.length < OnboardingController.maxCuisines) {
+        _cuisineSelections.add(value);
       }
     });
   }
@@ -134,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: Text(
                             premium
                                 ? 'Unlimited recipes · pantry scan · meal planner'
-                                : '3 recipe credits/day · ${MonetizationConfig.monthlyPriceDisplay}/month for unlimited',
+                                : '3 recipe credits/day · 2 pantry scans/week · ${MonetizationConfig.monthlyPriceDisplay}/month for unlimited',
                           ),
                           trailing: premium
                               ? null
@@ -169,7 +188,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Text(
-                    'Sign in to sync your name and email. You can still set diet and allergy preferences on this device.',
+                    'Sign in to sync your name and email. You can still set diet, allergy, and cuisine preferences on this device.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
@@ -253,6 +272,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 maxLines: 2,
               ),
+              const SizedBox(height: 24),
+              Text(
+                context.l10n.homeSearchSettingsPreferredCuisinesHeading,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                context.l10n.onboardingCuisinesSubtitle,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                context.l10n.onboardingCuisinesSelectedCount(
+                  _cuisineSelections.length,
+                  OnboardingController.maxCuisines,
+                ),
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: PreferenceOptions.preferredCuisineKeys
+                    .map(
+                      (key) {
+                        final selected = _cuisineSelections.contains(key);
+                        final atLimit = !selected &&
+                            _cuisineSelections.length >=
+                                OnboardingController.maxCuisines;
+                        return FilterChip(
+                          label: Text(context.l10n.cuisineLabel(key)),
+                          selected: selected,
+                          onSelected: atLimit ? null : (_) => _toggleCuisine(key),
+                        );
+                      },
+                    )
+                    .toList(),
+              ),
               const SizedBox(height: 16),
               Card(
                 color: Theme.of(context)
@@ -297,7 +356,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save_outlined),
-                label: Text(_saving ? 'Saving…' : 'Save diet & allergies'),
+                label: Text(
+                  _saving ? 'Saving…' : 'Save diet, allergies & cuisines',
+                ),
               ),
               const SizedBox(height: 28),
               if (p.hasDisplayFields)

@@ -82,6 +82,14 @@ String _fromApiException(ApiException e) {
         }
         return 'Free limit reached for today. Create an account to keep generating recipes.';
       }
+      if (e.code == 'pantry_quota_exceeded' ||
+          rawLower.contains('weekly pantry scan') ||
+          rawLower.contains('pantry scan limit')) {
+        if (raw.isNotEmpty && raw.length <= 220 && !_looksTooTechnical(raw)) {
+          return raw;
+        }
+        return 'Free plan includes 2 pantry scans per week. Upgrade for unlimited scans.';
+      }
       if (rawLower.contains('premium') || rawLower.contains('pantry scan')) {
         return 'This feature requires Premium. Upgrade to unlock pantry scan and more.';
       }

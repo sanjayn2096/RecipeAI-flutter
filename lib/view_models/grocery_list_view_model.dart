@@ -350,6 +350,37 @@ class GroceryListViewModel extends ChangeNotifier {
     await _telemetry.logFeatureInteraction(featureId: FeatureIds.groceryClearChecked);
   }
 
+  Future<void> deleteItems(Iterable<String> ids) async {
+    final idSet = ids.toSet();
+    if (idSet.isEmpty) return;
+    if (_isCloudUser) {
+      for (final id in idSet) {
+        await _repo.deleteFirestore(id);
+      }
+    } else {
+      _items = _items.where((e) => !idSet.contains(e.id)).toList();
+      await _persistGuest();
+    }
+    await _telemetry.logFeatureInteraction(
+      featureId: FeatureIds.groceryDeleteSelected,
+    );
+  }
+
+  Future<void> clearAllItems() async {
+    if (_items.isEmpty) return;
+    if (_isCloudUser) {
+      final ids = _items.map((e) => e.id).toList();
+      for (final id in ids) {
+        await _repo.deleteFirestore(id);
+      }
+    } else {
+      _items = [];
+      await _repo.clearGuestList();
+      notifyListeners();
+    }
+    await _telemetry.logFeatureInteraction(featureId: FeatureIds.groceryClearAll);
+  }
+
   @override
   void dispose() {
     _authSub?.cancel();

@@ -43,8 +43,27 @@
     "public": "build/web",
     "ignore": [
       "firebase.json",
-      "**/.*",
       "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "/.well-known/apple-app-site-association",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      },
+      {
+        "source": "/.well-known/assetlinks.json",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      }
     ],
     "rewrites": [
       {
@@ -58,6 +77,10 @@
       {
         "source": "/home",
         "destination": "/home.html"
+      },
+      {
+        "source": "/r/**",
+        "function": "shareRecipePage"
       },
       {
         "source": "/app",

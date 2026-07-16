@@ -47,40 +47,59 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
 
   bool get _showReview => _photo != null && _selections.isNotEmpty && !_busy;
 
+  bool get _isPremium => widget.subscriptionViewModel.isPremium;
+
+  int get _remainingFreeScans =>
+      widget.sessionManager.getSignedInPantryScanUsageForWeekSync().remaining;
+
   @override
   void initState() {
     super.initState();
     widget.subscriptionViewModel.addListener(_onSubscriptionChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _guardPremiumAccess());
+    widget.sessionManager.usageQuotaRevision.addListener(_onQuotaChanged);
   }
 
   @override
   void dispose() {
     widget.subscriptionViewModel.removeListener(_onSubscriptionChanged);
+    widget.sessionManager.usageQuotaRevision.removeListener(_onQuotaChanged);
     super.dispose();
   }
 
   void _onSubscriptionChanged() {
-    if (!widget.subscriptionViewModel.isPremium && mounted) {
-      _guardPremiumAccess();
-    }
+    if (mounted) setState(() {});
   }
 
-  void _guardPremiumAccess() {
-    if (!mounted || widget.subscriptionViewModel.isPremium) return;
+  void _onQuotaChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _openQuotaPaywall() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.freeTierPantryScanQuotaMessage)),
+    );
     openPremiumPaywall(
       context,
-      source: 'pantry_scan',
+      source: 'pantry_quota',
       appTelemetry: widget.appTelemetry,
     );
-    context.pop();
+  }
+
+  bool _ensureCanScan() {
+    if (_isPremium) return true;
+    if (widget.sessionManager.isSignedInFreePantryScanQuotaExceededSync(
+      isPremium: false,
+    )) {
+      _openQuotaPaywall();
+      return false;
+    }
+    return true;
   }
 
   Future<void> _pick(ImageSource source) async {
-    if (!widget.subscriptionViewModel.isPremium) {
-      _guardPremiumAccess();
-      return;
-    }
+    if (!_ensureCanScan()) return;
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       setState(() => _error = context.l10n.groceryPantryScanSignInRequired);
@@ -104,13 +123,17 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
       final mime = captured.mimeType;
       final token = await user.getIdToken();
 
-      final suggestions = await _analyzer.analyze(
+      final result = await _analyzer.analyze(
         bytes: captured.bytes,
         mimeType: mime,
         idToken: token,
       );
 
-      final selections = suggestions
+      if (result.quota != null) {
+        widget.sessionManager.updateSignedInPantryScanUsage(result.quota);
+      }
+
+      final selections = result.suggestions
           .map((s) => PantrySuggestionSelection(suggestion: s))
           .toList();
 
@@ -129,14 +152,22 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
         );
       }
     } catch (e) {
+      if (e is ApiException &&
+          (e.code == 'pantry_quota_exceeded' ||
+              e.message.toLowerCase().contains('pantry scan limit'))) {
+        setState(() => _busy = false);
+        _openQuotaPaywall();
+        return;
+      }
       setState(() {
         _busy = false;
-        _error = e.toString();
+        _error = e is ApiException ? e.message : e.toString();
       });
     }
   }
 
   void _scanAgain() {
+    if (!_ensureCanScan()) return;
     setState(() {
       _photo = null;
       _selections = [];
@@ -288,6 +319,9 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
   Widget build(BuildContext context) {
     final workingLabel = context.l10n.groceryPantryScanWorking;
     final subtitle = context.l10n.groceryPantryScanSubtitle;
+    final remainingLabel = !_isPremium
+        ? context.l10n.groceryPantryScanRemaining(_remainingFreeScans)
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -309,6 +343,15 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
               ),
+              if (remainingLabel != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  remainingLabel,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -322,7 +365,8 @@ class _PantryScanScreenState extends State<PantryScanScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _busy ? null : () => _pick(ImageSource.gallery),
+                      onPressed:
+                          _busy ? null : () => _pick(ImageSource.gallery),
                       icon: const Icon(Icons.photo_library_outlined),
                       label: Text(context.l10n.groceryPantryScanChoosePhoto),
                     ),

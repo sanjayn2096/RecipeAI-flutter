@@ -117,6 +117,34 @@
   "groceryNothingLeftToBuy": "No unchecked items left to share",
   "groceryClearChecked": "Clear checked",
   "groceryRemovedChecked": "Removed checked items",
+  "grocerySelect": "Select",
+  "groceryCancelSelection": "Cancel",
+  "grocerySelectAll": "Select all",
+  "groceryDeselectAll": "Deselect all",
+  "groceryDeleteSelected": "Delete ({count})",
+  "@groceryDeleteSelected": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "groceryClearAll": "Clear all",
+  "groceryDeleteSelectedTitle": "Delete selected items?",
+  "groceryDeleteSelectedBody": "Delete {count} selected items from your grocery list?",
+  "@groceryDeleteSelectedBody": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "groceryClearAllTitle": "Clear grocery list?",
+  "groceryClearAllBody": "Remove all items from your grocery list? This cannot be undone.",
+  "groceryDeleteConfirm": "Delete",
+  "groceryRemovedSelected": "Removed {count} items",
+  "@groceryRemovedSelected": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "groceryClearedAll": "Grocery list cleared",
   "recipeAddedToGroceryList": "Added to grocery list",
   "cookFlowAddUncheckedToGrocery": "Add still needed to grocery list",
   "groceryPantryScanTitle": "Scan pantry",
@@ -146,6 +174,12 @@
   "groceryPantryScanSignInRequired": "Sign in to scan your pantry or refrigerator.",
   "groceryPantryScanNoItemsDetected": "No ingredients were detected in that photo. Try better light, a wider shot, or add items manually.",
   "groceryPantryScanSourceLabel": "Pantry scan",
+  "groceryPantryScanRemaining": "{count, plural, =0{No free scans left this week} =1{1 free scan left this week} other{{count} free scans left this week}}",
+  "@groceryPantryScanRemaining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "groceryPantryScanAdded": "{count, plural, =1{Added 1 item to your pantry} other{Added {count} items to your pantry}}",
   "@groceryPantryScanAdded": {
     "placeholders": {
@@ -358,9 +392,9 @@
   "onboardingSummaryPreviewHint": "Tonight Sous Chef might suggest…",
   "onboardingSummaryPreviewPlaceholder": "A personalized recipe just for you",
   "onboardingPaywallTitle": "Ready to cook?",
-  "onboardingPaywallSubtitle": "Compare plans below — Premium unlocks unlimited recipes, pantry scan, and full meal planning.",
+  "onboardingPaywallSubtitle": "Compare plans below — Premium unlocks unlimited recipes, unlimited pantry scans, and full meal planning.",
   "onboardingPaywallBenefitUnlimited": "Unlimited AI recipe generations",
-  "onboardingPaywallBenefitNoAds": "Pantry scan from photos",
+  "onboardingPaywallBenefitNoAds": "Unlimited pantry scans from photos",
   "onboardingPaywallBenefitMealPlan": "Full-week meal planner",
   "onboardingPaywallSubscribe": "Start Premium — {price}/mo",
   "@onboardingPaywallSubscribe": {
@@ -376,8 +410,16 @@
   "notNow": "Not now",
   "goPremium": "Go Premium",
   "freeTierImportQuotaMessage": "Free plan includes 1 recipe import per day. Upgrade for unlimited imports.",
-  "dailyCreditsUsed": "{used}/{total} Credits used",
+  "freeTierPantryScanQuotaMessage": "Free plan includes 2 pantry scans per week. Upgrade for unlimited scans.",
+  "dailyCreditsUsed": "{used}/{total}",
   "@dailyCreditsUsed": {
+    "placeholders": {
+      "used": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "dailyCreditsUsedTooltip": "{used}/{total} Credits used",
+  "@dailyCreditsUsedTooltip": {
     "placeholders": {
       "used": { "type": "int" },
       "total": { "type": "int" }
@@ -394,6 +436,10 @@
   "tierValueUnlimited": "Unlimited",
   "tierValuePerDay": "{count}/day",
   "@tierValuePerDay": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tierValuePerWeek": "{count}/week",
+  "@tierValuePerWeek": {
     "placeholders": { "count": { "type": "int" } }
   },
   "tierValueDays": "{count} days",

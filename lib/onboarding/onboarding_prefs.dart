@@ -7,4 +7,7 @@ abstract final class OnboardingPrefs {
   static const importDayKey = 'importDayKey';
   static const importCount = 'importCount';
   static const freeTierDailyImportLimit = 1;
+  static const freeTierWeeklyPantryScanLimit = 2;
+  static const pantryScanWeekKey = 'pantryScanWeekKey';
+  static const pantryScanCount = 'pantryScanCount';
 }

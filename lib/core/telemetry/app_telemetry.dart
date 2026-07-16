@@ -117,15 +117,30 @@ class AppTelemetry {
 
   Future<void> logPremiumPurchaseResult({
     required String result,
+    required String source,
+    String? productId,
     String? errorCode,
   }) async {
     await _analytics.logEvent(
       name: 'premium_purchase_result',
       parameters: {
         'result': _truncate(result, _maxParamLen),
+        'source': _truncate(source, _maxParamLen),
+        if (productId != null)
+          'product_id': _truncate(productId, _maxParamLen),
         if (errorCode != null)
           'error_code': _truncate(errorCode, _maxParamLen),
       },
+    );
+  }
+
+  /// Guest tapped Subscribe on paywall and was sent to login.
+  Future<void> logPremiumSubscribeLoginRedirect({
+    required String source,
+  }) async {
+    await _analytics.logEvent(
+      name: 'premium_subscribe_login_redirect',
+      parameters: {'source': _truncate(source, _maxParamLen)},
     );
   }
 

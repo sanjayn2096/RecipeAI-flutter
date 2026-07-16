@@ -185,19 +185,40 @@ class UserRepository {
     return _api.getRecipe(recipeId, idToken: token);
   }
 
+  /// POST /ensure-recipe — publish recipe doc for sharing (not Saved).
+  /// Returns canonical recipeId (may differ after collision remap).
+  Future<String> ensureRecipeForShare(Recipe recipe) async {
+    final token = await _firebaseAuth.currentUser?.getIdToken();
+    if (token == null) {
+      throw StateError('Sign in required to share a recipe');
+    }
+    return _api.ensureRecipe(recipe, idToken: token);
+  }
+
   Future<List<Recipe>> fetchTrendingRecipes({int limit = 20}) {
     return _api.fetchTrendingRecipes(limit: limit);
   }
 
-  /// Persists structured diet/allergens to session and PATCHes Firestore when signed in.
+  /// Persists structured diet/allergens/cuisines to session and PATCHes Firestore when signed in.
   Future<void> saveLifestylePreferences({
     required List<String> dietProfiles,
     required List<String> allergensAvoid,
     String? allergyNotes,
+    List<String>? preferredCuisines,
   }) async {
     await _session.saveDietProfiles(dietProfiles);
     await _session.saveAllergensAvoid(allergensAvoid);
     await _session.saveAllergyNotes(allergyNotes);
+    if (preferredCuisines != null) {
+      final normalized =
+          PreferenceOptions.normalizeCuisineKeys(preferredCuisines);
+      await _session.saveUsualCuisines(normalized);
+      if (normalized.isNotEmpty) {
+        _session.saveLifestyleCuisineSync(normalized.first);
+      } else {
+        _session.saveLifestyleCuisineSync(PreferenceOptions.noCuisineSelected);
+      }
+    }
     if (_session.isGuestMode()) return;
     final token = await _firebaseAuth.currentUser?.getIdToken();
     if (token == null) return;
@@ -206,6 +227,9 @@ class UserRepository {
         dietProfiles: dietProfiles,
         allergensAvoid: allergensAvoid,
         allergyNotes: allergyNotes,
+        preferredCuisines: preferredCuisines != null
+            ? PreferenceOptions.normalizeCuisineKeys(preferredCuisines)
+            : null,
       ),
       idToken: token,
     );

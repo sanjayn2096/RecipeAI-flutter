@@ -283,16 +283,21 @@ class HomeViewModel extends ChangeNotifier {
 
   String? get persistedAllergyNotes => _session.getAllergyNotes();
 
-  /// Saves diet/allergens to device and PATCHes `/user-lifestyle` when signed in.
+  List<String> get persistedUsualCuisines =>
+      List<String>.from(_session.getUsualCuisines());
+
+  /// Saves diet/allergens/cuisines to device and PATCHes `/user-lifestyle` when signed in.
   Future<void> saveLifestyleProfile({
     required List<String> dietProfiles,
     required List<String> allergensAvoid,
     String? allergyNotes,
+    List<String>? preferredCuisines,
   }) async {
     await _userRepo.saveLifestylePreferences(
       dietProfiles: dietProfiles,
       allergensAvoid: allergensAvoid,
       allergyNotes: allergyNotes,
+      preferredCuisines: preferredCuisines,
     );
     notifyListeners();
   }

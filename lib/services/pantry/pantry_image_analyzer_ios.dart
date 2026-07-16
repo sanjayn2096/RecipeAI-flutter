@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 
 import 'pantry_image_analyzer.dart';
-import 'pantry_scan_suggestion.dart';
 import 'pantry_vision_merge.dart';
 import 'pantry_vision_raw.dart';
 
@@ -13,12 +12,14 @@ class OnDeviceIosPantryImageAnalyzer implements PantryImageAnalyzer {
   bool get isOnDevice => true;
 
   @override
-  Future<List<PantryScanSuggestion>> analyze({
+  Future<PantryAnalyzeResult> analyze({
     required Uint8List bytes,
     required String mimeType,
     String? idToken,
   }) async {
-    if (bytes.isEmpty) return const [];
+    if (bytes.isEmpty) {
+      return const PantryAnalyzeResult(suggestions: []);
+    }
 
     final result = await _channel.invokeMethod<Map<Object?, Object?>>(
       'analyzePantryImage',
@@ -28,11 +29,15 @@ class OnDeviceIosPantryImageAnalyzer implements PantryImageAnalyzer {
       },
     );
 
-    if (result == null) return const [];
+    if (result == null) {
+      return const PantryAnalyzeResult(suggestions: []);
+    }
 
     final raw = PantryVisionRawResult.fromJson(
       Map<String, dynamic>.from(result),
     );
-    return PantryVisionMerge.toSuggestions(raw);
+    return PantryAnalyzeResult(
+      suggestions: PantryVisionMerge.toSuggestions(raw),
+    );
   }
 }

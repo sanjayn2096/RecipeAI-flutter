@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../core/constants.dart';
 import '../core/preference_options.dart';
+import '../data/models/pantry_scan_quota.dart';
 import '../data/models/recipe_generation_usage.dart';
 import '../data/models/subscription_status.dart';
 import '../onboarding/onboarding_prefs.dart';
@@ -23,6 +24,7 @@ class SessionManager {
   /// Bumped when local pantry is marked dirty (for sync debounce).
   final ValueNotifier<int> pantryDirtyRevision = ValueNotifier<int>(0);
   RecipeGenerationUsage? _signedInRecipeGenerationUsage;
+  PantryScanQuota? _signedInPantryScanUsage;
 
   void notifyUsageQuotaChanged() {
     usageQuotaRevision.value++;
@@ -62,7 +64,10 @@ class SessionManager {
     await p.remove(_prefix + AppConstants.prefsGuestGenDayKey);
     await p.remove(_prefix + AppConstants.prefsGuestGenCount);
     await p.remove(_prefix + AppConstants.prefsSubscriptionCache);
+    await p.remove(_prefix + OnboardingPrefs.pantryScanWeekKey);
+    await p.remove(_prefix + OnboardingPrefs.pantryScanCount);
     _signedInRecipeGenerationUsage = null;
+    _signedInPantryScanUsage = null;
     notifyUsageQuotaChanged();
   }
 
@@ -472,6 +477,38 @@ class SessionManager {
     notifyUsageQuotaChanged();
   }
 
+  PantryScanQuota getSignedInPantryScanUsageForWeekSync() {
+    final usage = _signedInPantryScanUsage;
+    final week = PantryScanQuota.utcWeekKeyNow();
+    if (usage != null && usage.utcWeek == week) {
+      return usage;
+    }
+    final storedWeek = getPreference(OnboardingPrefs.pantryScanWeekKey);
+    final storedCount =
+        int.tryParse(getPreference(OnboardingPrefs.pantryScanCount) ?? '') ?? 0;
+    if (storedWeek == week) {
+      const limit = OnboardingPrefs.freeTierWeeklyPantryScanLimit;
+      return PantryScanQuota(
+        utcWeek: week,
+        count: storedCount,
+        weeklyLimit: limit,
+        remaining: (limit - storedCount).clamp(0, limit),
+      );
+    }
+    return PantryScanQuota.empty(
+      weeklyLimit: OnboardingPrefs.freeTierWeeklyPantryScanLimit,
+    );
+  }
+
+  void updateSignedInPantryScanUsage(PantryScanQuota? usage) {
+    _signedInPantryScanUsage = usage;
+    if (usage != null) {
+      savePreferenceSync(OnboardingPrefs.pantryScanWeekKey, usage.utcWeek);
+      savePreferenceSync(OnboardingPrefs.pantryScanCount, '${usage.count}');
+    }
+    notifyUsageQuotaChanged();
+  }
+
   Future<void> recordSignedInFreeRecipeGenerationSuccess({
     required bool isPremium,
   }) async {
@@ -480,6 +517,11 @@ class SessionManager {
     updateSignedInRecipeGenerationUsage(
       usage.copyWith(count: usage.count + 1),
     );
+  }
+
+  bool isSignedInFreePantryScanQuotaExceededSync({required bool isPremium}) {
+    if (isPremium || isGuestMode()) return false;
+    return getSignedInPantryScanUsageForWeekSync().remaining <= 0;
   }
 
   SubscriptionStatus readSubscriptionCacheSync() {

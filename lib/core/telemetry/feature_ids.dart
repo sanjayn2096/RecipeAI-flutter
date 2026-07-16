@@ -19,7 +19,9 @@ abstract final class FeatureIds {
   static const groceryAddFromRecipe = 'grocery_add_from_recipe';
   static const groceryAddManual = 'grocery_add_manual';
   static const groceryDeleteItem = 'grocery_delete_item';
+  static const groceryDeleteSelected = 'grocery_delete_selected';
   static const groceryClearChecked = 'grocery_clear_checked';
+  static const groceryClearAll = 'grocery_clear_all';
   static const groceryMergeGuestToCloud = 'grocery_merge_guest_to_cloud';
   static const groceryShare = 'grocery_share';
   static const groceryCopy = 'grocery_copy';

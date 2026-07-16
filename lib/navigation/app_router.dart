@@ -24,6 +24,7 @@ import '../screens/meal_plan_review_screen.dart';
 import '../data/api/api_service.dart';
 import '../data/models/recipe.dart';
 import '../data/models/user_data.dart';
+import '../data/repositories/user_repository.dart';
 import '../core/recipe_generation_entry_point.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../view_models/grocery_list_view_model.dart';
@@ -32,6 +33,8 @@ import '../view_models/subscription_view_model.dart';
 import '../view_models/meal_plan_view_model.dart';
 import '../onboarding/onboarding_session_extension.dart';
 import '../services/session_manager.dart';
+import '../screens/shared_recipe_loader_screen.dart';
+import 'pending_deep_link.dart';
 
 class AppRouter {
   AppRouter({
@@ -42,6 +45,7 @@ class AppRouter {
     required this.mealPlanViewModel,
     required this.subscriptionViewModel,
     required this.apiService,
+    required this.userRepository,
     required this.appTelemetry,
     required this.sessionManager,
     this.analytics,
@@ -54,6 +58,7 @@ class AppRouter {
   final MealPlanViewModel mealPlanViewModel;
   final SubscriptionViewModel subscriptionViewModel;
   final ApiService apiService;
+  final UserRepository userRepository;
   final AppTelemetry appTelemetry;
   final dynamic sessionManager;
   final FirebaseAnalytics? analytics;
@@ -206,6 +211,23 @@ class AppRouter {
             recipeViewModel: recipeViewModel,
             groceryListViewModel: groceryListViewModel,
             isGuest: isGuest,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/r/:recipeId',
+        builder: (_, state) {
+          final recipeId = state.pathParameters['recipeId'] ?? '';
+          PendingDeepLink.clear();
+          return SharedRecipeLoaderScreen(
+            recipeId: recipeId,
+            apiService: apiService,
+            userRepository: userRepository,
+            sessionManager: sessionManager as SessionManager,
+            appTelemetry: appTelemetry,
+            subscriptionViewModel: subscriptionViewModel,
+            recipeViewModel: recipeViewModel,
+            groceryListViewModel: groceryListViewModel,
           );
         },
       ),

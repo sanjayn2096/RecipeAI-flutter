@@ -221,6 +221,7 @@ class AuthRepository {
     );
     _session.setOnboardingCompleteSync(profile.onboardingComplete);
     _session.updateSignedInRecipeGenerationUsage(profile.recipeGenerationUsage);
+    _session.updateSignedInPantryScanUsage(profile.pantryScanUsage);
     onProfileLoaded?.call(profile.subscription);
   }
 

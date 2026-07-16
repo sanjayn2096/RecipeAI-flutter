@@ -65,7 +65,7 @@ class _OnboardingPaywallStepState extends State<OnboardingPaywallStep> {
     await widget.appTelemetry.logFeatureInteraction(
       featureId: FeatureIds.onboardingPaywallSubscribe,
     );
-    await widget.subscriptionViewModel.subscribe();
+    await widget.subscriptionViewModel.subscribe(source: 'onboarding');
   }
 
   Future<void> _onSkip() async {

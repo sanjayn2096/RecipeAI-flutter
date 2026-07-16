@@ -109,7 +109,35 @@
   "groceryCopied": "List copied to clipboard",
   "groceryNothingLeftToBuy": "No unchecked items left to share",
   "groceryClearChecked": "Borrar marcados",
-  "groceryRemovedChecked": "Removed checked items",
+  "groceryRemovedChecked": "Artículos marcados eliminados",
+  "grocerySelect": "Seleccionar",
+  "groceryCancelSelection": "Cancelar",
+  "grocerySelectAll": "Seleccionar todo",
+  "groceryDeselectAll": "Deseleccionar todo",
+  "groceryDeleteSelected": "Eliminar ({count})",
+  "@groceryDeleteSelected": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "groceryClearAll": "Borrar todo",
+  "groceryDeleteSelectedTitle": "¿Eliminar artículos seleccionados?",
+  "groceryDeleteSelectedBody": "¿Eliminar {count} artículos seleccionados de tu lista de compras?",
+  "@groceryDeleteSelectedBody": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "groceryClearAllTitle": "¿Vaciar lista de compras?",
+  "groceryClearAllBody": "¿Eliminar todos los artículos de tu lista de compras? Esta acción no se puede deshacer.",
+  "groceryDeleteConfirm": "Eliminar",
+  "groceryRemovedSelected": "Se eliminaron {count} artículos",
+  "@groceryRemovedSelected": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "groceryClearedAll": "Lista de compras vaciada",
   "recipeAddedToGroceryList": "Añadido a la lista de compras",
   "cookFlowAddUncheckedToGrocery": "Add still needed to grocery list",
   "groceryPantryScanTitle": "Escanear despensa",
@@ -139,6 +167,12 @@
   "groceryPantryScanSignInRequired": "Sign in to scan your pantry or refrigerator.",
   "groceryPantryScanNoItemsDetected": "No ingredients were detected in that photo. Try better light, a wider shot, or add items manually.",
   "groceryPantryScanSourceLabel": "Pantry scan",
+  "groceryPantryScanRemaining": "{count, plural, =0{No te quedan escaneos gratis esta semana} =1{1 escaneo gratis restante esta semana} other{{count} escaneos gratis restantes esta semana}}",
+  "@groceryPantryScanRemaining": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "groceryPantryScanAdded": "{count, plural, =1{Added 1 item to your pantry} other{Added {count} items to your pantry}}",
   "groceryPantryScanAddedOne": "Added to your pantry",
   "importRecipeTabTitle": "Importar",
@@ -360,9 +394,9 @@
   "onboardingSummaryPreviewHint": "Esta noche Sous Chef podría sugerir…",
   "onboardingSummaryPreviewPlaceholder": "Una receta personalizada para ti",
   "onboardingPaywallTitle": "¿Listo para cocinar?",
-  "onboardingPaywallSubtitle": "Compara los planes — Premium desbloquea recetas ilimitadas, escaneo de despensa y planificación completa.",
+  "onboardingPaywallSubtitle": "Compara los planes — Premium desbloquea recetas ilimitadas, escaneos de despensa ilimitados y planificación completa.",
   "onboardingPaywallBenefitUnlimited": "Generaciones de recetas IA ilimitadas",
-  "onboardingPaywallBenefitNoAds": "Escanear despensa desde fotos",
+  "onboardingPaywallBenefitNoAds": "Escaneos de despensa ilimitados desde fotos",
   "onboardingPaywallBenefitMealPlan": "Planificador semanal completo",
   "onboardingPaywallSubscribe": "Premium — {price}/mes",
   "@onboardingPaywallSubscribe": {
@@ -378,8 +412,16 @@
   "notNow": "Ahora no",
   "goPremium": "Ir a Premium",
   "freeTierImportQuotaMessage": "El plan gratuito incluye 1 importación de receta al día. Mejora para importaciones ilimitadas.",
-  "dailyCreditsUsed": "{used}/{total} créditos usados",
+  "freeTierPantryScanQuotaMessage": "El plan gratuito incluye 2 escaneos de despensa por semana. Mejora para escaneos ilimitados.",
+  "dailyCreditsUsed": "{used}/{total}",
   "@dailyCreditsUsed": {
+    "placeholders": {
+      "used": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "dailyCreditsUsedTooltip": "{used}/{total} créditos usados",
+  "@dailyCreditsUsedTooltip": {
     "placeholders": {
       "used": { "type": "int" },
       "total": { "type": "int" }
@@ -396,6 +438,10 @@
   "tierValueUnlimited": "Ilimitado",
   "tierValuePerDay": "{count}/día",
   "@tierValuePerDay": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tierValuePerWeek": "{count}/semana",
+  "@tierValuePerWeek": {
     "placeholders": { "count": { "type": "int" } }
   },
   "tierValueDays": "{count} días",

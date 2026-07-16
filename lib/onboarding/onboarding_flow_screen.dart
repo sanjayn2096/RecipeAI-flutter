@@ -93,17 +93,8 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       allergyNotes: _controller.allergyNotes.trim().isEmpty
           ? null
           : _controller.allergyNotes.trim(),
+      preferredCuisines: _controller.usualCuisines.toList(),
     );
-    widget.sessionManager.saveUsualCuisinesSync(
-      _controller.usualCuisines.toList(),
-    );
-    if (_controller.usualCuisines.isNotEmpty) {
-      widget.sessionManager.savePreferenceSync(
-        AppConstants.prefsLifestyleCuisine,
-        _controller.usualCuisines.first,
-      );
-    }
-    await widget.homeViewModel.syncLifestyleFromPrefs();
   }
 
   Future<void> _finishOnboarding({required bool subscribed}) async {

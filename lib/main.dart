@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,6 +14,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
+import 'core/recipe_share.dart';
 import 'core/telemetry/api_call_context.dart';
 import 'core/telemetry/app_telemetry.dart';
 import 'core/theme.dart';
@@ -35,6 +37,45 @@ import 'view_models/grocery_list_view_model.dart';
 import 'view_models/subscription_view_model.dart';
 import 'view_models/meal_plan_view_model.dart';
 import 'navigation/app_router.dart';
+import 'navigation/pending_deep_link.dart';
+
+void _listenForRecipeDeepLinks(GoRouter router) {
+  if (kIsWeb) return;
+
+  String? pathFromUri(Uri uri) {
+    final id = RecipeShare.recipeIdFromUri(uri);
+    if (id == null) return null;
+    return '/r/${Uri.encodeComponent(id)}';
+  }
+
+  void handleUri(Uri uri) {
+    final path = pathFromUri(uri);
+    if (path == null) return;
+    final loc = router.routerDelegate.currentConfiguration.uri.path;
+    // During splash / login, stash until auth routing finishes.
+    if (loc == '/' || loc == '/login' || loc == '/verify-email') {
+      PendingDeepLink.set(path);
+      return;
+    }
+    router.go(path);
+  }
+
+  final appLinks = AppLinks();
+  unawaited(() async {
+    try {
+      final initial = await appLinks.getInitialLink();
+      if (initial != null) handleUri(initial);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[deepLink] getInitialLink failed: $e');
+    }
+  }());
+  appLinks.uriLinkStream.listen(
+    handleUri,
+    onError: (Object e) {
+      if (kDebugMode) debugPrint('[deepLink] stream error: $e');
+    },
+  );
+}
 
 Future<void> _initCrashlytics() async {
   if (kIsWeb) {
@@ -198,10 +239,13 @@ void main() async {
       mealPlanViewModel: mealPlanViewModel,
       subscriptionViewModel: subscriptionViewModel,
       apiService: apiService,
+      userRepository: userRepo,
       appTelemetry: appTelemetry,
       sessionManager: sessionManager,
       analytics: analytics,
     ).router;
+
+    _listenForRecipeDeepLinks(router);
 
     runApp(RecipeAiApp(
       router: router,

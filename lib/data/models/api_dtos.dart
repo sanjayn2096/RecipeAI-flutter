@@ -1,3 +1,4 @@
+import 'pantry_scan_quota.dart';
 import 'recipe.dart';
 import 'recipe_generation_usage.dart';
 
@@ -383,6 +384,7 @@ class UserProfileResponse {
     this.onboardingComplete = false,
     this.subscription,
     this.recipeGenerationUsage,
+    this.pantryScanUsage,
     this.pantryIngredients,
     this.hasPantryIngredientsField = false,
   });
@@ -398,6 +400,7 @@ class UserProfileResponse {
   final bool hasAllergyNotesField;
   final bool onboardingComplete;
   final RecipeGenerationUsage? recipeGenerationUsage;
+  final PantryScanQuota? pantryScanUsage;
   final List<String>? pantryIngredients;
   final bool hasPantryIngredientsField;
 
@@ -438,6 +441,13 @@ class UserProfileResponse {
         Map<String, dynamic>.from(usageRaw),
       );
     }
+    PantryScanQuota? pantryScanUsage;
+    final pantryUsageRaw = json['pantryScanUsage'];
+    if (pantryUsageRaw is Map) {
+      pantryScanUsage = PantryScanQuota.fromJson(
+        Map<String, dynamic>.from(pantryUsageRaw),
+      );
+    }
 
     return UserProfileResponse(
       userId: uid is String ? uid : uid?.toString() ?? '',
@@ -458,6 +468,7 @@ class UserProfileResponse {
       onboardingComplete: json['onboardingComplete'] == true,
       subscription: subscription,
       recipeGenerationUsage: recipeGenerationUsage,
+      pantryScanUsage: pantryScanUsage,
       pantryIngredients: json.containsKey('pantryIngredients')
           ? _stringList(json['pantryIngredients'])
           : null,

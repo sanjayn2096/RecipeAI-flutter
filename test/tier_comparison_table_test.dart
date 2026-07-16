@@ -41,15 +41,18 @@ void main() {
 
     expect(find.text(l10n.tierValuePerDay(3)), findsOneWidget);
     expect(find.text(l10n.tierValuePerDay(1)), findsOneWidget);
-    expect(find.text(l10n.tierValueUnlimited), findsNWidgets(2));
+    expect(find.text(l10n.tierValuePerWeek(2)), findsOneWidget);
+    expect(find.text(l10n.tierValueUnlimited), findsNWidgets(3));
   });
 
-  testWidgets('shows check icons for premium-only features', (tester) async {
+  testWidgets('shows meal planner day limits without premium-only checks',
+      (tester) async {
     await pumpTable(tester);
 
-    // Pantry scan remains premium-only in the comparison table.
-    expect(find.byIcon(Icons.check), findsOneWidget);
-    expect(find.text(l10n.tierValueNotIncluded), findsOneWidget);
+    expect(find.byIcon(Icons.check), findsNothing);
+    expect(find.text(l10n.tierValueNotIncluded), findsNothing);
+    expect(find.text(l10n.tierValueDays(3)), findsOneWidget);
+    expect(find.text(l10n.tierValueDays(7)), findsOneWidget);
   });
 
   testWidgets('compact variant renders without overflow', (tester) async {

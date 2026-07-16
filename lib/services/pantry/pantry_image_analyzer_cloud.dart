@@ -15,7 +15,7 @@ class CloudPantryImageAnalyzer implements PantryImageAnalyzer {
   bool get isOnDevice => false;
 
   @override
-  Future<List<PantryScanSuggestion>> analyze({
+  Future<PantryAnalyzeResult> analyze({
     required Uint8List bytes,
     required String mimeType,
     String? idToken,
@@ -28,6 +28,9 @@ class CloudPantryImageAnalyzer implements PantryImageAnalyzer {
       mimeType: mimeType,
       idToken: idToken,
     );
-    return PantryScanSuggestion.fromApiItems(response.items);
+    return PantryAnalyzeResult(
+      suggestions: PantryScanSuggestion.fromApiItems(response.items),
+      quota: response.quota,
+    );
   }
 }

@@ -368,7 +368,53 @@ class AppLocalizationsEs extends AppLocalizations {
   String get groceryClearChecked => 'Borrar marcados';
 
   @override
-  String get groceryRemovedChecked => 'Removed checked items';
+  String get groceryRemovedChecked => 'Artículos marcados eliminados';
+
+  @override
+  String get grocerySelect => 'Seleccionar';
+
+  @override
+  String get groceryCancelSelection => 'Cancelar';
+
+  @override
+  String get grocerySelectAll => 'Seleccionar todo';
+
+  @override
+  String get groceryDeselectAll => 'Deseleccionar todo';
+
+  @override
+  String groceryDeleteSelected(int count) {
+    return 'Eliminar ($count)';
+  }
+
+  @override
+  String get groceryClearAll => 'Borrar todo';
+
+  @override
+  String get groceryDeleteSelectedTitle => '¿Eliminar artículos seleccionados?';
+
+  @override
+  String groceryDeleteSelectedBody(int count) {
+    return '¿Eliminar $count artículos seleccionados de tu lista de compras?';
+  }
+
+  @override
+  String get groceryClearAllTitle => '¿Vaciar lista de compras?';
+
+  @override
+  String get groceryClearAllBody =>
+      '¿Eliminar todos los artículos de tu lista de compras? Esta acción no se puede deshacer.';
+
+  @override
+  String get groceryDeleteConfirm => 'Eliminar';
+
+  @override
+  String groceryRemovedSelected(int count) {
+    return 'Se eliminaron $count artículos';
+  }
+
+  @override
+  String get groceryClearedAll => 'Lista de compras vaciada';
 
   @override
   String get recipeAddedToGroceryList => 'Añadido a la lista de compras';
@@ -464,6 +510,18 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get groceryPantryScanSourceLabel => 'Pantry scan';
+
+  @override
+  String groceryPantryScanRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count escaneos gratis restantes esta semana',
+      one: '1 escaneo gratis restante esta semana',
+      zero: 'No te quedan escaneos gratis esta semana',
+    );
+    return '$_temp0';
+  }
 
   @override
   String groceryPantryScanAdded(int count) {
@@ -945,14 +1003,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get onboardingPaywallSubtitle =>
-      'Compara los planes — Premium desbloquea recetas ilimitadas, escaneo de despensa y planificación completa.';
+      'Compara los planes — Premium desbloquea recetas ilimitadas, escaneos de despensa ilimitados y planificación completa.';
 
   @override
   String get onboardingPaywallBenefitUnlimited =>
       'Generaciones de recetas IA ilimitadas';
 
   @override
-  String get onboardingPaywallBenefitNoAds => 'Escanear despensa desde fotos';
+  String get onboardingPaywallBenefitNoAds =>
+      'Escaneos de despensa ilimitados desde fotos';
 
   @override
   String get onboardingPaywallBenefitMealPlan =>
@@ -998,7 +1057,16 @@ class AppLocalizationsEs extends AppLocalizations {
       'El plan gratuito incluye 1 importación de receta al día. Mejora para importaciones ilimitadas.';
 
   @override
+  String get freeTierPantryScanQuotaMessage =>
+      'El plan gratuito incluye 2 escaneos de despensa por semana. Mejora para escaneos ilimitados.';
+
+  @override
   String dailyCreditsUsed(int used, int total) {
+    return '$used/$total';
+  }
+
+  @override
+  String dailyCreditsUsedTooltip(int used, int total) {
     return '$used/$total créditos usados';
   }
 
@@ -1032,6 +1100,11 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String tierValuePerDay(int count) {
     return '$count/día';
+  }
+
+  @override
+  String tierValuePerWeek(int count) {
+    return '$count/semana';
   }
 
   @override

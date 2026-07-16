@@ -57,6 +57,9 @@ class SubscriptionViewModel extends ChangeNotifier {
   ProductDetails? _product;
   ProductDetails? get product => _product;
 
+  /// Paywall entry used to attribute the in-flight purchase outcome.
+  String? _pendingPurchaseSource;
+
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
 
   Future<void> _initStore() async {
@@ -119,6 +122,7 @@ class SubscriptionViewModel extends ChangeNotifier {
       _session.updateSignedInRecipeGenerationUsage(
         profile.recipeGenerationUsage,
       );
+      _session.updateSignedInPantryScanUsage(profile.pantryScanUsage);
       applyProfileSubscription(profile.subscription);
     } catch (e, st) {
       subscriptionLog('refreshFromApi failed: $e');
@@ -136,8 +140,9 @@ class SubscriptionViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> subscribe() async {
-    subscriptionLog('subscribe: tap');
+  Future<void> subscribe({required String source}) async {
+    subscriptionLog('subscribe: tap source=$source');
+    _pendingPurchaseSource = source;
     if (kIsWeb) {
       _error = 'Subscriptions are available in the mobile app.';
       subscriptionLog('subscribe: blocked (web)');
@@ -189,6 +194,7 @@ class SubscriptionViewModel extends ChangeNotifier {
   Future<void> restorePurchases() async {
     if (kIsWeb) return;
     subscriptionLog('restorePurchases: start');
+    _pendingPurchaseSource = 'restore';
     _loading = true;
     _error = null;
     notifyListeners();
@@ -291,11 +297,15 @@ class SubscriptionViewModel extends ChangeNotifier {
           );
           if (_isUserCanceledPurchase(code)) {
             _error = null;
-            await _telemetry.logPremiumPurchaseResult(result: 'cancel');
+            await _logPurchaseResult(
+              result: 'cancel',
+              productId: purchase.productID,
+            );
           } else {
             _error = purchase.error?.message ?? 'Purchase failed';
-            await _telemetry.logPremiumPurchaseResult(
+            await _logPurchaseResult(
               result: 'error',
+              productId: purchase.productID,
               errorCode: purchase.error?.code,
             );
           }
@@ -305,7 +315,10 @@ class SubscriptionViewModel extends ChangeNotifier {
           subscriptionLog('purchaseUpdates: canceled');
           _loading = false;
           _error = null;
-          await _telemetry.logPremiumPurchaseResult(result: 'cancel');
+          await _logPurchaseResult(
+            result: 'cancel',
+            productId: purchase.productID,
+          );
           notifyListeners();
           break;
         case PurchaseStatus.purchased:
@@ -328,6 +341,23 @@ class SubscriptionViewModel extends ChangeNotifier {
     return normalized.contains('cancel') ||
         normalized == '1' || // Android BILLING_RESPONSE_RESULT_USER_CANCELED
         normalized == 'user_canceled';
+  }
+
+  Future<void> _logPurchaseResult({
+    required String result,
+    String? productId,
+    String? errorCode,
+  }) async {
+    final source = _pendingPurchaseSource ?? 'unknown';
+    await _telemetry.logPremiumPurchaseResult(
+      result: result,
+      source: source,
+      productId: productId ?? _product?.id,
+      errorCode: errorCode,
+    );
+    if (result == 'success' || result == 'cancel' || result == 'error') {
+      _pendingPurchaseSource = null;
+    }
   }
 
   Future<void> _verifyWithBackend(PurchaseDetails purchase) async {
@@ -360,7 +390,10 @@ class SubscriptionViewModel extends ChangeNotifier {
       _loading = false;
       _error = null;
       subscriptionLog('verifyWithBackend: success');
-      await _telemetry.logPremiumPurchaseResult(result: 'success');
+      await _logPurchaseResult(
+        result: 'success',
+        productId: purchase.productID,
+      );
       notifyListeners();
     } catch (e, st) {
       subscriptionLog('verifyWithBackend failed: $e');
@@ -369,8 +402,9 @@ class SubscriptionViewModel extends ChangeNotifier {
       }
       _loading = false;
       _error = e.toString();
-      await _telemetry.logPremiumPurchaseResult(
+      await _logPurchaseResult(
         result: 'error',
+        productId: purchase.productID,
         errorCode: 'verify_failed',
       );
       notifyListeners();

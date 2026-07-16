@@ -758,6 +758,84 @@ abstract class AppLocalizations {
   /// **'Removed checked items'**
   String get groceryRemovedChecked;
 
+  /// No description provided for @grocerySelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get grocerySelect;
+
+  /// No description provided for @groceryCancelSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get groceryCancelSelection;
+
+  /// No description provided for @grocerySelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get grocerySelectAll;
+
+  /// No description provided for @groceryDeselectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect all'**
+  String get groceryDeselectAll;
+
+  /// No description provided for @groceryDeleteSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete ({count})'**
+  String groceryDeleteSelected(int count);
+
+  /// No description provided for @groceryClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get groceryClearAll;
+
+  /// No description provided for @groceryDeleteSelectedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete selected items?'**
+  String get groceryDeleteSelectedTitle;
+
+  /// No description provided for @groceryDeleteSelectedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count} selected items from your grocery list?'**
+  String groceryDeleteSelectedBody(int count);
+
+  /// No description provided for @groceryClearAllTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear grocery list?'**
+  String get groceryClearAllTitle;
+
+  /// No description provided for @groceryClearAllBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all items from your grocery list? This cannot be undone.'**
+  String get groceryClearAllBody;
+
+  /// No description provided for @groceryDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get groceryDeleteConfirm;
+
+  /// No description provided for @groceryRemovedSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {count} items'**
+  String groceryRemovedSelected(int count);
+
+  /// No description provided for @groceryClearedAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Grocery list cleared'**
+  String get groceryClearedAll;
+
   /// No description provided for @recipeAddedToGroceryList.
   ///
   /// In en, this message translates to:
@@ -931,6 +1009,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pantry scan'**
   String get groceryPantryScanSourceLabel;
+
+  /// No description provided for @groceryPantryScanRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No free scans left this week} =1{1 free scan left this week} other{{count} free scans left this week}}'**
+  String groceryPantryScanRemaining(int count);
 
   /// No description provided for @groceryPantryScanAdded.
   ///
@@ -1787,7 +1871,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingPaywallSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Compare plans below — Premium unlocks unlimited recipes, pantry scan, and full meal planning.'**
+  /// **'Compare plans below — Premium unlocks unlimited recipes, unlimited pantry scans, and full meal planning.'**
   String get onboardingPaywallSubtitle;
 
   /// No description provided for @onboardingPaywallBenefitUnlimited.
@@ -1799,7 +1883,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingPaywallBenefitNoAds.
   ///
   /// In en, this message translates to:
-  /// **'Pantry scan from photos'**
+  /// **'Unlimited pantry scans from photos'**
   String get onboardingPaywallBenefitNoAds;
 
   /// No description provided for @onboardingPaywallBenefitMealPlan.
@@ -1874,11 +1958,23 @@ abstract class AppLocalizations {
   /// **'Free plan includes 1 recipe import per day. Upgrade for unlimited imports.'**
   String get freeTierImportQuotaMessage;
 
+  /// No description provided for @freeTierPantryScanQuotaMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Free plan includes 2 pantry scans per week. Upgrade for unlimited scans.'**
+  String get freeTierPantryScanQuotaMessage;
+
   /// No description provided for @dailyCreditsUsed.
   ///
   /// In en, this message translates to:
-  /// **'{used}/{total} Credits used'**
+  /// **'{used}/{total}'**
   String dailyCreditsUsed(int used, int total);
+
+  /// No description provided for @dailyCreditsUsedTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'{used}/{total} Credits used'**
+  String dailyCreditsUsedTooltip(int used, int total);
 
   /// No description provided for @tierColumnFeature.
   ///
@@ -1939,6 +2035,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count}/day'**
   String tierValuePerDay(int count);
+
+  /// No description provided for @tierValuePerWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}/week'**
+  String tierValuePerWeek(int count);
 
   /// No description provided for @tierValueDays.
   ///

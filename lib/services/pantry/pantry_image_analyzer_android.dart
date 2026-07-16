@@ -7,7 +7,6 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 
 import 'pantry_image_analyzer.dart';
 import 'pantry_label_mapper.dart';
-import 'pantry_scan_suggestion.dart';
 import 'pantry_vision_merge.dart';
 import 'pantry_vision_raw.dart';
 
@@ -17,12 +16,14 @@ class OnDeviceAndroidPantryImageAnalyzer implements PantryImageAnalyzer {
   bool get isOnDevice => true;
 
   @override
-  Future<List<PantryScanSuggestion>> analyze({
+  Future<PantryAnalyzeResult> analyze({
     required Uint8List bytes,
     required String mimeType,
     String? idToken,
   }) async {
-    if (bytes.isEmpty) return const [];
+    if (bytes.isEmpty) {
+      return const PantryAnalyzeResult(suggestions: []);
+    }
 
     final ext = mimeType.toLowerCase().contains('png') ? 'png' : 'jpg';
     final f = File(
@@ -87,7 +88,9 @@ class OnDeviceAndroidPantryImageAnalyzer implements PantryImageAnalyzer {
         ocrLines: ocrLines,
         barcodes: barcodes,
       );
-      return PantryVisionMerge.toSuggestions(raw);
+      return PantryAnalyzeResult(
+        suggestions: PantryVisionMerge.toSuggestions(raw),
+      );
     } finally {
       try {
         await f.delete();

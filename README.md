@@ -17,7 +17,7 @@ Cross-platform client for **Sous Chef AI** — AI recipes, pantry cooking, meal 
 
 ### Import and pantry
 - **Import hub** — URL, pasted text, or cookbook photo/OCR → structured recipe
-- **Pantry scan** — camera/photo → detected items → cook from pantry (Premium; on-device Vision/ML Kit + optional cloud)
+- **Pantry scan** — camera/photo → detected items → cook from pantry (free: 2/UTC week; Premium: unlimited; cloud Claude)
 
 ### Plan and shop
 - **Meal planner** — wizard + slot regeneration (free: 3 days, Premium: 7; guests: 1 trial)
@@ -29,7 +29,7 @@ Cross-platform client for **Sous Chef AI** — AI recipes, pantry cooking, meal 
 - **Onboarding** — cuisines, diet, allergies, summary, soft paywall
 - **Premium** — store subscriptions with tier comparison and daily credits UI
 - **i18n** — English and Spanish
-- **Telemetry** — Analytics, Crashlytics, activity metrics
+- **Telemetry** — Analytics, Crashlytics, activity metrics; [Premium purchase funnel](docs/premium_purchase_funnel.md)
 - **Web marketing** — hosting pages (home, privacy, terms)
 
 ### Free vs Premium
@@ -38,7 +38,7 @@ Cross-platform client for **Sous Chef AI** — AI recipes, pantry cooking, meal 
 |--------|--------------|---------|
 | Recipe generations | Free: 3/UTC day; guest: 2 total | Unlimited |
 | Imports | 1/UTC day (signed-in) | Unlimited |
-| Pantry scan | — | Yes |
+| Pantry scan | 2/UTC week (signed-in) | Unlimited |
 | Meal planner | 3 days (guest: 1 trial) | 7 days |
 | Latest recipes | — | Yes |
 | Recipe assistant | — | Yes |
@@ -82,7 +82,7 @@ lib/
 ### Notable modules
 
 - **Monetization** — `MonetizationConfig`, `SubscriptionViewModel`, paywall, tier table, daily credits
-- **Telemetry** — feature IDs, device identity, Firestore activity metrics
+- **Telemetry** — feature IDs, device identity, Firestore activity metrics; Premium funnel by `source` ([docs/premium_purchase_funnel.md](docs/premium_purchase_funnel.md))
 - **Pantry ML** — platform analyzers + `ml/pantry_detection/` training pipeline
 - **Import OCR** — IO implementation; web stub
 

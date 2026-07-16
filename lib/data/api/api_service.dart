@@ -7,6 +7,7 @@ import '../../core/env_config.dart';
 import '../../core/telemetry/api_call_context.dart';
 import '../models/api_dtos.dart';
 import '../models/meal_plan.dart';
+import '../models/pantry_scan_quota.dart';
 import '../models/recipe.dart';
 
 /// Central API service for all backend and session-related calls.
@@ -668,7 +669,11 @@ class ApiService {
       }
       return PantryScanResponse.fromJson(map as Map<String, dynamic>);
     }
-    throw ApiException(r.statusCode, _extractError(map));
+    throw ApiException(
+      r.statusCode,
+      _extractError(map),
+      code: map is Map ? map['code']?.toString() : null,
+    );
   }
 
   /// GET get-recipe/:recipeId (auth: Firebase ID token). Full document from Firestore `recipes`.
@@ -691,6 +696,57 @@ class ApiService {
         throw ApiException(0, 'Invalid get-recipe response: missing recipe');
       }
       return Recipe.fromJson(recipeJson);
+    }
+    throw ApiException(r.statusCode, _extractError(body));
+  }
+
+  /// GET /public-recipe/:recipeId — unauthenticated full recipe for shared links.
+  Future<Recipe> getPublicRecipe(String recipeId) async {
+    const metricPath = 'public-recipe';
+    final encoded = Uri.encodeComponent(recipeId);
+    final url = _url('public-recipe/$encoded');
+    final r = await _execute('GET', metricPath, () async {
+      return http.get(
+        Uri.parse(url),
+        headers: const {'Content-Type': 'application/json'},
+      );
+    });
+    final body = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      final map = body as Map<String, dynamic>;
+      final recipeJson = map['recipe'];
+      if (recipeJson is! Map<String, dynamic>) {
+        throw ApiException(0, 'Invalid public-recipe response: missing recipe');
+      }
+      return Recipe.fromJson(recipeJson);
+    }
+    throw ApiException(r.statusCode, _extractError(body));
+  }
+
+  /// POST /ensure-recipe — upserts `recipes/{id}` without adding to Saved.
+  /// Returns the canonical recipeId (may be remapped on collision).
+  Future<String> ensureRecipe(Recipe recipe, {String? idToken}) async {
+    const metricPath = 'ensure-recipe';
+    final url = _url('ensure-recipe');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (idToken != null) 'Authorization': 'Bearer $idToken',
+    };
+    final r = await _execute('POST', metricPath, () async {
+      return http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode({'recipes': recipe.toJsonForSaveFavorite()}),
+      );
+    });
+    final body = _decodeBody(r.body, url);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      final map = body as Map<String, dynamic>;
+      final id = map['recipeId']?.toString().trim() ?? '';
+      if (id.isEmpty) {
+        throw ApiException(0, 'Invalid ensure-recipe response: missing recipeId');
+      }
+      return id;
     }
     throw ApiException(r.statusCode, _extractError(body));
   }
@@ -1193,10 +1249,12 @@ class PantryScanResponse {
   const PantryScanResponse({
     required this.items,
     this.usage,
+    this.quota,
   });
 
   final List<PantryScanItem> items;
   final PantryScanUsage? usage;
+  final PantryScanQuota? quota;
 
   factory PantryScanResponse.fromJson(Map<String, dynamic> json) {
     final raw = json['items'];
@@ -1210,9 +1268,17 @@ class PantryScanResponse {
       }
     }
     final u = json['usage'];
+    PantryScanQuota? quota;
+    final q = json['quota'];
+    if (q is Map<String, dynamic>) {
+      quota = PantryScanQuota.fromJson(q);
+    } else if (q is Map) {
+      quota = PantryScanQuota.fromJson(Map<String, dynamic>.from(q));
+    }
     return PantryScanResponse(
       items: list,
       usage: u is Map<String, dynamic> ? PantryScanUsage.fromJson(u) : null,
+      quota: quota,
     );
   }
 }

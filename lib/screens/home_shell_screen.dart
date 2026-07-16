@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 import 'dart:math' show max, min, pi, sin;
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -48,7 +49,6 @@ class _SousHomeAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onSignOut,
     required this.sessionManager,
     required this.subscriptionViewModel,
-    required this.appTelemetry,
   });
 
   final VoidCallback onOpenMenu;
@@ -57,7 +57,6 @@ class _SousHomeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onSignOut;
   final SessionManager sessionManager;
   final SubscriptionViewModel subscriptionViewModel;
-  final AppTelemetry appTelemetry;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -82,11 +81,6 @@ class _SousHomeAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       leadingWidth: 60,
       actions: [
-        DailyCreditsIndicator(
-          sessionManager: sessionManager,
-          subscriptionViewModel: subscriptionViewModel,
-          appTelemetry: appTelemetry,
-        ),
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: PopupMenuButton<String>(
@@ -111,7 +105,11 @@ class _SousHomeAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  BrandOutlinedAvatar(label: firstNameLetter),
+                  DailyCreditsIndicator(
+                    avatarLabel: firstNameLetter,
+                    sessionManager: sessionManager,
+                    subscriptionViewModel: subscriptionViewModel,
+                  ),
                   const SizedBox(width: 2),
                   Icon(Icons.expand_more, color: onSurface, size: 20),
                 ],
@@ -584,7 +582,6 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                       onSignOut: () => widget.homeViewModel.signOut(),
                       sessionManager: widget.sessionManager,
                       subscriptionViewModel: widget.subscriptionViewModel,
-                      appTelemetry: widget.appTelemetry,
                     )
                   : _currentIndex == 1
                       ? null
@@ -895,10 +892,23 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
   }
 
   void _openPantryScan() {
-    if (!widget.subscriptionViewModel.isPremium) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || widget.sessionManager.isGuestMode()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.groceryPantryScanSignInRequired)),
+      );
+      return;
+    }
+    if (!widget.subscriptionViewModel.isPremium &&
+        widget.sessionManager.isSignedInFreePantryScanQuotaExceededSync(
+          isPremium: false,
+        )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.freeTierPantryScanQuotaMessage)),
+      );
       openPremiumPaywall(
         context,
-        source: 'pantry_scan',
+        source: 'pantry_quota',
         appTelemetry: widget.appTelemetry,
       );
       return;
@@ -1550,8 +1560,8 @@ class _PantryHintBar extends StatelessWidget {
   }
 }
 
-/// Horizontal carousel of preloaded daily recipe ideas (backend batch).
-class _DailyIdeasStrip extends StatelessWidget {
+/// Peek-page carousel of preloaded daily recipe ideas (one card per category).
+class _DailyIdeasStrip extends StatefulWidget {
   const _DailyIdeasStrip({
     required this.categories,
     required this.onRecipeTap,
@@ -1561,35 +1571,95 @@ class _DailyIdeasStrip extends StatelessWidget {
   final void Function(Recipe recipe) onRecipeTap;
 
   @override
+  State<_DailyIdeasStrip> createState() => _DailyIdeasStripState();
+}
+
+class _DailyIdeasStripState extends State<_DailyIdeasStrip> {
+  static const _carouselHeight = 228.0;
+  static const _viewportFraction = 0.82;
+
+  late final PageController _pageController;
+  int _pageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: _viewportFraction);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final categories = widget.categories;
+    if (categories.isEmpty) return const SizedBox.shrink();
+
+    final active = categories[_pageIndex.clamp(0, categories.length - 1)];
+    final label = active.label.trim();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Today's ideas",
+          'Ideas for you',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
         ),
+        if (label.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurfaceVariant,
+                ),
+          ),
+        ],
         const SizedBox(height: 12),
-        for (var i = 0; i < categories.length; i++) ...[
-          if (i > 0) const SizedBox(height: 14),
-          if (categories[i].label.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                categories[i].label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: scheme.onSurfaceVariant,
-                    ),
-              ),
-            ),
-          _DailyIdeaCard(
-            recipe: categories[i].recipe,
-            colorScheme: scheme,
-            onTap: () => onRecipeTap(categories[i].recipe),
+        SizedBox(
+          height: _carouselHeight,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: categories.length,
+            onPageChanged: (i) => setState(() => _pageIndex = i),
+            itemBuilder: (context, index) {
+              final cat = categories[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: _DailyIdeaCard(
+                  recipe: cat.recipe,
+                  colorScheme: scheme,
+                  onTap: () => widget.onRecipeTap(cat.recipe),
+                ),
+              );
+            },
+          ),
+        ),
+        if (categories.length > 1) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < categories.length; i++)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: i == _pageIndex ? 16 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(3),
+                    color: i == _pageIndex
+                        ? scheme.primary
+                        : scheme.outlineVariant.withValues(alpha: 0.7),
+                  ),
+                ),
+            ],
           ),
         ],
       ],
@@ -1700,57 +1770,53 @@ class _DailyIdeaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 96,
-      child: Material(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(14),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              RecipeImageBox(
-                imageUrl: recipe.image,
-                height: 96,
-                width: 120,
-                borderRadius: BorderRadius.zero,
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+    return Material(
+      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            RecipeImageBox(
+              imageUrl: recipe.image,
+              height: 140,
+              width: double.infinity,
+              borderRadius: BorderRadius.zero,
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      recipe.recipeName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
+                          ),
+                    ),
+                    if (recipe.cuisine.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        recipe.recipeName,
-                        maxLines: 2,
+                        recipe.cuisine,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              height: 1.2,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
                             ),
                       ),
-                      if (recipe.cuisine.trim().isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          recipe.cuisine,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                        ),
-                      ],
                     ],
-                  ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

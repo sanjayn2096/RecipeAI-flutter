@@ -14,7 +14,7 @@ import '../view_models/grocery_list_view_model.dart';
 import '../widgets/grocery_item_editor_dialog.dart';
 import '../widgets/ingredient_icon.dart';
 
-/// Shopping list: edit, check off, share, copy.
+/// Shopping list: edit, check off, multi-select delete, share, copy.
 ///
 /// When [embedInShell] is true, omit the [AppBar] and back button — used inside
 /// [HomeShellScreen] where the shell provides the app bar.
@@ -43,6 +43,43 @@ enum _GroceryIngredientsViewMode {
 
 class _GroceryListScreenState extends State<GroceryListScreen> {
   _GroceryIngredientsViewMode _viewMode = _GroceryIngredientsViewMode.allClubbed;
+  bool _selecting = false;
+  final Set<String> _selectedIds = {};
+
+  void _enterSelectMode([String? initialId]) {
+    setState(() {
+      _selecting = true;
+      _selectedIds.clear();
+      if (initialId != null) _selectedIds.add(initialId);
+    });
+  }
+
+  void _exitSelectMode() {
+    setState(() {
+      _selecting = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelected(String id) {
+    setState(() {
+      if (!_selectedIds.remove(id)) {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _selectAll(List<GroceryItem> items) {
+    setState(() {
+      _selectedIds
+        ..clear()
+        ..addAll(items.map((e) => e.id));
+    });
+  }
+
+  void _deselectAll() {
+    setState(() => _selectedIds.clear());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +88,13 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       builder: (context, _) {
         final vm = widget.groceryListViewModel;
         final items = vm.items;
-        final canShare = items.isNotEmpty;
+        final canShare = items.isNotEmpty && !_selecting;
+
+        if (_selecting && items.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _selecting) _exitSelectMode();
+          });
+        }
 
         final listBody = !vm.ready
             ? const Center(child: CircularProgressIndicator())
@@ -74,11 +117,13 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                     ? _buildAllClubbedList(context, vm, items)
                     : _buildPerRecipeGroupedList(context, vm, items));
 
-        final fab = FloatingActionButton.extended(
-          onPressed: () => _addItem(context, vm),
-          icon: const Icon(Icons.add),
-          label: Text(context.l10n.groceryAddItem),
-        );
+        final fab = _selecting
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: () => _addItem(context, vm),
+                icon: const Icon(Icons.add),
+                label: Text(context.l10n.groceryAddItem),
+              );
 
         if (widget.embedInShell) {
           return Scaffold(
@@ -94,7 +139,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                     child: _actionRow(context, vm, canShare),
                   ),
                 ),
-                _viewToggle(context, enabled: items.isNotEmpty),
+                _viewToggle(context, enabled: items.isNotEmpty && !_selecting),
                 Expanded(child: listBody),
               ],
             ),
@@ -104,67 +149,29 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(context.l10n.groceryListTitle),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.pop(),
+            title: Text(
+              _selecting
+                  ? context.l10n.groceryDeleteSelected(_selectedIds.length)
+                  : context.l10n.groceryListTitle,
             ),
-            actions: [
-              if (items.any((e) => e.isChecked))
-                TextButton(
-                  onPressed: () async {
-                    await vm.clearCheckedItems();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(context.l10n.groceryRemovedChecked),
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(context.l10n.groceryClearChecked),
-                ),
-              IconButton(
-                tooltip: context.l10n.groceryCopyList,
-                icon: const Icon(Icons.copy_outlined),
-                onPressed: !canShare
-                    ? null
-                    : () => _copy(context, vm, onlyUnchecked: false),
-              ),
-              IconButton(
-                tooltip: context.l10n.groceryShareList,
-                icon: const Icon(Icons.share_outlined),
-                onPressed: !canShare
-                    ? null
-                    : () => _share(context, vm, onlyUnchecked: false),
-              ),
-              PopupMenuButton<String>(
-                enabled: canShare,
-                icon: const Icon(Icons.more_vert),
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'share_need',
-                    child: Text(context.l10n.groceryShareStillNeed),
+            leading: _selecting
+                ? IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: context.l10n.groceryCancelSelection,
+                    onPressed: _exitSelectMode,
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => context.pop(),
                   ),
-                  PopupMenuItem(
-                    value: 'copy_need',
-                    child: Text(context.l10n.groceryCopyStillNeed),
-                  ),
-                ],
-                onSelected: (v) async {
-                  if (v == 'share_need') {
-                    await _share(context, vm, onlyUnchecked: true);
-                  } else if (v == 'copy_need') {
-                    await _copy(context, vm, onlyUnchecked: true);
-                  }
-                },
-              ),
-            ],
+            actions: _selecting
+                ? _selectModeActions(context, vm, items)
+                : _normalAppBarActions(context, vm, items, canShare),
           ),
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _viewToggle(context, enabled: items.isNotEmpty),
+              _viewToggle(context, enabled: items.isNotEmpty && !_selecting),
               Expanded(child: listBody),
             ],
           ),
@@ -172,6 +179,109 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
         );
       },
     );
+  }
+
+  List<Widget> _selectModeActions(
+    BuildContext context,
+    GroceryListViewModel vm,
+    List<GroceryItem> items,
+  ) {
+    final allSelected =
+        items.isNotEmpty && _selectedIds.length == items.length;
+    return [
+      TextButton(
+        onPressed: items.isEmpty
+            ? null
+            : () {
+                if (allSelected) {
+                  _deselectAll();
+                } else {
+                  _selectAll(items);
+                }
+              },
+        child: Text(
+          allSelected
+              ? context.l10n.groceryDeselectAll
+              : context.l10n.grocerySelectAll,
+        ),
+      ),
+      TextButton(
+        onPressed: _selectedIds.isEmpty
+            ? null
+            : () => _confirmDeleteSelected(context, vm),
+        child: Text(context.l10n.groceryDeleteSelected(_selectedIds.length)),
+      ),
+    ];
+  }
+
+  List<Widget> _normalAppBarActions(
+    BuildContext context,
+    GroceryListViewModel vm,
+    List<GroceryItem> items,
+    bool canShare,
+  ) {
+    return [
+      if (items.any((e) => e.isChecked))
+        TextButton(
+          onPressed: () async {
+            await vm.clearCheckedItems();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(context.l10n.groceryRemovedChecked),
+                ),
+              );
+            }
+          },
+          child: Text(context.l10n.groceryClearChecked),
+        ),
+      if (items.isNotEmpty)
+        TextButton(
+          onPressed: () => _enterSelectMode(),
+          child: Text(context.l10n.grocerySelect),
+        ),
+      IconButton(
+        tooltip: context.l10n.groceryCopyList,
+        icon: const Icon(Icons.copy_outlined),
+        onPressed: !canShare
+            ? null
+            : () => _copy(context, vm, onlyUnchecked: false),
+      ),
+      IconButton(
+        tooltip: context.l10n.groceryShareList,
+        icon: const Icon(Icons.share_outlined),
+        onPressed: !canShare
+            ? null
+            : () => _share(context, vm, onlyUnchecked: false),
+      ),
+      PopupMenuButton<String>(
+        enabled: canShare,
+        icon: const Icon(Icons.more_vert),
+        itemBuilder: (ctx) => [
+          PopupMenuItem(
+            value: 'clear_all',
+            child: Text(context.l10n.groceryClearAll),
+          ),
+          PopupMenuItem(
+            value: 'share_need',
+            child: Text(context.l10n.groceryShareStillNeed),
+          ),
+          PopupMenuItem(
+            value: 'copy_need',
+            child: Text(context.l10n.groceryCopyStillNeed),
+          ),
+        ],
+        onSelected: (v) async {
+          if (v == 'clear_all') {
+            await _confirmClearAll(context, vm);
+          } else if (v == 'share_need') {
+            await _share(context, vm, onlyUnchecked: true);
+          } else if (v == 'copy_need') {
+            await _copy(context, vm, onlyUnchecked: true);
+          }
+        },
+      ),
+    ];
   }
 
   Widget _viewToggle(BuildContext context, {required bool enabled}) {
@@ -219,49 +329,9 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
             heading,
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          initiallyExpanded: false,
+          initiallyExpanded: _selecting,
           children: [
-            for (final item in groupItems)
-              Dismissible(
-                key: Key(item.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  child: Icon(
-                    Icons.delete_outline,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                ),
-                onDismissed: (_) => vm.deleteItem(item.id),
-                child: CheckboxListTile(
-                  value: item.isChecked,
-                  onChanged: (v) {
-                    if (v != null) vm.setChecked(item.id, v);
-                  },
-                  title: Row(
-                    children: [
-                      IngredientIcon(
-                        ingredientName: item.name,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          GroceryIngredientDisplay.listTitle(item.name),
-                        ),
-                      ),
-                    ],
-                  ),
-                  subtitle: _rowSubtitle(context, item),
-                  secondary: IconButton(
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => _editItem(context, vm, item),
-                  ),
-                ),
-              ),
+            for (final item in groupItems) _itemRow(context, vm, item),
           ],
         );
       },
@@ -303,7 +373,8 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
 
         final subtitleParts = <String>[];
         if (recipeCount > 0) {
-          subtitleParts.add(recipeCount == 1 ? '1 recipe' : '$recipeCount recipes');
+          subtitleParts
+              .add(recipeCount == 1 ? '1 recipe' : '$recipeCount recipes');
         }
         if (unchecked != total) {
           subtitleParts.add('$unchecked left');
@@ -323,51 +394,76 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
+          initiallyExpanded: _selecting,
           children: [
-            for (final item in groupItems)
-              Dismissible(
-                key: Key(item.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  child: Icon(
-                    Icons.delete_outline,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                ),
-                onDismissed: (_) => vm.deleteItem(item.id),
-                child: CheckboxListTile(
-                  value: item.isChecked,
-                  onChanged: (v) {
-                    if (v != null) vm.setChecked(item.id, v);
-                  },
-                  title: Row(
-                    children: [
-                      IngredientIcon(
-                        ingredientName: item.name,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          GroceryIngredientDisplay.listTitle(item.name),
-                        ),
-                      ),
-                    ],
-                  ),
-                  subtitle: _rowSubtitle(context, item),
-                  secondary: IconButton(
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => _editItem(context, vm, item),
-                  ),
-                ),
-              ),
+            for (final item in groupItems) _itemRow(context, vm, item),
           ],
         );
       },
+    );
+  }
+
+  Widget _itemRow(
+    BuildContext context,
+    GroceryListViewModel vm,
+    GroceryItem item,
+  ) {
+    final title = Row(
+      children: [
+        IngredientIcon(
+          ingredientName: item.name,
+          size: 18,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            GroceryIngredientDisplay.listTitle(item.name),
+          ),
+        ),
+      ],
+    );
+
+    if (_selecting) {
+      return CheckboxListTile(
+        value: _selectedIds.contains(item.id),
+        onChanged: (_) => _toggleSelected(item.id),
+        title: title,
+        subtitle: _rowSubtitle(context, item),
+      );
+    }
+
+    return Dismissible(
+      key: Key(item.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: Theme.of(context).colorScheme.errorContainer,
+        child: Icon(
+          Icons.delete_outline,
+          color: Theme.of(context).colorScheme.onErrorContainer,
+        ),
+      ),
+      onDismissed: (_) => vm.deleteItem(item.id),
+      child: GestureDetector(
+        onLongPress: () {
+          HapticFeedback.selectionClick();
+          _enterSelectMode(item.id);
+        },
+        child: CheckboxListTile(
+          value: item.isChecked,
+          onChanged: (v) {
+            if (v != null) vm.setChecked(item.id, v);
+          },
+          title: title,
+          subtitle: _rowSubtitle(context, item),
+          secondary: IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () => _editItem(context, vm, item),
+          ),
+        ),
+      ),
     );
   }
 
@@ -377,6 +473,44 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     bool canShare,
   ) {
     final items = vm.items;
+    if (_selecting) {
+      final allSelected =
+          items.isNotEmpty && _selectedIds.length == items.length;
+      return Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 4,
+        children: [
+          TextButton(
+            onPressed: _exitSelectMode,
+            child: Text(context.l10n.groceryCancelSelection),
+          ),
+          TextButton(
+            onPressed: items.isEmpty
+                ? null
+                : () {
+                    if (allSelected) {
+                      _deselectAll();
+                    } else {
+                      _selectAll(items);
+                    }
+                  },
+            child: Text(
+              allSelected
+                  ? context.l10n.groceryDeselectAll
+                  : context.l10n.grocerySelectAll,
+            ),
+          ),
+          TextButton(
+            onPressed: _selectedIds.isEmpty
+                ? null
+                : () => _confirmDeleteSelected(context, vm),
+            child:
+                Text(context.l10n.groceryDeleteSelected(_selectedIds.length)),
+          ),
+        ],
+      );
+    }
+
     return Wrap(
       alignment: WrapAlignment.end,
       spacing: 4,
@@ -394,6 +528,11 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
               }
             },
             child: Text(context.l10n.groceryClearChecked),
+          ),
+        if (items.isNotEmpty)
+          TextButton(
+            onPressed: () => _enterSelectMode(),
+            child: Text(context.l10n.grocerySelect),
           ),
         IconButton(
           tooltip: context.l10n.groceryCopyList,
@@ -413,6 +552,10 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
           icon: const Icon(Icons.more_vert),
           itemBuilder: (ctx) => [
             PopupMenuItem(
+              value: 'clear_all',
+              child: Text(context.l10n.groceryClearAll),
+            ),
+            PopupMenuItem(
               value: 'share_need',
               child: Text(context.l10n.groceryShareStillNeed),
             ),
@@ -422,7 +565,9 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
             ),
           ],
           onSelected: (v) async {
-            if (v == 'share_need') {
+            if (v == 'clear_all') {
+              await _confirmClearAll(context, vm);
+            } else if (v == 'share_need') {
               await _share(context, vm, onlyUnchecked: true);
             } else if (v == 'copy_need') {
               await _copy(context, vm, onlyUnchecked: true);
@@ -430,6 +575,78 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
           },
         ),
       ],
+    );
+  }
+
+  Future<void> _confirmDeleteSelected(
+    BuildContext context,
+    GroceryListViewModel vm,
+  ) async {
+    final count = _selectedIds.length;
+    if (count == 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.groceryDeleteSelectedTitle),
+        content: Text(context.l10n.groceryDeleteSelectedBody(count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(context.l10n.groceryCancelSelection),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: Text(context.l10n.groceryDeleteConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final ids = List<String>.from(_selectedIds);
+    await vm.deleteItems(ids);
+    if (!context.mounted) return;
+    _exitSelectMode();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.groceryRemovedSelected(count))),
+    );
+  }
+
+  Future<void> _confirmClearAll(
+    BuildContext context,
+    GroceryListViewModel vm,
+  ) async {
+    if (vm.items.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.groceryClearAllTitle),
+        content: Text(context.l10n.groceryClearAllBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(context.l10n.groceryCancelSelection),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: Text(context.l10n.groceryClearAll),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await vm.clearAllItems();
+    if (!context.mounted) return;
+    if (_selecting) _exitSelectMode();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.groceryClearedAll)),
     );
   }
 

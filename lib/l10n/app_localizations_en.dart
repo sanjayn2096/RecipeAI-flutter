@@ -371,6 +371,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groceryRemovedChecked => 'Removed checked items';
 
   @override
+  String get grocerySelect => 'Select';
+
+  @override
+  String get groceryCancelSelection => 'Cancel';
+
+  @override
+  String get grocerySelectAll => 'Select all';
+
+  @override
+  String get groceryDeselectAll => 'Deselect all';
+
+  @override
+  String groceryDeleteSelected(int count) {
+    return 'Delete ($count)';
+  }
+
+  @override
+  String get groceryClearAll => 'Clear all';
+
+  @override
+  String get groceryDeleteSelectedTitle => 'Delete selected items?';
+
+  @override
+  String groceryDeleteSelectedBody(int count) {
+    return 'Delete $count selected items from your grocery list?';
+  }
+
+  @override
+  String get groceryClearAllTitle => 'Clear grocery list?';
+
+  @override
+  String get groceryClearAllBody =>
+      'Remove all items from your grocery list? This cannot be undone.';
+
+  @override
+  String get groceryDeleteConfirm => 'Delete';
+
+  @override
+  String groceryRemovedSelected(int count) {
+    return 'Removed $count items';
+  }
+
+  @override
+  String get groceryClearedAll => 'Grocery list cleared';
+
+  @override
   String get recipeAddedToGroceryList => 'Added to grocery list';
 
   @override
@@ -464,6 +510,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groceryPantryScanSourceLabel => 'Pantry scan';
+
+  @override
+  String groceryPantryScanRemaining(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count free scans left this week',
+      one: '1 free scan left this week',
+      zero: 'No free scans left this week',
+    );
+    return '$_temp0';
+  }
 
   @override
   String groceryPantryScanAdded(int count) {
@@ -945,14 +1003,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingPaywallSubtitle =>
-      'Compare plans below — Premium unlocks unlimited recipes, pantry scan, and full meal planning.';
+      'Compare plans below — Premium unlocks unlimited recipes, unlimited pantry scans, and full meal planning.';
 
   @override
   String get onboardingPaywallBenefitUnlimited =>
       'Unlimited AI recipe generations';
 
   @override
-  String get onboardingPaywallBenefitNoAds => 'Pantry scan from photos';
+  String get onboardingPaywallBenefitNoAds =>
+      'Unlimited pantry scans from photos';
 
   @override
   String get onboardingPaywallBenefitMealPlan => 'Full-week meal planner';
@@ -996,7 +1055,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Free plan includes 1 recipe import per day. Upgrade for unlimited imports.';
 
   @override
+  String get freeTierPantryScanQuotaMessage =>
+      'Free plan includes 2 pantry scans per week. Upgrade for unlimited scans.';
+
+  @override
   String dailyCreditsUsed(int used, int total) {
+    return '$used/$total';
+  }
+
+  @override
+  String dailyCreditsUsedTooltip(int used, int total) {
     return '$used/$total Credits used';
   }
 
@@ -1030,6 +1098,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String tierValuePerDay(int count) {
     return '$count/day';
+  }
+
+  @override
+  String tierValuePerWeek(int count) {
+    return '$count/week';
   }
 
   @override

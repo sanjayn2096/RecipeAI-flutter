@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sunj.souschefai",
+      "sha256_cert_fingerprints": [
+        "CF:AE:85:02:A9:94:4F:E5:99:31:63:20:54:79:CA:5C:2E:1F:BA:AB:5D:A8:5F:CE:3F:9C:E9:98:D0:04:FE:2F"
+      ]
+    }
+  }
+]

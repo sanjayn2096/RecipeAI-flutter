@@ -280,6 +280,20 @@ class RecipeViewModel extends ChangeNotifier {
     }
   }
 
+  /// Ensures recipe exists in Firestore for sharing; returns canonical id.
+  Future<String?> ensureRecipeForShare(Recipe recipe) async {
+    try {
+      final id = await _userRepo.ensureRecipeForShare(recipe);
+      if (id != recipe.recipeId && id.isNotEmpty) {
+        final updated = recipe.copyWith(recipeId: id);
+        replaceRecipeInGeneratedList(updated);
+      }
+      return id;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Toggles public favorite (heart) for ranking. Requires recipe in Firestore.
   Future<bool> togglePublicFavorite(Recipe recipe) async {
     final next = !recipe.isFavorited;

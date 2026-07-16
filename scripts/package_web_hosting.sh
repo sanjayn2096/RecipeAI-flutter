@@ -30,5 +30,7 @@ cp -R "$ROOT/web/js" "$WEB_OUT/js"
 cp -R "$ROOT/web/css" "$WEB_OUT/css"
 cp "$ROOT/web/privacy.html" "$WEB_OUT/privacy.html"
 cp "$ROOT/web/terms.html" "$WEB_OUT/terms.html"
+mkdir -p "$WEB_OUT/.well-known"
+cp -R "$ROOT/web/.well-known/." "$WEB_OUT/.well-known/"
 
 echo "Packaged landing page at / and Flutter app at /app/"
