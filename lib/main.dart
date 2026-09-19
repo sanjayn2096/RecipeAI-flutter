@@ -12,6 +12,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_handler/share_handler.dart';
 import 'firebase_options.dart';
 
 import 'core/recipe_share.dart';
@@ -38,6 +39,8 @@ import 'view_models/subscription_view_model.dart';
 import 'view_models/meal_plan_view_model.dart';
 import 'navigation/app_router.dart';
 import 'navigation/pending_deep_link.dart';
+import 'navigation/pending_shared_import.dart';
+import 'navigation/shared_import_parser.dart';
 
 void _listenForRecipeDeepLinks(GoRouter router) {
   if (kIsWeb) return;
@@ -73,6 +76,64 @@ void _listenForRecipeDeepLinks(GoRouter router) {
     handleUri,
     onError: (Object e) {
       if (kDebugMode) debugPrint('[deepLink] stream error: $e');
+    },
+  );
+}
+
+void _listenForSharedImports(
+  GoRouter router, {
+  required SessionManager sessionManager,
+}) {
+  if (kIsWeb) return;
+
+  final handler = ShareHandler.instance;
+
+  void handleMedia(SharedMedia? media) {
+    if (media == null) return;
+    final payload = parseSharedImportContent(media.content);
+    // Avoid re-delivering the same cold-start share on next resume.
+    unawaited(handler.resetInitialSharedMedia());
+    if (payload == null) {
+      if (kDebugMode) {
+        debugPrint(
+          '[shareImport] ignored share (no url/text): '
+          'attachments=${media.attachments?.length ?? 0}',
+        );
+      }
+      return;
+    }
+
+    final loc = router.routerDelegate.currentConfiguration.uri.path;
+    final needsAuthGate = loc == '/' ||
+        loc == '/login' ||
+        loc == '/verify-email' ||
+        sessionManager.isGuestMode() ||
+        FirebaseAuth.instance.currentUser == null;
+
+    if (needsAuthGate) {
+      PendingSharedImport.set(payload);
+      if (loc != '/' && loc != '/login' && loc != '/verify-email') {
+        router.go('/login');
+      }
+      return;
+    }
+
+    PendingSharedImport.set(payload);
+    router.go('/import-shared');
+  }
+
+  unawaited(() async {
+    try {
+      final initial = await handler.getInitialSharedMedia();
+      handleMedia(initial);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[shareImport] getInitialSharedMedia failed: $e');
+    }
+  }());
+  handler.sharedMediaStream.listen(
+    handleMedia,
+    onError: (Object e) {
+      if (kDebugMode) debugPrint('[shareImport] stream error: $e');
     },
   );
 }
@@ -246,6 +307,7 @@ void main() async {
     ).router;
 
     _listenForRecipeDeepLinks(router);
+    _listenForSharedImports(router, sessionManager: sessionManager);
 
     runApp(RecipeAiApp(
       router: router,

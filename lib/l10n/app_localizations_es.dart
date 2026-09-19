@@ -580,6 +580,17 @@ class AppLocalizationsEs extends AppLocalizations {
       'Photo import uses on-device OCR in the iOS/Android app. Paste recipe text instead.';
 
   @override
+  String get sharedImportMissingPayload =>
+      'Nothing to import from that share. Try sharing the post link.';
+
+  @override
+  String get sharedImportGoHome => 'Ir al inicio';
+
+  @override
+  String get sharedImportNeedLink =>
+      'Share a post link (not just a photo) so Sous Chef can import the recipe.';
+
+  @override
   String get savedListSegmentCreated => 'Creadas';
 
   @override

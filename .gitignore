@@ -53,3 +53,6 @@ android/app/google-services.json
 
 # Cursor local state / rules / architecture (not committed)
 .cursor/
+
+# Local wiki (not committed)
+wiki/

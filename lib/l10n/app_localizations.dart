@@ -1106,6 +1106,24 @@ abstract class AppLocalizations {
   /// **'Photo import uses on-device OCR in the iOS/Android app. Paste recipe text instead.'**
   String get importRecipeWebScanUnsupported;
 
+  /// No description provided for @sharedImportMissingPayload.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to import from that share. Try sharing the post link.'**
+  String get sharedImportMissingPayload;
+
+  /// No description provided for @sharedImportGoHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Go home'**
+  String get sharedImportGoHome;
+
+  /// No description provided for @sharedImportNeedLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Share a post link (not just a photo) so Sous Chef can import the recipe.'**
+  String get sharedImportNeedLink;
+
   /// No description provided for @savedListSegmentCreated.
   ///
   /// In en, this message translates to:

@@ -68,6 +68,24 @@ class HomeViewModel extends ChangeNotifier {
   List<Recipe> _trendingRecipes = const [];
   List<Recipe> get trendingRecipes => _trendingRecipes;
 
+  DateTime? _trendingFetchedAt;
+  static const _trendingTtl = Duration(minutes: 10);
+  static const _trendingFetchLimit = 30;
+  static const _trendingHomeLimit = 12;
+
+  /// First [_trendingHomeLimit] for the home discovery strip.
+  List<Recipe> get homeTrendingRecipes {
+    if (_trendingRecipes.length <= _trendingHomeLimit) {
+      return _trendingRecipes;
+    }
+    return _trendingRecipes.sublist(0, _trendingHomeLimit);
+  }
+
+  bool get _trendingCacheFresh =>
+      _trendingFetchedAt != null &&
+      DateTime.now().difference(_trendingFetchedAt!) < _trendingTtl &&
+      _trendingRecipes.isNotEmpty;
+
   bool _dailyIdeasLoading = false;
   bool get dailyIdeasLoading => _dailyIdeasLoading;
 
@@ -400,25 +418,41 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   /// GET /trending-recipes for the home discovery strip (no auth).
-  Future<void> loadHomeTrendingRecipes() async {
+  /// Skips network when the in-memory list is fresher than [_trendingTtl].
+  Future<void> loadHomeTrendingRecipes({bool forceRefresh = false}) async {
+    if (!forceRefresh && _trendingCacheFresh) {
+      return;
+    }
     try {
-      final list = await _userRepo.fetchTrendingRecipes(limit: 12);
+      final list =
+          await _userRepo.fetchTrendingRecipes(limit: _trendingFetchLimit);
       _trendingRecipes = list;
+      _trendingFetchedAt = DateTime.now();
       unawaited(warmRecipeHeroUrls(_trendingRecipes.map((r) => r.image)));
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[HomeViewModel] loadHomeTrendingRecipes: $e');
       }
       _trendingRecipes = const [];
+      _trendingFetchedAt = null;
     }
     notifyListeners();
   }
 
   /// GET /trending-recipes (for discovery; no auth).
-  Future<List<Recipe>> loadTrendingRecipes() async {
+  /// Reuses [_trendingRecipes] when fresh unless [forceRefresh] is true.
+  Future<List<Recipe>> loadTrendingRecipes({bool forceRefresh = false}) async {
     try {
       await _telemetry.logFeatureInteraction(featureId: FeatureIds.openTrending);
-      return _userRepo.fetchTrendingRecipes(limit: 30);
+      if (!forceRefresh && _trendingCacheFresh) {
+        return List<Recipe>.from(_trendingRecipes);
+      }
+      final list =
+          await _userRepo.fetchTrendingRecipes(limit: _trendingFetchLimit);
+      _trendingRecipes = list;
+      _trendingFetchedAt = DateTime.now();
+      notifyListeners();
+      return list;
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[HomeViewModel] loadTrendingRecipes: $e');

@@ -1126,7 +1126,7 @@ class _HomeTabBodyState extends State<_HomeTabBody> {
                 builder: (context, _) {
                   final categories =
                       widget.homeViewModel.dailyIdeaCategories;
-                  final trending = widget.homeViewModel.trendingRecipes;
+                  final trending = widget.homeViewModel.homeTrendingRecipes;
                   if (categories.isNotEmpty) {
                     return Column(
                       children: [

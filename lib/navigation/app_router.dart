@@ -34,7 +34,10 @@ import '../view_models/meal_plan_view_model.dart';
 import '../onboarding/onboarding_session_extension.dart';
 import '../services/session_manager.dart';
 import '../screens/shared_recipe_loader_screen.dart';
+import '../screens/shared_import_loader_screen.dart';
+import '../view_models/recipe_view_model.dart';
 import 'pending_deep_link.dart';
+import 'pending_shared_import.dart';
 
 class AppRouter {
   AppRouter({
@@ -211,6 +214,19 @@ class AppRouter {
             recipeViewModel: recipeViewModel,
             groceryListViewModel: groceryListViewModel,
             isGuest: isGuest,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/import-shared',
+        builder: (_, __) {
+          final isGuest = sessionManager.isGuestMode();
+          final payload = PendingSharedImport.take();
+          return SharedImportLoaderScreen(
+            recipeViewModel: recipeViewModel as RecipeViewModel,
+            groceryListViewModel: groceryListViewModel,
+            isGuest: isGuest,
+            payload: payload,
           );
         },
       ),

@@ -297,6 +297,8 @@ class ApiService {
   Future<ResolveRecipeHeroResponse> resolveRecipeHero({
     required String recipeName,
     String? cuisine,
+    List<String>? ingredients,
+    bool? vegetarianFriendly,
     String? idToken,
     String? clientRequestId,
     double? threshold,
@@ -311,6 +313,13 @@ class ApiService {
       'recipeName': recipeName,
       if (cuisine != null && cuisine.trim().isNotEmpty)
         'cuisine': cuisine.trim(),
+      if (ingredients != null && ingredients.isNotEmpty)
+        'ingredients': ingredients
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList(),
+      if (vegetarianFriendly != null)
+        'vegetarianFriendly': vegetarianFriendly,
       if (clientRequestId != null && clientRequestId.trim().isNotEmpty)
         'clientRequestId': clientRequestId.trim(),
       if (threshold != null) 'threshold': threshold.clamp(0.0, 1.0),

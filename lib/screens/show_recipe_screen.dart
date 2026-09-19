@@ -47,6 +47,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
   late final List<String> _ingredientItems;
   late final List<String> _instructionItems;
   bool _sharing = false;
+  final GlobalKey _shareButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -59,6 +60,13 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
         .toList();
     _instructionItems =
         RecipeParsing.parseInstructions(widget.recipe.instructions);
+  }
+
+  Rect? _sharePositionOrigin() {
+    final box =
+        _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 
   Future<void> _shareRecipe() async {
@@ -77,6 +85,8 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
       );
       return;
     }
+    // Capture before awaits / spinner swap — required by share_plus on iOS.
+    final shareOrigin = _sharePositionOrigin();
     final vm = widget.recipeViewModel;
     setState(() => _sharing = true);
     try {
@@ -102,13 +112,21 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
         );
         return;
       }
-      await Share.share(
-        RecipeShare.shareText(
-          recipeName: _displayRecipe.recipeName,
-          recipeId: recipeId,
-        ),
-        subject: _displayRecipe.recipeName,
-      );
+      try {
+        await Share.share(
+          RecipeShare.shareText(
+            recipeName: _displayRecipe.recipeName,
+            recipeId: recipeId,
+          ),
+          subject: _displayRecipe.recipeName,
+          sharePositionOrigin: shareOrigin ?? _sharePositionOrigin(),
+        );
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open share sheet')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
@@ -212,21 +230,38 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
     );
   }
 
+  /// Share-import / deep-link use [GoRouter.go], so there is often nothing to
+  /// pop — fall back to home instead of leaving the user stranded or exiting.
+  void _navigateBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final groceryVm = widget.groceryListViewModel;
     final screenW = MediaQuery.sizeOf(context).width;
     final heroHeight = screenW * 9 / 16;
+    final canPop = context.canPop();
 
-    return Scaffold(
+    return PopScope(
+      canPop: canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _navigateBack();
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(widget.recipe.recipeName),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: _navigateBack,
         ),
         actions: [
           IconButton(
+            key: _shareButtonKey,
             tooltip: 'Share recipe',
             onPressed: _sharing ? null : _shareRecipe,
             icon: _sharing
@@ -357,6 +392,7 @@ class _ShowRecipeScreenState extends State<ShowRecipeScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

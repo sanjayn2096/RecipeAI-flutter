@@ -103,7 +103,8 @@ class _TrendingRecipesScreenState extends State<TrendingRecipesScreen> {
             icon: const Icon(Icons.refresh),
             onPressed: () {
               setState(() {
-                _future = widget.homeViewModel.loadTrendingRecipes();
+                _future = widget.homeViewModel
+                    .loadTrendingRecipes(forceRefresh: true);
               });
             },
           ),

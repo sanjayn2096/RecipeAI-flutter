@@ -251,10 +251,11 @@ class RecipeViewModel extends ChangeNotifier {
     required String mode,
     String? url,
     String? plainText,
+    String? telemetryAction,
   }) async {
     await _telemetry.logFeatureInteraction(
       featureId: FeatureIds.importRecipe,
-      action: mode,
+      action: telemetryAction ?? mode,
     );
     return _recipeRepo.importRecipe(
       mode: mode,

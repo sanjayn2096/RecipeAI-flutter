@@ -730,6 +730,12 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     return context.l10n.groceryGroupUnnamedRecipe;
   }
 
+  Rect? _sharePositionOrigin(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
   Future<void> _share(
     BuildContext context,
     GroceryListViewModel vm, {
@@ -742,6 +748,8 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       );
       return;
     }
+    // Capture before awaits — required by share_plus on iOS.
+    final shareOrigin = _sharePositionOrigin(context);
     final text = _viewMode == _GroceryIngredientsViewMode.perRecipe
         ? GroceryListTextExport.formatPerRecipe(
             vm.items,
@@ -762,7 +770,18 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
         onlyUnchecked ? 'unchecked_only' : 'all',
       ].join('_'),
     );
-    await Share.share(text, subject: l10n.groceryShareSubject);
+    try {
+      await Share.share(
+        text,
+        subject: l10n.groceryShareSubject,
+        sharePositionOrigin: shareOrigin,
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open share sheet')),
+      );
+    }
   }
 
   Future<void> _copy(

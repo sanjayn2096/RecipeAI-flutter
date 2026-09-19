@@ -248,6 +248,8 @@ class RecipeRepository {
       final resp = await _api!.resolveRecipeHero(
         recipeName: recipe.recipeName,
         cuisine: recipe.cuisine,
+        ingredients: recipe.ingredients,
+        vegetarianFriendly: recipe.vegetarianFriendly,
         idToken: idToken,
       );
       return recipe.copyWith(image: resp.recipeImageUrl.trim());
