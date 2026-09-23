@@ -26,6 +26,7 @@ import '../data/models/recipe.dart';
 import '../data/models/user_data.dart';
 import '../data/repositories/user_repository.dart';
 import '../core/recipe_generation_entry_point.dart';
+import '../core/monetization_platform.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../view_models/grocery_list_view_model.dart';
 import '../view_models/home_view_model.dart';
@@ -142,6 +143,10 @@ class AppRouter {
       ),
       GoRoute(
         path: '/premium',
+        redirect: (context, state) {
+          if (isIosPaidMonetizationDisabled) return '/home';
+          return null;
+        },
         builder: (context, state) {
           final source = state.uri.queryParameters['source'] ??
               (state.extra is String ? state.extra as String : 'unknown');

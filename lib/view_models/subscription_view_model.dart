@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../core/monetization_config.dart';
+import '../core/monetization_platform.dart';
 import '../core/subscription_log.dart';
 import '../core/telemetry/app_telemetry.dart';
 import '../data/api/api_service.dart';
@@ -43,7 +44,10 @@ class SubscriptionViewModel extends ChangeNotifier {
 
   late SubscriptionStatus _status;
   SubscriptionStatus get status => _status;
-  bool get isPremium => _status.isPremium;
+
+  /// On iOS, treat users as Premium while App Store IAP is disabled.
+  bool get isPremium =>
+      isIosPaidMonetizationDisabled || _status.isPremium;
 
   bool _storeAvailable = false;
   bool get storeAvailable => _storeAvailable;
@@ -67,8 +71,10 @@ class SubscriptionViewModel extends ChangeNotifier {
       'initStore: start platform=${defaultTargetPlatform.name} '
       'productId=${MonetizationConfig.standardProductId}',
     );
-    if (kIsWeb) {
-      subscriptionLog('initStore: skipped (web)');
+    if (kIsWeb || isIosPaidMonetizationDisabled) {
+      subscriptionLog(
+        'initStore: skipped (${kIsWeb ? 'web' : 'ios monetization disabled'})',
+      );
       return;
     }
     _storeAvailable = await InAppPurchase.instance.isAvailable();
@@ -102,7 +108,7 @@ class SubscriptionViewModel extends ChangeNotifier {
     _status = SubscriptionStatus.fromJson(subscriptionJson);
     unawaited(_session.saveSubscriptionCacheSync(_status));
     unawaited(_telemetry.setSubscriptionTier(
-      _status.isPremium ? 'standard' : 'free',
+      isPremium ? 'standard' : 'free',
     ));
     notifyListeners();
   }

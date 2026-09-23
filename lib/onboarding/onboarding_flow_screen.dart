@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants.dart';
+import '../core/monetization_platform.dart';
 import '../core/preference_options.dart';
 import 'onboarding_session_extension.dart';
 import '../core/telemetry/app_telemetry.dart';
@@ -74,6 +75,11 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   void _advance() {
     if (_controller.stepIndex == 4) {
       unawaited(_persistPreferences());
+      // Skip StoreKit paywall on iOS (monetization paused).
+      if (isIosPaidMonetizationDisabled) {
+        unawaited(_finishOnboarding(subscribed: false));
+        return;
+      }
     }
     _controller.nextStep();
   }
