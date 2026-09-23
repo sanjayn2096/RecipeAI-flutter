@@ -522,6 +522,9 @@ class HomeViewModel extends ChangeNotifier {
   /// Whether delete account should use Google reauth (vs password).
   bool get deleteAccountUsesGoogleReauth => _authRepo.currentUserHasGoogleProvider;
 
+  /// Whether delete account should use Apple reauth (vs password).
+  bool get deleteAccountUsesAppleReauth => _authRepo.currentUserHasAppleProvider;
+
   /// Permanently deletes the Firebase account after password confirmation.
   /// Clears local session and cache; navigate to login from the caller ([signOut] uses [isSignedOut] instead).
   Future<void> deleteAccountWithPassword(String password) async {
@@ -537,6 +540,18 @@ class HomeViewModel extends ChangeNotifier {
   Future<bool> deleteAccountWithGoogleReauth() async {
     _stopSavedFirestoreSync();
     final ok = await _authRepo.deleteAccountWithGoogleReauth();
+    if (!ok) return false;
+    _sessionProfile = const SessionProfile();
+    _userData = null;
+    _apiSaved = [];
+    notifyListeners();
+    return true;
+  }
+
+  /// Apple reauth delete. Returns `false` if the user cancelled the Apple sheet.
+  Future<bool> deleteAccountWithAppleReauth() async {
+    _stopSavedFirestoreSync();
+    final ok = await _authRepo.deleteAccountWithAppleReauth();
     if (!ok) return false;
     _sessionProfile = const SessionProfile();
     _userData = null;

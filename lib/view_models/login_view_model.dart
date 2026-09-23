@@ -149,6 +149,38 @@ class LoginViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> signInWithApple() async {
+    _errorMessage = null;
+    _clearVerificationPending();
+    notifyListeners();
+    try {
+      await _telemetry.logFeatureInteraction(featureId: FeatureIds.signInApple);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[LoginViewModel] telemetry skipped: $e');
+      }
+    }
+    try {
+      final ok = await _auth.signInWithApple();
+      if (!ok) {
+        notifyListeners();
+        return;
+      }
+      _session.clearGuestModeSync();
+      _session.clearAnonymousAndGuestQuotaSync();
+      _isLoggedIn = true;
+    } on EmailNotVerifiedException {
+      _setVerificationPending(_auth.currentUserEmail);
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[LoginViewModel] signInWithApple failed: $e');
+        debugPrint(st.toString());
+      }
+      _errorMessage = authErrorMessage(e);
+    }
+    notifyListeners();
+  }
+
   Future<void> signup({
     required String email,
     required String password,

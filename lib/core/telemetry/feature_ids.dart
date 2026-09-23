@@ -13,6 +13,7 @@ abstract final class FeatureIds {
   static const guestMode = 'guest_mode';
   static const loginEmail = 'login_email';
   static const signInGoogle = 'sign_in_google';
+  static const signInApple = 'sign_in_apple';
   static const signUp = 'sign_up';
   static const signOut = 'sign_out';
 

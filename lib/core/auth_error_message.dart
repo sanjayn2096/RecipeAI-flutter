@@ -42,6 +42,7 @@ String _platformMessage(PlatformException e) {
   }
   // Android USER_CANCELLED (12501); iOS often uses sign_in_canceled
   if (e.code == 'sign_in_canceled' ||
+      e.code == 'canceled' ||
       (e.code == 'sign_in_failed' &&
           (msg.contains('12501') || msg.contains('ApiException: 12501')))) {
     return 'Sign-in was cancelled.';
@@ -79,7 +80,7 @@ String _firebaseMessage(FirebaseAuthException e) {
     case 'too-many-requests':
       return 'Too many attempts. Please wait a moment and try again.';
     case 'operation-not-allowed':
-      return 'This sign-in method is not enabled. In Firebase Console → Authentication → Sign-in method, enable Google (and email/password if needed).';
+      return 'This sign-in method is not enabled. In Firebase Console → Authentication → Sign-in method, enable Google and Apple (and email/password if needed).';
     case 'requires-recent-login':
       return 'For your security, sign in again, then try deleting your account.';
     case 'no-current-user':

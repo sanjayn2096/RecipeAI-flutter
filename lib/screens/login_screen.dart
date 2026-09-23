@@ -1,6 +1,7 @@
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:go_router/go_router.dart';
 
 import '../view_models/login_view_model.dart';
 import '../widgets/sous_chef_brand.dart';
@@ -26,8 +27,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _emailLoginInProgress = false;
   bool _googleSigningIn = false;
+  bool _appleSigningIn = false;
   String? _emailError;
   String? _passwordError;
+
+  bool get _showAppleSignIn =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
   void initState() {
@@ -208,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
               OutlinedButton(
-                onPressed: _googleSigningIn
+                onPressed: _googleSigningIn || _appleSigningIn
                     ? null
                     : () => _submitGoogleSignIn(context),
                 child: _googleSigningIn
@@ -231,6 +236,33 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
               ),
+              if (_showAppleSignIn) ...[
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: _googleSigningIn || _appleSigningIn
+                      ? null
+                      : () => _submitAppleSignIn(context),
+                  child: _appleSigningIn
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            FaIcon(
+                              FontAwesomeIcons.apple,
+                              size: 22,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            const SizedBox(width: 10),
+                            const Text('Continue with Apple'),
+                          ],
+                        ),
+                ),
+              ],
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: widget.onSignupTap,
@@ -263,13 +295,24 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submitGoogleSignIn(BuildContext context) async {
-    if (_googleSigningIn) return;
+    if (_googleSigningIn || _appleSigningIn) return;
     setState(() => _googleSigningIn = true);
     try {
       widget.loginViewModel.clearError();
       await widget.loginViewModel.signInWithGoogle();
     } finally {
       if (mounted) setState(() => _googleSigningIn = false);
+    }
+  }
+
+  Future<void> _submitAppleSignIn(BuildContext context) async {
+    if (_googleSigningIn || _appleSigningIn) return;
+    setState(() => _appleSigningIn = true);
+    try {
+      widget.loginViewModel.clearError();
+      await widget.loginViewModel.signInWithApple();
+    } finally {
+      if (mounted) setState(() => _appleSigningIn = false);
     }
   }
 }

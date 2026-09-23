@@ -159,7 +159,13 @@ class SubscriptionViewModel extends ChangeNotifier {
       return;
     }
     if (!_storeAvailable || _product == null) {
-      _error = 'Store is not available right now.';
+      if (!_storeAvailable) {
+        _error =
+            'In-App Purchases are unavailable on this device. Check that you are signed into the App Store / Play Store and try again.';
+      } else {
+        _error =
+            'Premium subscription is not available yet. Please try again later.';
+      }
       subscriptionLog(
         'subscribe: blocked (store) storeAvailable=$_storeAvailable '
         'productLoaded=${_product != null}',

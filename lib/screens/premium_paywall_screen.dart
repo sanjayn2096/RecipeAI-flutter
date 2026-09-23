@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -141,8 +143,28 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
     }
   }
 
+  String get _storeName {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      return 'App Store';
+    }
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'Google Play';
+    }
+    return 'App Store or Google Play';
+  }
+
+  String get _renewalSubtitle =>
+      'Billed monthly. Auto-renews until canceled in $_storeName settings.';
+
+  String get _legalCopy =>
+      'Payment will be charged to your $_storeName account. '
+      'Subscription automatically renews unless canceled at least 24 hours '
+      'before the end of the current period. Manage or cancel in your device '
+      'subscription settings.';
+
   @override
   Widget build(BuildContext context) {
+
     final scheme = Theme.of(context).colorScheme;
     final price = widget.subscriptionViewModel.product?.price ??
         '${MonetizationConfig.monthlyPriceDisplay}/month';
@@ -207,7 +229,7 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Billed monthly. Auto-renews until canceled in App Store or Google Play settings.',
+                      _renewalSubtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
                           ),
@@ -223,7 +245,7 @@ class _PremiumPaywallScreenState extends State<PremiumPaywallScreen> {
                     ],
                     const SizedBox(height: 32),
                     Text(
-                      'Payment will be charged to your App Store or Google Play account. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Manage or cancel in your device subscription settings.',
+                      _legalCopy,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
                           ),

@@ -379,6 +379,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _onDeleteAccountTap(BuildContext context) async {
+    if (widget.homeViewModel.deleteAccountUsesAppleReauth) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete account?'),
+          content: Text(
+            'You will sign in with Apple one more time to confirm. '
+            'This permanently deletes your account and cannot be undone.',
+            style: Theme.of(ctx).textTheme.bodyMedium,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Continue with Apple'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !context.mounted) return;
+
+      try {
+        final ok = await widget.homeViewModel.deleteAccountWithAppleReauth();
+        if (!ok) return;
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authErrorMessage(e))),
+        );
+        return;
+      }
+
+      if (!context.mounted) return;
+      widget.loginViewModel.setLoggedOut();
+      context.go('/login');
+      return;
+    }
+
     if (widget.homeViewModel.deleteAccountUsesGoogleReauth) {
       final confirmed = await showDialog<bool>(
         context: context,

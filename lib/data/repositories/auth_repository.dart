@@ -1,9 +1,13 @@
 import 'dart:async' show unawaited;
+import 'dart:convert';
+import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart'
     show debugPrint, defaultTargetPlatform, kDebugMode, kIsWeb, TargetPlatform;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/email_not_verified_exception.dart';
 import '../api/api_service.dart';
@@ -105,6 +109,13 @@ class AuthRepository {
     final u = _firebaseAuth.currentUser;
     if (u == null) return false;
     return u.providerData.any((p) => p.providerId == 'google.com');
+  }
+
+  /// True if the signed-in user has Apple Sign-In linked (use Apple reauth to delete).
+  bool get currentUserHasAppleProvider {
+    final u = _firebaseAuth.currentUser;
+    if (u == null) return false;
+    return u.providerData.any((p) => p.providerId == 'apple.com');
   }
 
   /// Waits for Firebase Auth to emit initial persisted state (important on web).
@@ -421,6 +432,101 @@ class AuthRepository {
     return true;
   }
 
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)])
+        .join();
+  }
+
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  Future<AuthorizationCredentialAppleID> _requestAppleIdCredential(
+    String nonce,
+  ) {
+    return SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: nonce,
+    );
+  }
+
+  OAuthCredential _oauthCredentialFromApple(
+    AuthorizationCredentialAppleID appleCredential,
+    String rawNonce,
+  ) {
+    final idToken = appleCredential.identityToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('Apple Sign-In did not return an identity token.');
+    }
+    return OAuthProvider('apple.com').credential(
+      idToken: idToken,
+      rawNonce: rawNonce,
+      accessToken: appleCredential.authorizationCode,
+    );
+  }
+
+  Future<void> _applyAppleDisplayNameIfNeeded(
+    User user,
+    AuthorizationCredentialAppleID appleCredential,
+  ) async {
+    final given = appleCredential.givenName?.trim() ?? '';
+    final family = appleCredential.familyName?.trim() ?? '';
+    if (given.isEmpty && family.isEmpty) return;
+    final display = [given, family].where((s) => s.isNotEmpty).join(' ');
+    if (display.isEmpty) return;
+    if ((user.displayName ?? '').trim().isNotEmpty) return;
+    try {
+      await user.updateDisplayName(display);
+    } catch (e) {
+      _authLog('Apple displayName update skipped', e);
+    }
+  }
+
+  /// Sign in with Apple (iOS only), then same profile hydration as Google.
+  /// Returns `false` if the user cancelled the Apple sheet.
+  Future<bool> signInWithApple() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+      throw UnsupportedError('Sign in with Apple is only available on iOS.');
+    }
+    _authLog('signInWithApple start');
+    try {
+      final rawNonce = _generateNonce();
+      final appleCredential =
+          await _requestAppleIdCredential(_sha256ofString(rawNonce));
+      final oauthCredential =
+          _oauthCredentialFromApple(appleCredential, rawNonce);
+      final userCred =
+          await _firebaseAuth.signInWithCredential(oauthCredential).timeout(
+        _kFirebaseAuthTimeout,
+        onTimeout: () {
+          throw Exception(
+            'Firebase sign-in timed out. Check your internet connection and try again.',
+          );
+        },
+      );
+      final user = userCred.user;
+      if (user == null) throw Exception('Login failed');
+      await _applyAppleDisplayNameIfNeeded(user, appleCredential);
+      await _completeOAuthLogin(user);
+      _authLog('signInWithApple complete');
+      return true;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        _authLog('Apple sign-in cancelled');
+        return false;
+      }
+      rethrow;
+    }
+  }
+
   /// Create the Firebase account, send Firebase verification email, then require verified
   /// email before loading the backend profile ([getUserProfile]).
   Future<void> signup({
@@ -547,5 +653,42 @@ class AuthRepository {
     await user.delete();
     await _clearLocalStateAfterAccountRemoval();
     return true;
+  }
+
+  /// Re-authenticates with Apple, deletes the Firebase user, then clears local state.
+  /// Returns `false` if the user cancelled the Apple sheet.
+  Future<bool> deleteAccountWithAppleReauth() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+      throw UnsupportedError('Apple account deletion is only available on iOS.');
+    }
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+          code: 'no-current-user', message: 'Not signed in.');
+    }
+    try {
+      final rawNonce = _generateNonce();
+      final appleCredential =
+          await _requestAppleIdCredential(_sha256ofString(rawNonce));
+      final oauthCredential =
+          _oauthCredentialFromApple(appleCredential, rawNonce);
+      await user.reauthenticateWithCredential(oauthCredential);
+      final authCode = appleCredential.authorizationCode;
+      if (authCode.isNotEmpty) {
+        try {
+          await _firebaseAuth.revokeTokenWithAuthorizationCode(authCode);
+        } catch (e) {
+          _authLog('Apple token revoke skipped', e);
+        }
+      }
+      await user.delete();
+      await _clearLocalStateAfterAccountRemoval();
+      return true;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        return false;
+      }
+      rethrow;
+    }
   }
 }
